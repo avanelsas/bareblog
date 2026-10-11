@@ -12,9 +12,52 @@
     (is (= "From the heading" (:title (post/from "a-post" {:fields {} :heading "From the heading" :blocks blocks})))))
   (testing "with neither, the name of the folder is the title"
     (is (= "a-post" (:title (post/from "a-post" {:fields {} :heading nil :blocks blocks})))))
-  (testing "a post is its fields, its title and its blocks"
-    (is (= {:date "2026-10-11" :tags ["travel"] :title "a-post" :blocks blocks}
+  (testing "a post is its fields, its title, its summary and its blocks"
+    (is (= {:date "2026-10-11" :tags ["travel"] :title "a-post" :summary "Text." :blocks blocks}
            (post/from "a-post" {:fields {:date "2026-10-11" :tags ["travel"]} :heading nil :blocks blocks})))))
+
+(deftest summary-test
+  (testing "the summary of the header block is the summary"
+    (is (= "From the header"
+           (:summary (post/from "a-post" {:fields {:summary "From the header"} :blocks blocks})))))
+  (testing "with none in the header block, the first paragraph is the summary, as plain text"
+    (is (= "We took the tram 28 up."
+           (:summary (post/from "a-post"
+                                {:fields {}
+                                 :blocks [{:kind :heading :level 2 :content ["A heading"]}
+                                          {:kind :photo :src "a.jpg" :alt "A photo"}
+                                          {:kind    :text
+                                           :content ["We took the " {:kind :strong :content ["tram 28"]}
+                                                     " up" {:kind :footnote-mark :number 1} "."]}
+                                          {:kind :text :content ["Later."]}]})))))
+  (testing "a long first paragraph is cut after a whole word, and marked"
+    (let [long-text (apply str (repeat 100 "word "))
+          summary   (:summary (post/from "a-post" {:fields {} :blocks [{:kind :text :content [long-text]}]}))]
+      (is (<= (count summary) (inc post/summary-length)))
+      (is (re-matches #"(word )+word\u2026" summary))))
+  (testing "a summary from the header block is never cut"
+    (let [long-text (apply str (repeat 100 "word "))]
+      (is (= long-text (:summary (post/from "a-post" {:fields {:summary long-text} :blocks blocks}))))))
+  (testing "a post with no paragraph has no summary"
+    (is (not (contains? (post/from "a-post" {:fields {} :blocks [{:kind :divider}]}) :summary)))))
+
+(deftest problems-test
+  (testing "a post keeps what is wrong with it"
+    (is (= ["A problem."] (:problems (post/from "a-post" {:fields {} :problems ["A problem."] :blocks blocks})))))
+  (testing "a post with nothing wrong has no problems"
+    (is (not (contains? (post/from "a-post" {:fields {} :problems [] :blocks blocks}) :problems)))))
+
+(deftest folder-test
+  (testing "a name that looks like a folder is one"
+    (is (post/folder? "a-week-in-lisbon")))
+  (testing "a name that the blog keeps for an address of its own is none"
+    (is (not (post/folder? "tags")))
+    (is (not (post/folder? "archive")))
+    (is (not (post/folder? "page")))
+    (is (not (post/folder? "js"))))
+  (testing "a name that does not look like a folder is none"
+    (is (not (post/folder? "A Week")))
+    (is (not (post/folder? ".git")))))
 
 (def with-images
   {:title  "A post"

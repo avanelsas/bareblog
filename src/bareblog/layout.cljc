@@ -5,6 +5,10 @@
 
 (def post-file "post.md")
 
+(def posts-dir "posts")
+
+(def drafts-dir "drafts")
+
 (def post-dirs
   "The directories that hold a folder for each post: the published ones, and the drafts."
-  ["posts" "drafts"])
+  [posts-dir drafts-dir])

@@ -29,5 +29,19 @@
     (is (= {:title "Lisbon: a week"} (header/fields ["title: Lisbon: a week"]))))
   (testing "a field BareBlog does not read is left out"
     (is (= {:title "Lisbon"} (header/fields ["title: Lisbon" "mood: sunny" "not a field"]))))
+  (testing "a date is written with the year first, and a time may follow it"
+    (is (= {:date "2026-10-11"} (header/fields ["date: 2026-10-11"])))
+    (is (= {:date "2026-10-11T08:30"} (header/fields ["date: 2026-10-11T08:30"])))
+    (is (= {:date "2026-10-11 08:30"} (header/fields ["date: 2026-10-11 08:30"]))))
+  (testing "a date that is written another way is left out"
+    (is (= {:title "Lisbon"} (header/fields ["title: Lisbon" "date: 11 Oct 2026"])))
+    (is (= {} (header/fields ["date: 2026-10"]))))
   (testing "a field with no value is left out"
     (is (= {} (header/fields ["title:" "summary:   "])))))
+
+(deftest problems-test
+  (testing "a header whose fields can all be read has no problems"
+    (is (= [] (header/problems ["title: Lisbon" "date: 2026-10-11" "tags: travel" "mood: sunny"]))))
+  (testing "a date that cannot be read is a problem, which says what was written and how to write it"
+    (is (= ["The date \"11 Oct 2026\" could not be read. Write a date as 2026-10-11."]
+           (header/problems ["title: Lisbon" "date: 11 Oct 2026"])))))

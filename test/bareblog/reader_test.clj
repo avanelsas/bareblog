@@ -142,8 +142,11 @@
     (is (= {:date "2026-10-11" :tags ["travel" "portugal"]}
            (:fields (reader/read-post "---\ndate: 2026-10-11\ntags: travel, portugal\n---\n\nText.")))))
   (testing "a heading of the first level that opens the text is the heading, and is not a block"
-    (is (= {:fields {} :heading "A title" :blocks [{:kind :text :content ["Text."]}]}
+    (is (= {:fields {} :problems [] :heading "A title" :blocks [{:kind :text :content ["Text."]}]}
            (reader/read-post "# A title\n\nText."))))
+  (testing "what is wrong with the header block is read too"
+    (is (= ["The date \"soon\" could not be read. Write a date as 2026-10-11."]
+           (:problems (reader/read-post "---\ndate: soon\n---\n\nText.")))))
   (testing "the heading is plain text"
     (is (= "A bold title" (:heading (reader/read-post "# A **bold** title")))))
   (testing "a text that opens with something else has no heading"

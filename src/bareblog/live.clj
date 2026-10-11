@@ -14,7 +14,7 @@
   "How often the files are looked at, in milliseconds. Only their times are read."
   100)
 
-(defonce ^{:private true :doc "The folder that the page behind each open socket shows."}
+(defonce ^{:private true :doc "The page behind each open socket."}
   listeners
   (atom {}))
 
@@ -39,18 +39,20 @@
   (http/send! socket text))
 
 (defn- tell!
-  "Sends what `read-told` gives for `folder` to each of `sockets`."
-  [read-told sockets folder]
-  (run! (partial send! (pr-str (read-told folder))) sockets))
+  "Sends each page of `by-page` what `read-told` gives for it, over each of its sockets.
+   `read-told` takes all the pages at once, so it reads what they share once."
+  [read-told by-page]
+  (let [told (read-told (keys by-page))]
+    (doseq [[page sockets] by-page]
+      (run! (partial send! (pr-str (told page))) sockets))))
 
 (defn- look!
-  "Looks at the blog at `root` once, and tells the pages that the difference from the stamp
-   `before` makes out of date. Returns the stamp it found."
+  "Looks at the blog at `root` once, and tells every open page when the stamp differs from
+   `before`. Returns the stamp it found."
   [root read-told before]
-  (let [now       (read-stamp root)
-        by-folder (watch/by-folder @listeners)]
-    (doseq [folder (watch/to-tell (watch/changes (or before now) now) (set (keys by-folder)))]
-      (tell! read-told (by-folder folder) folder))
+  (let [now (read-stamp root)]
+    (when (and before (watch/changed? before now))
+      (tell! read-told (watch/by-page @listeners)))
     now))
 
 (defn- say-once!
@@ -74,8 +76,8 @@
 
 (defn watch!
   "Looks at the blog at `root` again and again, on a thread of its own, for as long as the
-   process runs. `read-told` gives what the page of a folder is told to show, and does not
-   throw."
+   process runs. `read-told` gives what each of some pages is told to show, by page, and does
+   not throw."
   [root read-told]
   (future
     (loop [state {}]
@@ -83,12 +85,12 @@
       (recur (looked! root read-told state)))))
 
 (defn socket
-  "The socket of the page of `folder`. The page is told what to show when the socket opens,
-   and again whenever its files change. The page says nothing back."
-  [read-told request folder]
+  "The socket of the page `page`. The page is told what to show when the socket opens, and
+   again whenever a file of the blog changes. The page says nothing back."
+  [read-told request page]
   (http/as-channel request
                    {:on-open  (fn [channel]
-                                (swap! listeners assoc channel folder)
-                                (tell! read-told [channel] folder))
+                                (swap! listeners assoc channel page)
+                                (tell! read-told {page [channel]}))
                     :on-close (fn [channel _status]
                                 (swap! listeners dissoc channel))}))

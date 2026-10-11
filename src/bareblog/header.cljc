@@ -22,11 +22,18 @@
   [text]
   (into [] (comp (map str/trim) (remove str/blank?)) (str/split text #",")))
 
+(defn- date
+  "The date in `text`, when it is written with the year first, as in 2026-10-11. A time may
+   follow it. Nil for anything else."
+  [text]
+  (when (re-matches #"\d{4}-\d{2}-\d{2}([T ].*)?" text)
+    text))
+
 (def readers
   "How the text of each field that BareBlog reads from a header block is read, by the key of
-   the field."
+   the field. A reader gives nil for text it cannot read."
   {:title   identity
-   :date    identity
+   :date    date
    :tags    tags
    :summary identity})
 
@@ -36,15 +43,30 @@
   (when-some [[_ field-name text] (re-matches #"\s*([A-Za-z][\w-]*)\s*:\s*(.*?)\s*" line)]
     [(keyword (str/lower-case field-name)) text]))
 
-(defn- field
-  "The key and the value of the header line `line`, or nil when BareBlog does not read it."
+(defn- read-field
+  "What the header line `line` is: the key of its field, its text, and its value when the text
+   could be read. Nil when BareBlog does not read the line."
   [line]
   (let [[k text]  (named line)
         read-text (readers k)]
     (when (and read-text (not (str/blank? text)))
-      [k (read-text text)])))
+      {:key k :text text :value (read-text text)})))
+
+(defn- field [{:keys [key value]}]
+  (when (some? value)
+    [key value]))
 
 (defn fields
-  "The fields of the header `lines`, by key. A line BareBlog does not read is left out."
+  "The fields of the header `lines`, by key. A line that BareBlog does not read, or whose text
+   it cannot read, is left out."
   [lines]
-  (into {} (keep field) lines))
+  (into {} (comp (keep read-field) (keep field)) lines))
+
+(defn- problem [{:keys [key text value]}]
+  (when (nil? value)
+    (str "The " (name key) " \"" text "\" could not be read. Write a date as 2026-10-11.")))
+
+(defn problems
+  "What is wrong with the header `lines`, as a text for each field that could not be read."
+  [lines]
+  (into [] (comp (keep read-field) (keep problem)) lines))

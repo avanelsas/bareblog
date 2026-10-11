@@ -230,16 +230,17 @@
           (first-of-its-note blocks (mark-paths [] blocks))))
 
 (defn read-post
-  "What the post `text` holds: the fields of its header block, the text of the heading that
-   opens it, and its blocks. A heading of the first level that opens the text is not a block.
-   The footnotes are the last block."
+  "What the post `text` holds: the fields of its header block and what is wrong with it, the
+   text of the heading that opens it, and its blocks. A heading of the first level that opens
+   the text is not a block. The footnotes are the last block."
   [text]
   (let [{:keys [lines body]} (header/split text)
         doc                  (md/parse body)
         nodes                (:content doc)
         opening              (when (title-heading? (first nodes)) (first nodes))]
-    {:fields  (header/fields lines)
-     :heading (some-> opening plain)
-     :blocks  (with-first-marks
-               (into (blocks-of (if opening (rest nodes) nodes))
-                     (footnotes (:footnotes doc))))}))
+    {:fields   (header/fields lines)
+     :problems (header/problems lines)
+     :heading  (some-> opening plain)
+     :blocks   (with-first-marks
+                (into (blocks-of (if opening (rest nodes) nodes))
+                      (footnotes (:footnotes doc))))}))

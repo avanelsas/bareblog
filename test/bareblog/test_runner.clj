@@ -3,13 +3,15 @@
   (:require [clojure.test :as t]))
 
 (def namespaces
-  '[bareblog.claude-test
+  '[bareblog.address-test
+    bareblog.claude-test
     bareblog.example-test
     bareblog.header-test
     bareblog.image-test
     bareblog.post-test
     bareblog.reader-test
     bareblog.serve-test
+    bareblog.site-test
     bareblog.watch-test
     bareblog.app.blocks-test
     bareblog.app.templates-test

@@ -1,11 +1,13 @@
 (ns bareblog.serve
   "A local server for one blog: the app, and each post as data."
   (:require [babashka.fs :as fs]
+            [bareblog.address :as address]
             [bareblog.image :as image]
             [bareblog.layout :as layout]
             [bareblog.live :as live]
             [bareblog.post :as post]
             [bareblog.reader :as reader]
+            [bareblog.site :as site]
             [bareblog.wire :as wire]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
@@ -27,37 +29,101 @@
 (def ^:private file
   (str "(" post/file-pattern ")"))
 
-(def ^:private data
-  (str/escape wire/page-data {\. "\\."}))
+(defn- escaped
+  "The text `text` as the text of a pattern that matches it and nothing else."
+  [text]
+  (str/escape text {\. "\\."}))
 
-(defn- path-pattern [& pieces]
-  (re-pattern (apply str pieces)))
+(defn- home-page [[number]]
+  {:kind :home :number (if number (parse-long number) 1)})
 
-(def ^:private routes
-  "The pattern of each path, what it serves, and the names of what the pattern finds. They are
-   tried in order."
-  [[#"/(js/[\w./-]+|[\w-]+\.\w+)"     :static   [:file]]
-   [(path-pattern "/" folder)                  :redirect [:folder]]
-   [(path-pattern "/" folder "/")              :page     [:folder]]
-   [(path-pattern "/" folder "/" data)         :data     [:folder]]
-   [(path-pattern "/" folder "/" wire/changes) :changes  [:folder]]
-   [(path-pattern "/" folder "/" file)         :media    [:folder :file]]])
+(defn- tag-page
+  "The page of the tag that an address spells as `spelled`, or nil when its escapes are broken."
+  [[spelled]]
+  (when-some [tag-name (post/decoded spelled)]
+    {:kind :tag :tag tag-name}))
 
-(defn- matched
-  "What a route serves for `path`, or nil when its pattern does not match."
-  [path [pattern serve names]]
-  (when-some [[_ & found] (re-matches pattern path)]
-    (assoc (zipmap names found) :serve serve)))
+(defn- archive-page [_found]
+  {:kind :archive})
 
-(defn route
-  "What the server serves for the path `path` of a request, as a map with `:serve`. A percent
-   escape in the path is read as its character. A path that names nothing, or that holds two
-   dots in a row, serves `:nothing`."
+(defn- post-page [[folder-name]]
+  {:kind :post :folder folder-name})
+
+(def ^:private pages
+  "The pattern of the address of each kind of page, without its last slash, and what makes the
+   page of what the pattern finds. They are tried in order."
+  [[""                                      home-page]
+   [(str "/" address/pages "/([1-9]\\d*)")   home-page]
+   [(str "/" address/tags "/([^/]+)")        tag-page]
+   [(str "/" address/archive-name)           archive-page]
+   [(str "/" folder)                         post-page]])
+
+(def ^:private beside-a-page
+  "What each address beside a page serves: the page itself, its data, and its socket."
+  [["/"                                :page]
+   [(str "/" (escaped wire/page-data)) :data]
+   [(str "/" wire/changes)             :changes]])
+
+(def ^:private page-table
+  "A pattern for the address of every kind of page and of everything beside one, with what it
+   serves and what makes the page."
+  (vec (for [[page-pattern page-of] pages
+             [ending serve]         beside-a-page]
+         [(re-pattern (str page-pattern ending)) serve page-of])))
+
+(defn- found-by
+  "What the groups of `pattern` find in `path`, in a vector. Nil when the pattern does not match."
+  [pattern path]
+  (when-some [matched (re-matches pattern path)]
+    (if (string? matched) [] (subvec matched 1))))
+
+(defn- page-route
+  "What `path` serves by one row of the page table, or nil."
+  [path [pattern serve page-of]]
+  (when-some [page (some-> (found-by pattern path) page-of)]
+    {:serve serve :page page}))
+
+(defn- page-routes
+  "What `path` serves when it is the address of a page, or of something beside one."
   [path]
-  (let [plain (post/decoded path)]
-    (or (when (and plain (not (str/includes? plain "..")))
-          (some (partial matched plain) routes))
-        {:serve :nothing})))
+  (some (partial page-route path) page-table))
+
+(defn- redirect-route
+  "A page address that `path` is but for its last slash, as a redirect to it."
+  [path]
+  (when (page-routes (str path "/"))
+    {:serve :redirect :to (str path "/")}))
+
+(def ^:private static-pattern #"/(js/[\w./-]+|[\w-]+\.\w+)")
+
+(def ^:private media-pattern
+  (re-pattern (str "/" folder "/" file)))
+
+(defn- media-route
+  "The file beside a post that `path` names, or nil."
+  [path]
+  (when-some [[folder-name spelled] (found-by media-pattern path)]
+    (when-some [file-name (post/file-beside spelled)]
+      {:serve :media :folder folder-name :file file-name})))
+
+(defn- file-route
+  "What `path` serves when it is a file: of the site, of the app, or beside a post."
+  [path]
+  (or (when (= path address/site-data)
+        {:serve :site})
+      (when-some [[static] (found-by static-pattern path)]
+        {:serve :static :file static})
+      (media-route path)))
+
+;; A path is matched as it is written, and what a pattern finds is read after that. A slash
+;; that is spelled as an escape is then part of a name, and no slash of the path.
+(defn route
+  "What the server serves for the path `path` of a request, as a map with `:serve`. A path that
+   names nothing, or that holds two dots in a row, serves `:nothing`."
+  [path]
+  (or (when-not (str/includes? path "..")
+        (or (page-routes path) (redirect-route path) (file-route path)))
+      {:serve :nothing}))
 
 ;; The responses. Pure.
 
@@ -140,48 +206,96 @@
   (let [post (post/from folder (reader/read-post (slurp (fs/file dir layout/post-file))))]
     (post/sized post (into {} (keep (partial read-sized dir)) (post/sources post)))))
 
-(defn- read-page
-  "The data of the page of the post `folder` in the blog at `root`: the settings of the blog
-   and the post. Nil when there is no such post."
-  [root folder]
-  (when-some [dir (find-post-dir root folder)]
-    {:blog (read-settings root)
-     :post (read-post folder dir)}))
+(defn- list-dirs
+  "Every directory in the post directories of the blog at `root`, with its name, its place from
+   the root, and whether it is a draft."
+  [root]
+  (for [dir   layout/post-dirs
+        path  (when (fs/directory? (fs/path root dir)) (sort (fs/list-dir (fs/path root dir))))
+        :when (fs/directory? path)]
+    {:folder (fs/file-name path) :dir path :place (str dir "/" (fs/file-name path))
+     :draft? (= dir layout/drafts-dir)}))
 
-;; The preview. A page of the preview is told one of two things: its data, with the address
-;; of the socket that tells it again, or a problem to show in place of them.
+(defn- post-dir? [{:keys [folder]}]
+  (post/folder? folder))
+
+(defn- refused
+  "What is wrong with a directory whose name is no name of a post folder."
+  [{:keys [place]}]
+  (str place " is left out. A post folder has small letters, digits and dashes in its name, "
+       "and the blog keeps the names " (str/join ", " (sort address/reserved)) " for itself."))
+
+(defn- read-entry
+  "The entry of the post in a directory, and what is wrong with the post."
+  [{:keys [dir draft? place] folder-name :folder}]
+  (let [post (read-post folder-name dir)]
+    {:entry    (site/entry folder-name post draft?)
+     :problems (map #(str place ": " %) (:problems post))}))
+
+(defn- read-site
+  "What every page of the blog at `root` loads."
+  [root]
+  (let [dirs (list-dirs root)
+        read (map read-entry (filter post-dir? dirs))]
+    (site/site (read-settings root)
+               (map :entry read)
+               (concat (map refused (remove post-dir? dirs)) (mapcat :problems read)))))
+
+(defn- read-page
+  "The data of the page `page` of the blog at `root`: what the page is, and the post when it is
+   the page of one. Nil when it is the page of a post that is not there."
+  [root {:keys [kind] folder-name :folder :as page}]
+  (if (= :post kind)
+    (when-some [dir (find-post-dir root folder-name)]
+      {:page page :post (read-post folder-name dir)})
+    {:page page}))
+
+;; The preview. A page of the preview is told one of two things: the site and its own data,
+;; with the address of the socket that tells it again, or a problem to show in place of them.
 
 (defn- problem
   "What a page is told when its data could not be read. The same line goes to the terminal."
-  [folder ^Throwable cause]
-  (let [text (str "Could not read the post " folder ". " (.getMessage cause))]
+  [^Throwable cause]
+  (let [text (str "Could not read the blog. " (.getMessage cause))]
     (println text)
     {:problem text}))
 
-(defn- read-preview
-  "What the page of the post `folder` is told to show. It does not throw. Nil when there is no
-   such post."
-  [root folder]
+(defn- without-throwing
+  "What `read` gives, or a problem when it throws."
+  [read]
   (try
-    (some-> (read-page root folder) (assoc :changes wire/changes))
+    (read)
     (catch Exception cause
-      (problem folder cause))))
+      (problem cause))))
 
-(defn- gone [folder]
-  {:problem (str "There is no post " folder " any more.")})
+(defn- read-preview
+  "The data of the page `page`, with the address of its socket. It does not throw. Nil when it
+   is the page of a post that is not there."
+  [root page]
+  (without-throwing #(some-> (read-page root page) (assoc :changes wire/changes))))
+
+(defn- gone [page]
+  {:problem (str "There is no post " (:folder page) " any more.")})
 
 (defn- read-told
-  "What the open page of the post `folder` is told to show, also when its folder is gone."
-  [root folder]
-  (or (read-preview root folder) (gone folder)))
+  "What each of the open pages `pages` is told to show, by page. The site is read once. It does
+   not throw."
+  [root pages]
+  (let [site (without-throwing #(read-site root))]
+    (into {}
+          (map (fn [page] [page (site/told site (or (read-preview root page) (gone page)))]))
+          pages)))
 
-(defn- serve-data [root {:keys [folder]} _request]
-  (if-some [told (read-preview root folder)]
+(defn- serve-site [root _found _request]
+  (fresh "edn" (pr-str (without-throwing #(read-site root)))))
+
+(defn- serve-data [root {:keys [page]} _request]
+  (if-some [told (read-preview root page)]
     (fresh "edn" (pr-str told))
     not-found))
 
-(defn- serve-changes [root {:keys [folder]} request]
-  (live/socket (partial read-told root) request folder))
+(defn- serve-changes [root {:keys [page]} request]
+  (live/socket (partial read-told root) request page))
 
 (defn- serve-media [root {:keys [folder file]} _request]
   (if-some [dir (find-post-dir root folder)]
@@ -194,16 +308,19 @@
 (defn- serve-page [_root _found _request]
   (serve-file (fs/path public-dir "index.html")))
 
-(defn- serve-redirect [_root {:keys [folder]} _request]
-  (redirect (str "/" folder "/")))
+(defn- serve-redirect [_root {:keys [to]} _request]
+  (redirect to))
 
-(defn- serve-nothing [_root _found _request]
-  not-found)
+(defn- serve-nothing
+  "The page of the app, as a page that is not there. The app shows that there is nothing."
+  [_root _found _request]
+  (assoc (serve-file (fs/path public-dir "index.html")) :status 404))
 
 (def ^:private servers
   "The function that serves each thing a route can ask for, from the blog root, what the
    route found and the request."
-  {:static   serve-static
+  {:site     serve-site
+   :static   serve-static
    :page     serve-page
    :redirect serve-redirect
    :data     serve-data
@@ -215,17 +332,12 @@
   (let [found (route (:uri request))]
     ((servers (:serve found)) root found request)))
 
-(defn- list-folders
-  "The names of the post folders of the blog at `root`, in order."
-  [root]
-  (sort (for [dir    layout/post-dirs
-              folder (when (fs/directory? (fs/path root dir)) (fs/list-dir (fs/path root dir)))
-              :when  (fs/directory? folder)]
-          (fs/file-name folder))))
-
-(defn- announce! [root port]
-  (println (str "Serving the blog in " root " on http://localhost:" port))
-  (run! #(println (str "  http://localhost:" port "/" % "/")) (list-folders root)))
+(defn- announce!
+  "Says where the blog at `root` is served, and what is wrong with it."
+  [root port]
+  (println (str "Serving the blog in " root " on http://localhost:" port "/"))
+  (let [{:keys [problem problems]} (without-throwing #(read-site root))]
+    (run! println (if problem [] problems))))
 
 (defn- blog? [root]
   (and (some? root) (fs/regular-file? (fs/path root layout/settings-file))))
