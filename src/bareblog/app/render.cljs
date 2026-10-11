@@ -19,12 +19,19 @@
   [^js root {:keys [key] :as template}]
   (get (places/sync! {:page {:parent root}} {:page [key]} (partial make-page! template)) key))
 
+(defn- set-title!
+  "Makes `title` the title of `document`, where it differs."
+  [^js document title]
+  (when (not= title (.-title document))
+    (set! (.-title document) title)))
+
 (defn render!
-  "Brings `root` to the page view `view`."
-  [^js root {:keys [item tags order by-key] :as view}]
+  "Brings `document` to the page view `view`."
+  [^js document {:keys [title item tags order by-key] :as view}]
   (let [template   (templates/named (:template view))
-        node       (page-node! root template)
+        node       (page-node! (.-body document) template)
         page-parts (parts/read-parts node)]
+    (set-title! document title)
     (parts/write-item! node (:page template) item)
     (places/sync! {:tags {:parent (page-parts (:tags template))}}
                   {:tags tags}

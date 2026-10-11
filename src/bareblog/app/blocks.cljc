@@ -9,11 +9,16 @@
 (defn- span [tag {:keys [content]}]
   (into [tag] (children content)))
 
-(defn- link [{:keys [href title content]}]
-  (into [:a (cond-> {:href href} title (assoc :title title))] (children content)))
+(defn- known
+  "The attributes of `attrs` that have a value."
+  [attrs]
+  (into {} (filter (comp some? val)) attrs))
 
-(defn- image [{:keys [src alt]}]
-  [:img {:src src :alt alt}])
+(defn- link [{:keys [href title content]}]
+  (into [:a (known {:href href :title title})] (children content)))
+
+(defn- image [{:keys [src alt width height]}]
+  [:img (known {:src src :alt alt :width width :height height})])
 
 (def inlines
   "How each kind of thing inside a block becomes a fixed template."
@@ -39,8 +44,14 @@
 (defn- heading [{:keys [level content]}]
   (into [(keyword (str "h" level))] (children content)))
 
-(defn- photo [{:keys [src alt]}]
-  [:figure [:x-image {:src src :alt alt}]])
+(defn- ratio
+  "The width and the height as `x-image` takes them, or nil when one is not known."
+  [{:keys [width height]}]
+  (when (and width height)
+    (str width ":" height)))
+
+(defn- photo [{:keys [src alt] :as block}]
+  [:figure [:x-image (known {:src src :alt alt :ratio (ratio block)})]])
 
 (defn- unknown [{:keys [text]}]
   [:p text])

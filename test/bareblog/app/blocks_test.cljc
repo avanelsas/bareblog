@@ -39,6 +39,12 @@
   (testing "a photo block is an x-image in a figure"
     (is (= [:figure [:x-image {:src "harbour.svg" :alt "The harbour at dawn"}]]
            (blocks/template (:photo examples)))))
+  (testing "a photo with a size holds its place with a ratio"
+    (is (= [:figure [:x-image {:src "harbour.svg" :alt "The harbour at dawn" :ratio "800:450"}]]
+           (blocks/template (assoc (:photo examples) :width 800 :height 450)))))
+  (testing "an image with a size has its width and height"
+    (is (= [:p [:img {:src "a.png" :alt "a map" :width 64 :height 32}]]
+           (blocks/template {:kind :text :content [{:kind :image :src "a.png" :alt "a map" :width 64 :height 32}]}))))
   (testing "an unknown block is a paragraph with its plain text"
     (is (= [:p "A quote."] (blocks/template (:unknown examples))))))
 

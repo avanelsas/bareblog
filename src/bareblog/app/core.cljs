@@ -17,6 +17,11 @@
    "x-navbar"    x-navbar/init
    "x-theme"     x-theme/init})
 
+(def ^:private loading
+  "The attribute that `index.html` gives the document until the page shows its data. BareDOM's
+   prerender script waits for it to go."
+  "data-loading")
+
 (defn- register! [tag]
   (if-some [init (registrations tag)]
     (init)
@@ -34,8 +39,8 @@
   (let [{:keys [blog post]} (reader/read-string text)
         page                (view/post-page blog post)]
     (register-components! page)
-    (set! (.-title js/document) (:title page))
-    (render/render! (.-body js/document) page)))
+    (render/render! js/document page)
+    (.removeAttribute (.-documentElement js/document) loading)))
 
 (defn- response-text [^js response]
   (if (.-ok response)

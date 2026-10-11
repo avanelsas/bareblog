@@ -3,7 +3,9 @@
   (:require [clojure.test :as t]))
 
 (def namespaces
-  '[bareblog.header-test
+  '[bareblog.claude-test
+    bareblog.header-test
+    bareblog.image-test
     bareblog.post-test
     bareblog.reader-test
     bareblog.serve-test

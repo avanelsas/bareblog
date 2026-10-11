@@ -1,10 +1,12 @@
 (ns bareblog.serve
   "A local server for one blog: the app, and each post as data."
   (:require [babashka.fs :as fs]
+            [bareblog.image :as image]
             [bareblog.post :as post]
             [bareblog.reader :as reader]
             [bareblog.wire :as wire]
             [clojure.edn :as edn]
+            [clojure.java.io :as io]
             [clojure.string :as str]
             [org.httpkit.server :as http]))
 
@@ -23,7 +25,8 @@
 (def ^:private folder
   (str "(" post/folder-pattern ")"))
 
-(def ^:private file "(\\w[\\w.-]*)")
+(def ^:private file
+  (str "(" post/file-pattern ")"))
 
 (def ^:private data
   (str/escape wire/page-data {\. "\\."}))
@@ -47,12 +50,14 @@
     (assoc (zipmap names found) :serve serve)))
 
 (defn route
-  "What the server serves for the path `path` of a request, as a map with `:serve`. A path that
-   names nothing, or that holds two dots in a row, serves `:nothing`."
+  "What the server serves for the path `path` of a request, as a map with `:serve`. A percent
+   escape in the path is read as its character. A path that names nothing, or that holds two
+   dots in a row, serves `:nothing`."
   [path]
-  (or (when-not (str/includes? path "..")
-        (some (partial matched path) routes))
-      {:serve :nothing}))
+  (let [plain (post/decoded path)]
+    (or (when (and plain (not (str/includes? plain "..")))
+          (some (partial matched plain) routes))
+        {:serve :nothing})))
 
 ;; The responses. Pure.
 
@@ -101,13 +106,42 @@
 (defn- read-settings [root]
   (edn/read-string (slurp (fs/file root settings-file))))
 
+(def ^:private head 262144)
+
+(defn- read-head
+  "The first bytes of the file at `path`, at most `head` of them."
+  [path]
+  (with-open [in (io/input-stream (fs/file path))]
+    (.readNBytes in head)))
+
+(defn- read-size
+  "The size of the image at `path`, or nil when it has none. The start of the file is read,
+   and all of it when the start does not hold the size."
+  [path]
+  (when (fs/regular-file? path)
+    (or (image/size (read-head path))
+        (when (< head (fs/size path))
+          (image/size (fs/read-all-bytes path))))))
+
+(defn- read-sized
+  "The address `source` and the size of the image it names in `dir`, or nil when it has none."
+  [dir source]
+  (when-some [size (read-size (fs/path dir (post/file-beside source)))]
+    [source size]))
+
+(defn- read-post
+  "The post in the directory `dir`, with the size of each image beside it."
+  [folder dir]
+  (let [post (post/from folder (reader/read-post (slurp (fs/file dir post-file))))]
+    (post/sized post (into {} (keep (partial read-sized dir)) (post/sources post)))))
+
 (defn- read-page
   "The data of the page of the post `folder` in the blog at `root`: the settings of the blog
    and the post. Nil when there is no such post."
   [root folder]
   (when-some [dir (find-post-dir root folder)]
     {:blog (read-settings root)
-     :post (post/from folder (reader/read-post (slurp (fs/file dir post-file))))}))
+     :post (read-post folder dir)}))
 
 (defn- serve-data [root {:keys [folder]}]
   (if-some [page (read-page root folder)]
