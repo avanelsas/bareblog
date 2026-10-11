@@ -4,6 +4,8 @@
 
 (def between " · ")
 
+(def default-language "en")
+
 (defn- with-key
   "Adds `block` under a key made from its content. A block with the same content as an earlier
    one gets a count after its key."
@@ -21,11 +23,12 @@
   (select-keys (reduce with-key {:order [] :by-key {} :seen {}} blocks) [:order :by-key]))
 
 (defn post-page
-  "What the page of `post` shows in the blog `blog`: the name of the blog template, the title
-   of the document, the item of the page, the tags, the keys of the blocks in order, and each
-   block by key."
+  "What the page of `post` shows in the blog `blog`: the name of the blog template, the
+   language and the title of the document, the item of the page, the tags, the keys of the
+   blocks in order, and each block by key."
   [blog post]
   (merge {:template (:template blog templates/default)
+          :language (:language blog default-language)
           :title    (str (:title post) between (:title blog))
           :item     {:preset     (first (:presets blog))
                      :blog-title (:title blog)

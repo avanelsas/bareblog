@@ -44,12 +44,20 @@
       (some? text) (parts/set-text! (or shown (make-notice! document)) text)
       (some? shown) (.remove shown))))
 
+(defn- set-language!
+  "Makes `language` the language of `document`, where it differs."
+  [^js document language]
+  (let [^js root (.-documentElement document)]
+    (when (not= language (.-lang root))
+      (set! (.-lang root) language))))
+
 (defn render!
   "Brings `document` to the page view `view`."
-  [^js document {:keys [title item tags order by-key] :as view}]
+  [^js document {:keys [language title item tags order by-key] :as view}]
   (let [template   (templates/named (:template view))
         node       (page-node! (.-body document) template)
         page-parts (parts/read-parts node)]
+    (set-language! document language)
     (set-title! document title)
     (parts/write-item! node (:page template) item)
     (places/sync! {:tags {:parent (page-parts (:tags template))}}

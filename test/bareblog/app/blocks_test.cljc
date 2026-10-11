@@ -13,23 +13,46 @@
            (template/fixed? x)
            (every? all-fixed? (last (template/pieces x))))))
 
+(def text
+  {:kind    :text
+   :content ["We took the " {:kind :strong :content ["tram 28"]} " to "
+             {:kind :link :href "https://example.com" :title "A hill" :content ["Alfama"]}
+             ", " {:kind :emphasis :content ["slowly"]} ", with " {:kind :code :content ["bb"]}
+             " and " {:kind :image :src "a.png" :alt "a map"} ". "
+             {:kind :strikethrough :content ["Not this."]} {:kind :break}
+             "See the note" {:kind :footnote-mark :number 1 :first? true} " twice"
+             {:kind :footnote-mark :number 1} ". " {:kind :unknown :type :formula :text "x + y"}]})
+
 (def examples
   "One block of each kind."
-  {:text    {:kind    :text
-             :content ["We took the " {:kind :strong :content ["tram 28"]} " to "
-                       {:kind :link :href "https://example.com" :title "A hill" :content ["Alfama"]}
-                       ", " {:kind :emphasis :content ["slowly"]} ", with " {:kind :code :content ["bb"]}
-                       " and " {:kind :image :src "a.png" :alt "a map"} "."]}
-   :heading {:kind :heading :level 2 :content ["The " {:kind :emphasis :content ["old"]} " town"]}
-   :photo   {:kind :photo :src "harbour.svg" :alt "The harbour at dawn"}
-   :unknown {:kind :unknown :type :blockquote :text "A quote."}})
+  {:text      text
+   :plain     {:kind :plain :content ["plain " {:kind :emphasis :content ["text"]}]}
+   :heading   {:kind :heading :level 2 :content ["The " {:kind :emphasis :content ["old"]} " town"]}
+   :photo     {:kind :photo :src "harbour.svg" :alt "The harbour at dawn"}
+   :quote     {:kind :quote :blocks [{:kind :text :content ["One."]} {:kind :text :content ["Two."]}]}
+   :list      {:kind  :list
+               :items [{:blocks [{:kind :plain :content ["one"]}
+                                 {:kind :list :items [{:blocks [{:kind :plain :content ["below"]}]}]}]}
+                       {:blocks [{:kind :text :content ["two"]}]}]}
+   :code      {:kind :code :language "js" :text "const a = 1;\n"}
+   :divider   {:kind :divider}
+   :table     {:kind :table
+               :head [{:content ["Name"] :align :left} {:content ["Size"] :align :right}]
+               :rows [[{:content ["a"] :align :left} {:content ["1"] :align :right}]
+                      [{:content ["b"]} {:content ["2"] :align :center}]]}
+   :footnotes {:kind  :footnotes
+               :notes [{:number 1 :blocks [{:kind :text :content ["The note."]}]}]}
+   :unknown   {:kind :unknown :type :todo-list :text "A list of things to do."}})
 
 (deftest template-test
   (testing "a text block is a paragraph, and each thing it holds is an element of its kind"
     (is (= [:p "We took the " [:strong "tram 28"] " to "
             [:a {:href "https://example.com" :title "A hill"} "Alfama"]
             ", " [:em "slowly"] ", with " [:code "bb"]
-            " and " [:img {:src "a.png" :alt "a map"}] "."]
+            " and " [:img {:src "a.png" :alt "a map"}] ". "
+            [:s "Not this."] [:br]
+            "See the note" [:sup [:a {:id "note-mark-1" :href "#note-1"} "1"]] " twice"
+            [:sup [:a {:href "#note-1"} "1"]] ". " "x + y"]
            (blocks/template (:text examples)))))
   (testing "a link with no title has no title attribute"
     (is (= [:p [:a {:href "/x"} "x"]]
@@ -46,7 +69,52 @@
     (is (= [:p [:img {:src "a.png" :alt "a map" :width 64 :height 32}]]
            (blocks/template {:kind :text :content [{:kind :image :src "a.png" :alt "a map" :width 64 :height 32}]}))))
   (testing "an unknown block is a paragraph with its plain text"
-    (is (= [:p "A quote."] (blocks/template (:unknown examples))))))
+    (is (= [:p "A list of things to do."] (blocks/template (:unknown examples))))))
+
+(deftest quote-test
+  (is (= [:blockquote [:p "One."] [:p "Two."]] (blocks/template (:quote examples)))))
+
+(deftest list-test
+  (testing "an item holds the template of each of its blocks, and plain text is a span"
+    (is (= [:ul [:li [:span "one"] [:ul [:li [:span "below"]]]] [:li [:p "two"]]]
+           (blocks/template (:list examples)))))
+  (testing "a numbered list that starts at one says nothing of its start"
+    (is (= [:ol [:li [:span "one"]]]
+           (blocks/template {:kind :list :numbered? true :start 1
+                             :items [{:blocks [{:kind :plain :content ["one"]}]}]}))))
+  (testing "a numbered list that starts elsewhere says where"
+    (is (= [:ol {:start 3} [:li [:span "three"]]]
+           (blocks/template {:kind :list :numbered? true :start 3
+                             :items [{:blocks [{:kind :plain :content ["three"]}]}]})))))
+
+(deftest code-test
+  (testing "code is an x-code with its language and a button to copy it"
+    (is (= [:x-code {:language "js" :show-copy true} "const a = 1;\n"]
+           (blocks/template (:code examples)))))
+  (testing "code with no language names none"
+    (is (= [:x-code {:show-copy true} "plain"] (blocks/template {:kind :code :text "plain"})))))
+
+(deftest divider-test
+  (is (= [:hr] (blocks/template (:divider examples)))))
+
+(deftest table-test
+  (testing "a table is an x-table with a column for each cell of its head, a row of headers,
+            and a row for each of its rows"
+    (is (= [:x-table {:columns "repeat(2, auto)" :bordered true :striped true}
+            [:x-table-row
+             [:x-table-cell {:type "header" :scope "col" :align "start"} "Name"]
+             [:x-table-cell {:type "header" :scope "col" :align "end"} "Size"]]
+            [:x-table-row [:x-table-cell {:align "start"} "a"] [:x-table-cell {:align "end"} "1"]]
+            [:x-table-row [:x-table-cell "b"] [:x-table-cell {:align "center"} "2"]]]
+           (blocks/template (:table examples))))))
+
+(deftest footnotes-test
+  (testing "the notes are a numbered list, and each note has its blocks and a way back to its mark"
+    (is (= [:section {:class "footnotes"}
+            [:ol [:li {:id "note-1"}
+                  [:p "The note."]
+                  [:a {:class "note-back" :href "#note-mark-1" :aria-label "Back to the text"} "\u21a9"]]]]
+           (blocks/template (:footnotes examples))))))
 
 (deftest every-kind-test
   (testing "there is an example of every kind of block"
@@ -62,6 +130,6 @@
     (is (= {:kind :video}
            (ex-data (try (blocks/template {:kind :video}) (catch #?(:clj Exception :cljs :default) e e))))))
   (testing "content of a kind with no template is refused, with its kind"
-    (is (= {:kind :footnote}
-           (ex-data (try (blocks/template {:kind :text :content [{:kind :footnote}]})
+    (is (= {:kind :marquee}
+           (ex-data (try (blocks/template {:kind :text :content [{:kind :marquee}]})
                          (catch #?(:clj Exception :cljs :default) e e)))))))

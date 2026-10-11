@@ -1,5 +1,5 @@
 (ns bareblog.app.templates-test
-  (:require [bareblog.app.blocks-test :refer [all-fixed?]]
+  (:require [bareblog.app.blocks-test :refer [all-fixed? examples]]
             [bareblog.app.templates :as templates]
             [baremirror.alpha.template :as template]
             [clojure.test :refer [deftest is testing]]))
@@ -46,6 +46,13 @@
       (is (= [{:text "travel"}] (vals (template/writes tag "travel")))))))
 
 (deftest custom-elements-test
-  (testing "the custom elements of Journal are the ones in its page and in its blocks"
-    (is (= ["x-container" "x-image" "x-navbar" "x-theme"]
-           (vec (templates/custom-elements (templates/named :journal)))))))
+  (let [journal (templates/named :journal)]
+    (testing "a page with no blocks has the custom elements of its blog template"
+      (is (= ["x-container" "x-navbar" "x-theme"] (vec (templates/custom-elements journal [])))))
+    (testing "a page has the custom elements of its blocks too, at any depth"
+      (is (= ["x-code" "x-container" "x-image" "x-navbar" "x-table" "x-table-cell" "x-table-row" "x-theme"]
+             (vec (templates/custom-elements
+                   journal
+                   [(:photo examples)
+                    (:table examples)
+                    {:kind :quote :blocks [(:code examples)]}])))))))

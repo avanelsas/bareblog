@@ -119,3 +119,67 @@ body {
   max-width: 100%;
   height: auto;
 }
+
+.post-blocks blockquote {
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: var(--x-space-xl, 1.5rem);
+  border-left: 3px solid var(--x-color-border, #d0d7de);
+  color: var(--x-color-text-muted, #666);
+}
+
+.post-blocks blockquote > :last-child,
+.post-blocks li > :last-child {
+  margin-bottom: 0;
+}
+
+.post-blocks ul,
+.post-blocks ol {
+  padding-left: var(--x-space-xl, 1.5rem);
+}
+
+.post-blocks li {
+  margin-bottom: var(--x-space-xs, 0.25rem);
+}
+
+.post-blocks li > p {
+  margin: 0 0 var(--x-space-sm, 0.5rem);
+}
+
+.post-blocks li > ul,
+.post-blocks li > ol {
+  margin: var(--x-space-xs, 0.25rem) 0 0;
+}
+
+.post-blocks hr {
+  width: 30%;
+  margin: calc(var(--x-space-xl, 1.5rem) * 2) auto;
+  border: 0;
+  border-top: var(--x-border-width, 1px) solid var(--x-color-border, #d0d7de);
+}
+
+.post-blocks x-code,
+.post-blocks x-table {
+  font-size: var(--x-font-size-sm, 0.875rem);
+}
+
+.post-blocks sup a {
+  padding: 0 0.15em;
+  text-decoration: none;
+}
+
+.footnotes {
+  padding-top: var(--x-space-lg, 1rem);
+  border-top: var(--x-border-width, 1px) solid var(--x-color-border, #d0d7de);
+  color: var(--x-color-text-muted, #666);
+  font-size: var(--x-font-size-sm, 0.875rem);
+}
+
+.footnotes li > p {
+  display: inline;
+}
+
+.note-back {
+  margin-left: 0.35em;
+  text-decoration: none;
+}

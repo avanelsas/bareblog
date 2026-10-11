@@ -1,7 +1,6 @@
 (ns bareblog.app.templates
   "The blog templates, by the name a blog gives in its settings."
-  (:require [bareblog.app.blocks :as blocks]
-            [bareblog.app.journal :as journal]
+  (:require [bareblog.app.journal :as journal]
             [clojure.string :as str]))
 
 (def default :journal)
@@ -23,16 +22,13 @@
 (defn- custom? [tag-name]
   (str/includes? tag-name "-"))
 
-(defn- block-of-kind [kind]
-  {:kind kind})
-
 (defn- fixed-templates
-  "Every fixed template that the blog template `template` can put in a page."
-  [{:keys [page tag block]}]
-  (concat [(:fixed page) (:fixed tag)]
-          (map (comp block block-of-kind) (keys blocks/templates))))
+  "Every fixed template that the blog template `template` puts in a page for `blocks`."
+  [{:keys [page tag block]} blocks]
+  (concat [(:fixed page) (:fixed tag)] (map block blocks)))
 
 (defn custom-elements
-  "The tags of the custom elements that the blog template `template` can put in a page."
-  [template]
-  (into (sorted-set) (comp (mapcat tag-names) (filter custom?)) (fixed-templates template)))
+  "The tags of the custom elements that the blog template `template` puts in a page for
+   `blocks`."
+  [template blocks]
+  (into (sorted-set) (comp (mapcat tag-names) (filter custom?)) (fixed-templates template blocks)))

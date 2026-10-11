@@ -4,6 +4,7 @@
 
 (def namespaces
   '[bareblog.claude-test
+    bareblog.example-test
     bareblog.header-test
     bareblog.image-test
     bareblog.post-test

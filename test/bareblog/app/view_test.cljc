@@ -17,6 +17,9 @@
   (let [page (view/post-page blog post)]
     (testing "the page names the blog template of the blog"
       (is (= :journal (:template page))))
+    (testing "the language of the document is English when the blog names none"
+      (is (= "en" (:language page)))
+      (is (= "nl" (:language (view/post-page (assoc blog :language "nl") post)))))
     (testing "the title of the document names the post and the blog"
       (is (= "A week in Lisbon · Bare notes" (:title page))))
     (testing "the item of the page is data, with nothing about where it goes"

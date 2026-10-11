@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-label="The harbour at dawn">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e3a5f"/>
+      <stop offset="0.6" stop-color="#f29e6d"/>
+      <stop offset="1" stop-color="#ffd9a0"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e8a877"/>
+      <stop offset="1" stop-color="#1f4e6b"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="290" fill="url(#sky)"/>
+  <circle cx="560" cy="262" r="46" fill="#ffe9b8"/>
+  <path d="M0 290 L0 232 L90 196 L170 226 L260 178 L360 220 L450 190 L540 236 L640 204 L720 230 L800 210 L800 290 Z" fill="#3b4a66"/>
+  <rect y="290" width="800" height="160" fill="url(#sea)"/>
+  <path d="M500 300 h120" stroke="#ffe9b8" stroke-width="3" opacity="0.7"/>
+  <path d="M520 318 h80" stroke="#ffe9b8" stroke-width="3" opacity="0.5"/>
+  <path d="M536 336 h48" stroke="#ffe9b8" stroke-width="3" opacity="0.35"/>
+  <path d="M190 352 h150 l-22 30 h-106 Z" fill="#22303f"/>
+  <path d="M262 352 V262 l58 76 h-58" fill="#f4efe6"/>
+  <path d="M256 352 V278 l-44 60 h44" fill="#d9d2c4"/>
+</svg>

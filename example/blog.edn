@@ -1,3 +1,4 @@
 {:title    "Bare notes"
+ :language "en"
  :template :journal
  :presets  ["ocean" "forest" "warm-mineral"]}

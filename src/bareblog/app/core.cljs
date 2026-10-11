@@ -4,18 +4,26 @@
             [bareblog.app.templates :as templates]
             [bareblog.app.view :as view]
             [bareblog.wire :as wire]
+            [baredom.exports.x-code :as x-code]
             [baredom.exports.x-container :as x-container]
             [baredom.exports.x-image :as x-image]
             [baredom.exports.x-navbar :as x-navbar]
+            [baredom.exports.x-table :as x-table]
+            [baredom.exports.x-table-cell :as x-table-cell]
+            [baredom.exports.x-table-row :as x-table-row]
             [baredom.exports.x-theme :as x-theme]
             [cljs.reader :as reader]))
 
 (def ^:private registrations
   "The function that registers each custom element a blog template can name."
-  {"x-container" x-container/init
-   "x-image"     x-image/init
-   "x-navbar"    x-navbar/init
-   "x-theme"     x-theme/init})
+  {"x-code"       x-code/init
+   "x-container"  x-container/init
+   "x-image"      x-image/init
+   "x-navbar"     x-navbar/init
+   "x-table"      x-table/init
+   "x-table-cell" x-table-cell/init
+   "x-table-row"  x-table-row/init
+   "x-theme"      x-theme/init})
 
 (def ^:private loading
   "The attribute that `index.html` gives the document until the page shows its data. BareDOM's
@@ -29,9 +37,10 @@
                     {:tag tag}))))
 
 (defn- register-components!
-  "Registers the custom elements that the blog template of `page` can put in a page."
+  "Registers the custom elements that the page view `page` puts in the page."
   [page]
-  (run! register! (templates/custom-elements (templates/named (:template page)))))
+  (run! register! (templates/custom-elements (templates/named (:template page))
+                                             (vals (:by-key page)))))
 
 (defn- show-page!
   "Shows the page of `post` in the blog `blog`."
