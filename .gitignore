@@ -1,0 +1,46 @@
+# Build output
+dist/
+out/
+target/
+public/js/
+
+# Shadow-cljs cache
+.shadow-cljs/
+
+# clj-kondo cache
+.clj-kondo/.cache/
+
+# Node
+node_modules/
+*.tgz
+
+# Clojure
+.cpcache/
+.nrepl-port
+.rebel_readline_history
+pom.xml
+
+# Editor
+.idea/
+.vscode/
+*.iml
+.calva/
+.lsp/
+.portal/
+*~
+\#*\#
+.\#*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Claude
+.claude/
+
+# Design notes, kept local
+docs/
