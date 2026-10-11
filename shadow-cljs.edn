@@ -1,0 +1,7 @@
+;; The blog app. `bb serve` serves what this build writes.
+;; The BareDOM version is named here and again in bb.edn. Keep the two in step.
+{:source-paths ["src"]
+ :dependencies [[com.github.avanelsas/baredom "4.3.0"]]
+ :builds       {:app {:target     :esm
+                      :output-dir "resources/public/js"
+                      :modules    {:app {:init-fn bareblog.app.core/init}}}}}

@@ -1,0 +1,3 @@
+{:title    "Bare notes"
+ :template :journal
+ :presets  ["ocean" "forest" "warm-mineral"]}

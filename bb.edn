@@ -1,0 +1,11 @@
+{:paths ["src" "test"]
+ ;; The same release that shadow-cljs.edn names. Here it gives the tests BareMirror's pure
+ ;; template functions.
+ :deps  {com.github.avanelsas/baredom {:mvn/version "4.3.0"}}
+ :tasks
+ {test  {:doc      "Run the tests of the pure code."
+         :requires ([bareblog.test-runner])
+         :task     (bareblog.test-runner/run)}
+  serve {:doc      "Serve a blog and the app: bb serve example [port]."
+         :requires ([bareblog.serve])
+         :task     (apply bareblog.serve/-main *command-line-args*)}}}

@@ -1,0 +1,22 @@
+{
+  "name": "bareblog",
+  "version": "0.0.0",
+  "description": "A blog publishing tool built on BareDOM components and the BareMirror runtime.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "author": "Alexander van Elsas",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/avanelsas/bareblog.git"
+  },
+  "scripts": {
+    "watch": "npx shadow-cljs watch app",
+    "build": "npx shadow-cljs release app",
+    "test": "bb test",
+    "serve": "bb serve example"
+  },
+  "devDependencies": {
+    "shadow-cljs": "^3.4.11"
+  }
+}

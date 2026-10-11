@@ -9,7 +9,16 @@ pages.
 
 ## State
 
-Designed, not built. There is no code yet. This page describes what BareBlog will do.
+The first of ten steps is built: one post, read from its Markdown, shows on a page. There is no
+`bareblog` command yet, and nothing is published. This page describes what BareBlog will do.
+
+To see the example blog:
+
+```
+npm install
+npx shadow-cljs watch app
+bb serve example
+```
 
 ## What it will do
 
