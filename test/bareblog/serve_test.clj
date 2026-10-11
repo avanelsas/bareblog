@@ -10,6 +10,8 @@
     (is (= {:serve :redirect :folder "a-week-in-lisbon"} (serve/route "/a-week-in-lisbon"))))
   (testing "the data of a page is beside the page"
     (is (= {:serve :data :folder "a-week-in-lisbon"} (serve/route "/a-week-in-lisbon/page.edn"))))
+  (testing "the socket of a page is beside the page"
+    (is (= {:serve :changes :folder "a-week-in-lisbon"} (serve/route "/a-week-in-lisbon/changes"))))
   (testing "any other file beside a page is the media of its post"
     (is (= {:serve :media :folder "a-week-in-lisbon" :file "harbour.svg"}
            (serve/route "/a-week-in-lisbon/harbour.svg"))))

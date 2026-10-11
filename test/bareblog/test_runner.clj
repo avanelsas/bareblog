@@ -9,6 +9,7 @@
     bareblog.post-test
     bareblog.reader-test
     bareblog.serve-test
+    bareblog.watch-test
     bareblog.app.blocks-test
     bareblog.app.templates-test
     bareblog.app.view-test])

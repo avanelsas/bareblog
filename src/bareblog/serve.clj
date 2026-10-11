@@ -2,6 +2,8 @@
   "A local server for one blog: the app, and each post as data."
   (:require [babashka.fs :as fs]
             [bareblog.image :as image]
+            [bareblog.layout :as layout]
+            [bareblog.live :as live]
             [bareblog.post :as post]
             [bareblog.reader :as reader]
             [bareblog.wire :as wire]
@@ -16,9 +18,6 @@
   "Where the app is, from the directory the server is started in."
   (fs/path "resources" "public"))
 
-(def post-file "post.md")
-(def settings-file "blog.edn")
-(def post-dirs ["posts" "drafts"])
 
 ;; What a path asks for. Pure.
 
@@ -38,10 +37,11 @@
   "The pattern of each path, what it serves, and the names of what the pattern finds. They are
    tried in order."
   [[#"/(js/[\w./-]+|[\w-]+\.\w+)"     :static   [:file]]
-   [(path-pattern "/" folder)          :redirect [:folder]]
-   [(path-pattern "/" folder "/")      :page     [:folder]]
-   [(path-pattern "/" folder "/" data) :data     [:folder]]
-   [(path-pattern "/" folder "/" file) :media    [:folder :file]]])
+   [(path-pattern "/" folder)                  :redirect [:folder]]
+   [(path-pattern "/" folder "/")              :page     [:folder]]
+   [(path-pattern "/" folder "/" data)         :data     [:folder]]
+   [(path-pattern "/" folder "/" wire/changes) :changes  [:folder]]
+   [(path-pattern "/" folder "/" file)         :media    [:folder :file]]])
 
 (defn- matched
   "What a route serves for `path`, or nil when its pattern does not match."
@@ -101,10 +101,15 @@
 (defn- find-post-dir
   "The directory of the post `folder` in the blog at `root`, or nil when there is none."
   [root folder]
-  (first (filter fs/directory? (map #(fs/path root % folder) post-dirs))))
+  (first (filter fs/directory? (map #(fs/path root % folder) layout/post-dirs))))
 
-(defn- read-settings [root]
-  (edn/read-string (slurp (fs/file root settings-file))))
+(defn- read-settings
+  "The settings of the blog at `root`. Throws with the name of the file when it cannot be read."
+  [root]
+  (try
+    (edn/read-string (slurp (fs/file root layout/settings-file)))
+    (catch Exception problem
+      (throw (ex-info (str layout/settings-file ": " (.getMessage problem)) {} problem)))))
 
 (def ^:private head 262144)
 
@@ -132,7 +137,7 @@
 (defn- read-post
   "The post in the directory `dir`, with the size of each image beside it."
   [folder dir]
-  (let [post (post/from folder (reader/read-post (slurp (fs/file dir post-file))))]
+  (let [post (post/from folder (reader/read-post (slurp (fs/file dir layout/post-file))))]
     (post/sized post (into {} (keep (partial read-sized dir)) (post/sources post)))))
 
 (defn- read-page
@@ -143,46 +148,77 @@
     {:blog (read-settings root)
      :post (read-post folder dir)}))
 
-(defn- serve-data [root {:keys [folder]}]
-  (if-some [page (read-page root folder)]
-    (fresh "edn" (pr-str page))
+;; The preview. A page of the preview is told one of two things: its data, with the address
+;; of the socket that tells it again, or a problem to show in place of them.
+
+(defn- problem
+  "What a page is told when its data could not be read. The same line goes to the terminal."
+  [folder ^Throwable cause]
+  (let [text (str "Could not read the post " folder ". " (.getMessage cause))]
+    (println text)
+    {:problem text}))
+
+(defn- read-preview
+  "What the page of the post `folder` is told to show. It does not throw. Nil when there is no
+   such post."
+  [root folder]
+  (try
+    (some-> (read-page root folder) (assoc :changes wire/changes))
+    (catch Exception cause
+      (problem folder cause))))
+
+(defn- gone [folder]
+  {:problem (str "There is no post " folder " any more.")})
+
+(defn- read-told
+  "What the open page of the post `folder` is told to show, also when its folder is gone."
+  [root folder]
+  (or (read-preview root folder) (gone folder)))
+
+(defn- serve-data [root {:keys [folder]} _request]
+  (if-some [told (read-preview root folder)]
+    (fresh "edn" (pr-str told))
     not-found))
 
-(defn- serve-media [root {:keys [folder file]}]
+(defn- serve-changes [root {:keys [folder]} request]
+  (live/socket (partial read-told root) request folder))
+
+(defn- serve-media [root {:keys [folder file]} _request]
   (if-some [dir (find-post-dir root folder)]
     (serve-file (fs/path dir file))
     not-found))
 
-(defn- serve-static [_root {:keys [file]}]
+(defn- serve-static [_root {:keys [file]} _request]
   (serve-file (fs/path public-dir file)))
 
-(defn- serve-page [_root _found]
+(defn- serve-page [_root _found _request]
   (serve-file (fs/path public-dir "index.html")))
 
-(defn- serve-redirect [_root {:keys [folder]}]
+(defn- serve-redirect [_root {:keys [folder]} _request]
   (redirect (str "/" folder "/")))
 
-(defn- serve-nothing [_root _found]
+(defn- serve-nothing [_root _found _request]
   not-found)
 
 (def ^:private servers
-  "The function that serves each thing a route can ask for, from the blog root and what the
-   route found."
+  "The function that serves each thing a route can ask for, from the blog root, what the
+   route found and the request."
   {:static   serve-static
    :page     serve-page
    :redirect serve-redirect
    :data     serve-data
+   :changes  serve-changes
    :media    serve-media
    :nothing  serve-nothing})
 
 (defn- handler [root request]
   (let [found (route (:uri request))]
-    ((servers (:serve found)) root found)))
+    ((servers (:serve found)) root found request)))
 
 (defn- list-folders
   "The names of the post folders of the blog at `root`, in order."
   [root]
-  (sort (for [dir    post-dirs
+  (sort (for [dir    layout/post-dirs
               folder (when (fs/directory? (fs/path root dir)) (fs/list-dir (fs/path root dir)))
               :when  (fs/directory? folder)]
           (fs/file-name folder))))
@@ -192,11 +228,11 @@
   (run! #(println (str "  http://localhost:" port "/" % "/")) (list-folders root)))
 
 (defn- blog? [root]
-  (and (some? root) (fs/regular-file? (fs/path root settings-file))))
+  (and (some? root) (fs/regular-file? (fs/path root layout/settings-file))))
 
 (defn- refuse! [root]
   (println (if root
-             (str "No " settings-file " in " root ". A blog has one at its top.")
+             (str "No " layout/settings-file " in " root ". A blog has one at its top.")
              "Give the directory of a blog: bb serve example [port]"))
   (System/exit 1))
 
@@ -207,5 +243,6 @@
     (refuse! root))
   (let [port (if port (parse-long port) default-port)]
     (http/run-server (partial handler root) {:port port})
+    (live/watch! root (partial read-told root))
     (announce! root port)
     @(promise)))

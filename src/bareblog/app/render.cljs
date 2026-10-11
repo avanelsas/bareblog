@@ -25,6 +25,25 @@
   (when (not= title (.-title document))
     (set! (.-title document) title)))
 
+(def ^:private notice-id "bareblog-notice")
+
+(defn- make-notice!
+  "A notice at the top of `document`, with no text yet."
+  [^js document]
+  (let [notice (.createElement document "p")]
+    (.setAttribute notice "id" notice-id)
+    (.setAttribute notice "role" "alert")
+    (.prepend (.-body document) notice)
+    notice))
+
+(defn notice!
+  "Shows `text` in a notice at the top of `document`. With no text, the notice goes."
+  [^js document text]
+  (let [^js shown (.getElementById document notice-id)]
+    (cond
+      (some? text) (parts/set-text! (or shown (make-notice! document)) text)
+      (some? shown) (.remove shown))))
+
 (defn render!
   "Brings `document` to the page view `view`."
   [^js document {:keys [title item tags order by-key] :as view}]

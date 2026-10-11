@@ -1,0 +1,12 @@
+/* What the app itself shows, in any blog template: a notice when a page could not be shown. */
+
+#bareblog-notice {
+  position: sticky;
+  top: 0;
+  z-index: 10000;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: #7f1d1d;
+  color: #fff;
+  font: 0.9375rem/1.4 system-ui, sans-serif;
+}

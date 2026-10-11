@@ -1,6 +1,7 @@
 (ns bareblog.post
   "A post, the name of its folder, and the files beside it."
-  (:require [clojure.string :as str]
+  (:require [bareblog.wire :as wire]
+            [clojure.string :as str]
             [clojure.walk :as walk]))
 
 (def folder-pattern
@@ -35,6 +36,7 @@
   [source]
   (when-some [file-name (some-> source decoded)]
     (when (and (not (str/includes? file-name ".."))
+               (not (contains? wire/reserved file-name))
                (re-matches (re-pattern file-pattern) file-name))
       file-name)))
 

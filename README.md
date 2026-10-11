@@ -9,8 +9,8 @@ pages.
 
 ## State
 
-The first of ten steps is built: one post, read from its Markdown, shows on a page. There is no
-`bareblog` command yet, and nothing is published. This page describes what BareBlog will do.
+Three of ten steps are built: one post, read from its Markdown, shows on a page, and the open
+page follows the file as you save it. There is no `bareblog` command yet, and nothing is published. This page describes what BareBlog will do.
 
 To see the example blog:
 

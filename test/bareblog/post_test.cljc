@@ -41,6 +41,9 @@
     (is (nil? (post/file-beside "sub/b.jpg")))
     (is (nil? (post/file-beside "/etc/passwd")))
     (is (nil? (post/file-beside "https://example.com/far.jpg"))))
+  (testing "the names that a page keeps for itself name no file"
+    (is (nil? (post/file-beside "page.edn")))
+    (is (nil? (post/file-beside "changes"))))
   (testing "a hidden file, nothing, and a broken escape name none"
     (is (nil? (post/file-beside ".env")))
     (is (nil? (post/file-beside "")))
