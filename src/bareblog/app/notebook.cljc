@@ -5,18 +5,13 @@
   (:require [bareblog.app.pages :as pages]
             [baremirror.alpha.template :as template]))
 
-(defn- current
-  "Whether a row of the sidebar is the post of this page, as the text that an ARIA state takes."
-  [{:keys [current?]}]
-  (when current? "page"))
-
 (def ^:private sidebar-row
   "A post in the sidebar. The first of its year shows the year above it."
   {:split (template/split
            :notebook-row
            [:li {:class "sidebar-row"}
             [:span {:class "year"} pages/year-shown]
-            [:a {:href :href :aria-current current} :title]
+            [:a {:href :href :aria-current pages/current} :title]
             pages/draft])})
 
 (defn- search-key
@@ -41,6 +36,20 @@
   "True when the sidebar is there: beside the page in a wide window, or as the menu when the
    reader opened that."
   (some-fn :wide? :menu?))
+
+(defn- group
+  "The name of the group of a command in the palette: its year, or what a post with no date
+   and a page that is no post are under."
+  [{:keys [year page?]}]
+  (cond
+    page? (:pages pages/words)
+    year  year
+    :else (:no-date pages/words)))
+
+(defn- palette-items
+  "The items of the palette: every command that the view gives, with the name of its group."
+  [{:keys [commands]}]
+  (mapv (fn [command] (assoc (dissoc command :year :page?) :group (group command))) commands))
 
 ;; The palette takes its commands as a property, which BareMirror does not write. `:props`
 ;; names the part, the property and what gives its value, and the renderer writes it.
@@ -72,16 +81,18 @@
                                 :on         {"toggle" :sidebar}}
                     [:div {:class "sidebar"}
                      (-> [:div {:class "menu"}]
-                         (into pages/links)
+                         (into (pages/links "menu-pages"))
                          (conj search-button (pages/theme-select "menu-presets")))
                      [:ul {:class "tag-choices" :aria-label (:all-tags pages/words) :data-x-part "tags"}]
                      clear-button
                      [:ol {:class "sidebar-posts" :data-x-part "posts"}]]]
                    [:x-container {:as "main"}
                     [:div {:data-x-part "main"}]]]]])
-   :props      {"palette" {:items :commands}}
+   :props      {"palette" {:items palette-items}}
    :lists      {:presets      {:part "presets" :row pages/preset}
                 :menu-presets {:part "menu-presets" :row pages/preset :of :presets}
                 :tags         {:part "tags" :row pages/tag-choice}
                 :posts        {:part "posts" :row sidebar-row}
+                :pages        {:part "pages" :row pages/page-link}
+                :menu-pages   {:part "menu-pages" :row pages/page-link :of :pages}
                 :main         {:part "main" :rows pages/page-rows}}})

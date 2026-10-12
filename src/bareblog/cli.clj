@@ -14,10 +14,11 @@
   (str/join "\n"
             ["bareblog init \"My blog\"           a new blog, in this directory"
              "bareblog new \"A new blog post\"    a draft folder with post.md"
+             "             --page \"About\"      a page that is no post, with page.md"
              "bareblog preview [port]           the whole blog, in the browser"
              "                 --no-open        without opening the browser"
-             "bareblog publish a-new-blog-post  one post: new, edited or removed"
-             "bareblog publish --all            every post, as it is on disk"
+             "bareblog publish a-new-blog-post  one post or page: new, edited or removed"
+             "bareblog publish --all            every post and page, as it is on disk"
              "                 --yes            with a yes to every question"]))
 
 (def default-port 8080)
@@ -33,6 +34,14 @@
     (if (and (not (str/blank? title)) (empty? more))
       {:title title}
       {:refuse how})))
+
+(def ^:private page "--page")
+
+(defn- asks-new
+  "What reads the title of a new post, or of a new page with the flag for one."
+  [args]
+  (assoc ((asks-title "Give the title, in quotes: bareblog new \"A new blog post\"") (remove #{page} args))
+         :page? (boolean (some #{page} args))))
 
 (def ^:private no-open "--no-open")
 
@@ -58,7 +67,7 @@
     (cond
       (and (= all what) (empty? more))                    {:all? true :yes? yes?}
       (and what (empty? more) (not= \- (first what)))     {:folder what :yes? yes?}
-      :else {:refuse "Give the folder of a post, or --all: bareblog publish a-new-blog-post"})))
+      :else {:refuse "Give the folder of a post or a page, or --all: bareblog publish a-new-blog-post"})))
 
 (defn- asks-nothing [_args]
   {})
@@ -74,9 +83,9 @@
           (println start/next-steps)
           0))))
 
-(defn- run-new! [{:keys [dir]} {:keys [title]}]
-  (let [{:keys [file problem]} (start/draft! dir title)]
-    (println (or problem (str "Write the post in " file)))
+(defn- run-new! [{:keys [dir]} {:keys [title page?]}]
+  (let [{:keys [file problem]} ((if page? start/page! start/draft!) dir title)]
+    (println (or problem (str "Write it in " file)))
     (if problem 1 0)))
 
 ;; The server is asked for by name, so that a command that serves nothing does not load it.
@@ -124,9 +133,7 @@
    directory of a blog."
   {"init"    {:asks (asks-title "Give the title of the blog, in quotes: bareblog init \"My blog\"")
               :run  run-init!}
-   "new"     {:asks       (asks-title "Give the title of the post, in quotes: bareblog new \"A new blog post\"")
-              :run        run-new!
-              :in-a-blog? true}
+   "new"     {:asks asks-new :run run-new! :in-a-blog? true}
    "preview" {:asks asks-preview :run run-preview! :in-a-blog? true}
    "publish" {:asks asks-publish :run run-publish! :in-a-blog? true}
    "help"    {:asks asks-nothing :run run-help!}})

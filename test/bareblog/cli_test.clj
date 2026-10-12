@@ -13,7 +13,11 @@
     (is (re-find #"in quotes" (:refuse (cli/asked ["init"]))))
     (is (some? (:refuse (cli/asked ["init" "My" "blog"])))))
   (testing "a new post is asked for with its title"
-    (is (= {:command "new" :title "A new blog post"} (cli/asked ["new" "A new blog post"]))))
+    (is (= {:command "new" :title "A new blog post" :page? false} (cli/asked ["new" "A new blog post"]))))
+  (testing "a new page is asked for with its title and the flag for one, in either order"
+    (is (= {:command "new" :title "About" :page? true} (cli/asked ["new" "--page" "About"])))
+    (is (= {:command "new" :title "About" :page? true} (cli/asked ["new" "About" "--page"])))
+    (is (some? (:refuse (cli/asked ["new" "--page"])))))
   (testing "a title in more words than one, or none, is refused with how to give it"
     (is (some? (:refuse (cli/asked ["new" "A" "new" "post"]))))
     (is (some? (:refuse (cli/asked ["new" "  "]))))

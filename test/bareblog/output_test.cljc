@@ -21,6 +21,12 @@
             {:kind :post :folder "c"} {:kind :post :folder "b"} {:kind :post :folder "a"}
             {:kind :not-found}]
            (output/pages site))))
+  (testing "each page of the author that is no post is a page, after the posts"
+    (is (= [{:kind :standalone :folder "about"} {:kind :not-found}]
+           (take-last 2 (output/pages (assoc site :pages [{:folder "about" :title "About"}])))))
+    (is (= ["about/index.html" "about/page.edn"]
+           [(output/file-of root {:kind :standalone :folder "about"})
+            (output/data-of root {:kind :standalone :folder "about"})])))
   (testing "a blog template that shows a post on its home page has one page of it"
     (is (= [{:kind :home :number 1}]
            (filter (comp #{:home} :kind) (output/pages (assoc-in site [:blog :template] :notebook))))))

@@ -14,7 +14,7 @@
     "watch": "npx shadow-cljs watch app",
     "build": "npx shadow-cljs release app",
     "test": "bb test",
-    "serve": "bb serve example"
+    "preview": "cd example && ../bin/bareblog preview"
   },
   "devDependencies": {
     "shadow-cljs": "^3.4.11"

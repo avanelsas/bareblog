@@ -15,7 +15,7 @@
 (def archive-name "archive")
 
 (def reserved
-  "The names at the top of a blog that are not the name of a post folder."
+  "The names at the top of a blog that are not the name of the folder of a post or a page."
   #{pages tags archive-name "js"})
 
 (def ^:private written
@@ -109,11 +109,12 @@
 
 (def ^:private of-kind
   "What gives the address of each kind of page."
-  {:home      of-home
-   :tag       of-tag
-   :archive   of-archive
-   :post      of-post
-   :not-found of-missing})
+  {:home       of-home
+   :tag        of-tag
+   :archive    of-archive
+   :post       of-post
+   :standalone of-post
+   :not-found  of-missing})
 
 (defn of-page
   "The address of the page `page`, which is a map with its `:kind`."

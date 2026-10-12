@@ -6,9 +6,11 @@
             [clojure.test :refer [deftest is testing]]))
 
 (def site
-  {:blog  {:title "Bare notes" :template :journal :presets ["ocean"]}
+  {:blog  {:title "Bare notes" :template :journal :available-themes ["ocean"]}
    :posts [{:folder "b" :title "Second" :date "2026-02-01" :tags ["travel"] :summary "Two." :draft? true}
-           {:folder "a" :title "First" :date "2025-01-01" :summary "One."}]})
+           {:folder "a" :title "First" :date "2025-01-01" :summary "One."}]
+   :pages [{:folder "about" :title "About" :order 1 :unpublished? true}
+           {:folder "contact" :title "Contact"}]})
 
 (defn- site-of
   "The site as a blog with the blog template `template-name`."
@@ -18,11 +20,13 @@
 (def pages
   "A page of each kind, as a page is told it."
   {:home      {:page {:kind :home :number 1}}
-   :newest    {:page {:kind :home :number 1} :post {:title "Second" :folder "b" :blocks []}}
+   :newest    {:page {:kind :home :number 1} :text {:title "Second" :folder "b" :blocks []}}
    :tag       {:page {:kind :tag :tag "travel"}}
    :archive   {:page {:kind :archive}}
    :post      {:page {:kind :post :folder "a"}
-               :post {:folder "a" :title "First" :tags ["travel"] :blocks (vec (vals examples))}}
+               :text {:folder "a" :title "First" :tags ["travel"] :blocks (vec (vals examples))}}
+   :standalone {:page {:kind :standalone :folder "about"}
+                :text {:folder "about" :title "About" :blocks (vec (vals examples))}}
    :not-found {:page {:kind :not-found}}})
 
 (defn- part-names
@@ -113,7 +117,7 @@
       (doseq [[kind told]             pages
               [{:keys [props]} shown] (shown-nodes blog-template (view/page "/" site told {}))
               hole                    (mapcat vals (vals props))]
-        (is (contains? (:item shown) hole) (str kind " " hole))))))
+        (is (some? (hole (:item shown))) (str kind))))))
 
 (deftest words-test
   (testing "Journal names each kind of page in the title of the document"
@@ -122,7 +126,7 @@
       (is (= "Page 2" (title {:kind :home :number 2})))
       (is (= "travel" (title {:kind :tag :tag "travel"})))
       (is (= "Archive" (title {:kind :archive})))
-      (is (= "A week in Lisbon" (title {:kind :post :post "A week in Lisbon"})))
+      (is (= "A week in Lisbon" (title {:kind :post :name "A week in Lisbon"})))
       (is (= "Not found" (title {:kind :not-found}))))))
 
 (defn- elements
@@ -178,15 +182,15 @@
       (is (= #{} (hidden empty-site (:archive pages)))))
     (testing "the page of a draft with a newer and an older post hides nothing"
       (is (= #{} (hidden (update site :posts (partial into [newer]))
-                         {:page {:kind :post :folder "b"} :post {:folder "b" :title "Second" :blocks []}}))))
+                         {:page {:kind :post :folder "b"} :text {:folder "b" :title "Second" :blocks []}}))))
     (testing "the page of the newest post, a draft, hides the link to a newer one"
-      (is (= #{"a.newer"} (hidden site {:page {:kind :post :folder "b"} :post {:folder "b" :title "Second" :blocks []}}))))
+      (is (= #{"a.newer"} (hidden site {:page {:kind :post :folder "b"} :text {:folder "b" :title "Second" :blocks []}}))))
     (testing "the page of a published post with both neighbours hides the badge of a draft"
       (is (= #{"x-badge.draft"} (hidden (update site :posts conj older)
-                                        {:page {:kind :post :folder "a"} :post {:folder "a" :title "First" :blocks []}}))))
+                                        {:page {:kind :post :folder "a"} :text {:folder "a" :title "First" :blocks []}}))))
     (testing "the page of the oldest post hides the link to an older one too"
       (is (= #{"x-badge.draft" "a.older"}
-             (hidden site {:page {:kind :post :folder "a"} :post {:folder "a" :title "First" :blocks []}}))))))
+             (hidden site {:page {:kind :post :folder "a"} :text {:folder "a" :title "First" :blocks []}}))))))
 
 (deftest menu-test
   (let [journal (templates/named :journal)
@@ -242,8 +246,10 @@
     (testing "the way back to every post shows once a tag is chosen"
       (is (true? (:hidden (written "button.clear" {}))))
       (is (false? (:hidden (written "button.clear" {:tag "travel"})))))
-    (testing "the palette is given its commands as a property"
-      (is (= {"palette" {:items :commands}} (:props notebook))))
+    (testing "the palette is given its commands as a property, each under the name of its group"
+      (let [items (get-in notebook [:props "palette" :items])]
+        (is (= [{:id "b" :group "2026"} {:id "n" :group "No date"} {:id "about" :group "Pages"}]
+               (items {:commands [{:id "b" :year "2026"} {:id "n"} {:id "about" :page? true}]})))))
     (testing "a row of the sidebar marks the post of the page, and shows its year when it is the first"
       (let [row (get-in notebook [:lists :posts :row :split])]
         (is (= "page" (:aria-current (attrs-of row {:current? true :href "/a/"} "a"))))
@@ -252,6 +258,39 @@
       (is (= [:presets :presets]
              (mapv (fn [[list-name row-list]] (:of row-list list-name))
                    (select-keys (:lists notebook) [:presets :menu-presets])))))))
+
+(defn- link-attrs
+  "The attributes of each link in the list `list-name` of the document of `template-name`,
+   for the page `told`."
+  [template-name list-name told]
+  (let [row-list (get-in (templates/named template-name) [:lists list-name])
+        rows     (templates/rows-of row-list list-name (view/page "/" (site-of template-name) told {}))]
+    (for [k (:order rows)]
+      (attrs-of (:split (:row row-list)) (:item ((:by-key rows) k)) "a.nav-link"))))
+
+(defn- badge-hidden?
+  "Whether the page of the author in `folder` hides its badge, in the blog template
+   `template-name`."
+  [template-name folder]
+  (let [told {:page {:kind :standalone :folder folder} :text {:folder folder :title "T" :blocks []}}
+        page (view/page "/" (site-of template-name) told {})
+        node (templates/row-node (get-in (templates/named template-name) [:lists :main]) "standalone")]
+    (:hidden (attrs-of (:split node) (get-in page [:lists :main :by-key "standalone" :item]) "x-badge.draft"))))
+
+(deftest standalone-test
+  (doseq [template-name (keys templates/by-name)]
+    (testing (str template-name ": the links of the pages are in the navbar and in the menu, the same in both")
+      (is (= [{:href "/about/" :aria-current nil} {:href "/contact/" :aria-current nil}]
+             (link-attrs template-name :pages (:archive pages))
+             (link-attrs template-name :menu-pages (:archive pages)))))
+    (testing (str template-name ": the link to the page that is shown says so")
+      (is (= ["page" nil] (map :aria-current (link-attrs template-name :pages (:standalone pages))))))
+    (testing (str template-name ": a page that is not published says so, and one that is does not")
+      (is (false? (badge-hidden? template-name "about")))
+      (is (true? (badge-hidden? template-name "contact"))))
+    (testing (str template-name ": a page is named by its title in the title of the document")
+      (is (= "About · Bare notes"
+             (:title (view/page "/" (site-of template-name) (:standalone pages) {})))))))
 
 (def ^:private shell-elements
   "The custom elements of the document of each blog template, on a page that shows nothing."
@@ -311,8 +350,8 @@
     (is (templates/chooses-on? (templates/named :notebook) :post))
     (is (not (templates/chooses-on? (templates/named :notebook) nil))))
   (testing "the lists of a document are named once, also when two parts show the same rows"
-    (is (= #{:main :presets} (templates/list-names (templates/named :journal))))
-    (is (= #{:main :presets :tags :posts} (templates/list-names (templates/named :notebook)))))
+    (is (= #{:main :presets :pages} (templates/list-names (templates/named :journal))))
+    (is (= #{:main :presets :pages :tags :posts} (templates/list-names (templates/named :notebook)))))
   (testing "the blog template of a blog is the one its settings name, or the default"
     (is (= (templates/named :notebook) (templates/of-blog {:template :notebook})))
     (is (= (templates/named templates/default) (templates/of-blog {})))

@@ -2,7 +2,7 @@
   (:require [babashka.fs :as fs]
             [bareblog.address :as address]
             [bareblog.output :as output]
-            [bareblog.post :as post]
+            [bareblog.text :as text]
             [bareblog.example :as example]
             [bareblog.home :as home]
             [bareblog.serve :as serve]
@@ -56,7 +56,7 @@
     (is (= {:serve :media :folder "a-post" :file "café.jpg"} (serve/route "/a-post/caf%C3%A9.jpg"))))
   (testing "the server sends every file that a post can name beside it"
     (doseq [source ["harbour.jpg" "my%20photo.jpg" "caf%C3%A9.jpg" "a+b.jpg" "photo.final.JPG"]]
-      (is (= {:serve :media :folder "a-post" :file (post/file-beside source)}
+      (is (= {:serve :media :folder "a-post" :file (text/file-beside source)}
              (serve/route (str "/a-post/" source))))))
   (testing "a file at the top, and anything under js, is the app"
     (is (= {:serve :static :file "journal.css"} (serve/route "/journal.css")))
@@ -109,12 +109,15 @@
         (is (not (re-find #"(href|src)=\"/(?!my-blog/)" page)))))))
 
 (deftest every-page-is-served-test
-  (let [site {:blog  {:per-page 1}
-              :posts [{:folder "b" :tags ["travel" "web components" "c++" "café" "100%"]} {:folder "a"}]}]
+  (let [site    {:blog  {:per-page 1}
+                 :posts [{:folder "b" :tags ["travel" "web components" "c++" "café" "100%"]} {:folder "a"}]
+                 :pages [{:folder "about"}]}
+        ;; The address of a page of the author is that of a post, so it is asked for as one.
+        asked-as (fn [page] (cond-> page (= :standalone (:kind page)) (assoc :kind :post)))]
     (testing "the server has, under the top of a blog, every page that a generated blog holds"
       (doseq [root ["/" "/my-blog/"]
               page (remove (comp #{:not-found} :kind) (output/pages site))]
-        (is (= {:serve :page :page page} (serve/route (serve/below root (address/of-page root page))))
+        (is (= {:serve :page :page (asked-as page)} (serve/route (serve/below root (address/of-page root page))))
             (str root " " page))))
     (testing "and the page for an address with no page"
       (is (= {:serve :missing} (serve/route (serve/below "/my-blog/" (address/of-page "/my-blog/" {:kind :not-found}))))))))

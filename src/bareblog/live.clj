@@ -28,7 +28,7 @@
   (filter fs/regular-file?
           (cons (fs/path root layout/settings-file)
                 (mapcat #(fs/glob % "**")
-                        (filter fs/directory? (map (partial fs/path root) layout/post-dirs))))))
+                        (filter fs/directory? (map (partial fs/path root) layout/written-dirs))))))
 
 (defn- read-stamp
   "The stamp of the blog at `root`."

@@ -1,25 +1,26 @@
-(ns bareblog.post
-  "A post, the name of its folder, and the files beside it."
+(ns bareblog.text
+  "A text of an author, which is a post or a page that is no post: what was read of it, the
+   name of its folder, and the files beside it."
   (:require [bareblog.address :as address]
             [bareblog.wire :as wire]
             [clojure.string :as str]
             [clojure.walk :as walk]))
 
 (def folder-pattern
-  "What the name of a post folder looks like, as the text of a pattern. The name is the address
-   of the post."
+  "What the name of the folder of a post or a page looks like, as the text of a pattern. The
+   name is its address."
   "[a-z0-9][a-z0-9-]*")
 
 (defn folder?
-  "True when `folder-name` can be the name of a post folder: it looks like one, and the blog
+  "True when `folder-name` can be the name of the folder of a post or a page: it looks like one, and the blog
    keeps no address of that name for itself."
   [folder-name]
   (and (some? (re-matches (re-pattern folder-pattern) folder-name))
        (not (contains? address/reserved folder-name))))
 
 (def folder-rule
-  "What the name of a post folder may be, as a text for an author."
-  (str "A post folder has small letters, digits and dashes in its name, and the blog keeps the "
+  "What the name of the folder of a post or a page may be, as a text for an author."
+  (str "A folder has small letters, digits and dashes in its name, and the blog keeps the "
        "names " (str/join ", " (sort address/reserved)) " for itself."))
 
 (defn plain-letters
@@ -87,12 +88,18 @@
                 (not (contains? wire/reserved file-name))
                 (re-matches (re-pattern file-pattern) file-name))))
 
+(defn- from-here
+  "The address `source` without the `./` that it may start with, which says no more than that
+   the address is from where the post is."
+  [source]
+  (str/replace source #"^(\./)+" ""))
+
 (defn file-beside
   "The name of the file beside a post that the address `source` names, or nil when it names
-   none. What an address asks of the file after a question mark, and the place in it that it
-   names after a hash, are no part of the name."
+   none. A `./` at its start, what it asks of the file after a question mark, and the place in
+   the file that it names after a hash, are no part of the name."
   [source]
-  (when-some [file-name (some-> source (str/replace #"[?#].*" "") address/decoded)]
+  (when-some [file-name (some-> source from-here (str/replace #"[?#].*" "") address/decoded)]
     (when (file-name? file-name)
       file-name)))
 
@@ -128,7 +135,7 @@
    one beside the post."
   [at x k]
   (cond-> x
-    (file-beside (get x k)) (update k (partial str at))))
+    (file-beside (get x k)) (update k (comp (partial str at) from-here))))
 
 (defn- with-place [at x]
   (if (map? x)

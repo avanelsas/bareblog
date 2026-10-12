@@ -67,6 +67,26 @@
   (let [per-page (per-page site)]
     (max 1 (quot (+ (count (:posts site)) (dec per-page)) per-page))))
 
+(defn page-entry
+  "What the list of pages says of `page`, a page of the blog that is no post, in the folder
+   `folder`: enough to link to it."
+  [folder page]
+  (assoc (select-keys page [:title :order :summary]) :folder folder))
+
+(defn- by-order
+  "Compares two entries of pages: the one with the lower order first, then a page with no
+   order, then by title."
+  [a b]
+  (compare [(nil? (:order a)) (:order a 0) (:title a) (:folder a)]
+           [(nil? (:order b)) (:order b 0) (:title b) (:folder b)]))
+
+(defn with-pages
+  "The `site` with the entries `pages` of its pages that are no posts, in the order of their
+   links. A site with none says nothing of pages."
+  [site pages]
+  (cond-> site
+    (seq pages) (assoc :pages (vec (sort by-order pages)))))
+
 (defn newest-folder
   "The name of the folder of the newest post in `site`, or nil when it has no posts."
   [site]

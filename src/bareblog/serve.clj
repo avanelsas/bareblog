@@ -8,7 +8,7 @@
             [bareblog.address :as address]
             [bareblog.feed :as feed]
             [bareblog.live :as live]
-            [bareblog.post :as post]
+            [bareblog.text :as text]
             [bareblog.site :as site]
             [bareblog.source :as source]
             [bareblog.wire :as wire]
@@ -19,10 +19,10 @@
 ;; What a path asks for. Pure.
 
 (def ^:private folder
-  (str "(" post/folder-pattern ")"))
+  (str "(" text/folder-pattern ")"))
 
 (def ^:private file
-  (str "(" post/file-pattern ")"))
+  (str "(" text/file-pattern ")"))
 
 (defn- escaped
   "The text `text` as the text of a pattern that matches it and nothing else."
@@ -98,7 +98,7 @@
   "The file beside a post that `path` names, or nil."
   [path]
   (when-some [[folder-name spelled] (found-by media-pattern path)]
-    (when-some [file-name (post/file-beside spelled)]
+    (when-some [file-name (text/file-beside spelled)]
       {:serve :media :folder folder-name :file file-name})))
 
 (def ^:private top-files
@@ -220,7 +220,7 @@
   (without-throwing #(some->> (source/read-page blog page site) (with-socket blog))))
 
 (defn- gone [page]
-  {:problem (str "There is no post " (:folder page) " any more.")})
+  {:problem (str "There is nothing named " (:folder page) " any more.")})
 
 (defn- read-told
   "What each of the open pages `pages` is told to show, by page. The site is read once. It does
@@ -258,7 +258,7 @@
     not-found))
 
 (defn- serve-media [{:keys [blog]} {:keys [folder file]} _request]
-  (if-some [dir (source/find-post-dir blog folder)]
+  (if-some [dir (source/find-dir blog folder)]
     (serve-file (fs/path dir file))
     not-found))
 

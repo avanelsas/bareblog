@@ -7,26 +7,28 @@
 
 (def words
   "Every word that a blog template puts in a page that is not from the blog."
-  {:home       "Home"
-   :archive    "Archive"
-   :draft      "Draft"
-   :pages      "Pages"
-   :page       "Page"
-   :others     "Other posts"
-   :no-date    "No date"
-   :no-posts   "There are no posts yet."
-   :search     "Search"
-   :search-key {:command "\u2318K" :control "Ctrl K"}
-   :theme      "Theme"
-   :all-tags   "Tags"
-   :clear      "Show all posts"
-   :found      {:none "No posts found" :one "post found" :many "posts found"}
-   :posts      "Posts"
-   :menu       "Menu"
-   :close      "Close"
-   :not-found  "Not found"
-   :not-here   "This page is not here."
-   :to-home    "To the home page"})
+  {:home        "Home"
+   :archive     "Archive"
+   :draft       "Draft"
+   :unpublished "Not published"
+   :page-numbers "Pages"
+   :page        "Page"
+   :others      "Other posts"
+   :no-date     "No date"
+   :no-posts    "There are no posts yet."
+   :search      "Search"
+   :search-key  {:command "\u2318K" :control "Ctrl K"}
+   :pages       "Pages"
+   :theme       "Theme"
+   :all-tags    "Tags"
+   :clear       "Show all posts"
+   :found       {:none "No posts found" :one "post found" :many "posts found"}
+   :posts       "Posts"
+   :menu        "Menu"
+   :close       "Close"
+   :not-found   "Not found"
+   :not-here    "This page is not here."
+   :to-home     "To the home page"})
 
 (def wide-from
   "The width of a window in pixels from which `x-navbar` shows what it holds. A narrower window
@@ -34,6 +36,12 @@
   641)
 
 (def published? (complement :draft?))
+(def ^:private published-page? (complement :unpublished?))
+
+(defn current
+  "Whether a link leads to the page that is shown, as the text that an ARIA state takes."
+  [{:keys [current?]}]
+  (when current? "page"))
 (def ^:private no-newer? (comp nil? :newer))
 (def ^:private no-older? (comp nil? :older))
 (def ^:private not-filtered? (complement :filtered?))
@@ -140,7 +148,7 @@
               (:clear words)]]
             [:p {:class "empty" :hidden posts?} (:no-posts words)]
             [:ol {:data-x-part "entries"}]
-            [:x-pagination {:label (:pages words) :page :number :total-pages :pages :hidden one-page?
+            [:x-pagination {:label (:page-numbers words) :page :number :total-pages :pages :hidden one-page?
                             :on    {"page-change-request" :to-page}}]])
    :lists {:entries  {:part "entries" :row entry}
            :all-tags {:part "all-tags" :row tag-choice}}})
@@ -183,18 +191,22 @@
    is. A page with no name has the name of the blog alone."
   {:home    home-title
    :tag     :tag
-   :archive (constantly (:archive words))
-   :post    :post})
+   :archive    (constantly (:archive words))
+   :post       :name
+   :standalone :name})
 
 (defn title
   "The name of the page in the title of the document, or nil."
   [named]
   ((get titles (:kind named) (constantly (:not-found words))) named))
 
-(def links
-  "The links to the pages of the blog that every page has."
+(defn links
+  "The links that every page has: to the home page, to the archive, and to each page of the
+   author that is no post. `part-name` names the part that holds the last of these."
+  [part-name]
   [[:a {:class "nav-link" :href :home} (:home words)]
-   [:a {:class "nav-link" :href :archive} (:archive words)]])
+   [:a {:class "nav-link" :href :archive} (:archive words)]
+   [:span {:class "page-links" :data-x-part part-name}]])
 
 (def search-field
   "The field that a reader searches with."
@@ -229,7 +241,7 @@
   [search]
   (into [:x-navbar {:label :blog-title :sticky true}
          [:a {:slot "brand" :class "brand" :href :home} :blog-title]]
-        (conj links
+        (conj (links "pages")
               [:div {:slot "actions" :class "actions"}
                search
                (theme-select "presets")]
@@ -240,9 +252,26 @@
   [:button {:type "button" :class "menu-close" :aria-label (:close words) :on {"click" :close-menu}}
    "\u2715"])
 
+(def standalone
+  "A page of the author that is no post: its title and its text."
+  {:split (template/split
+           :standalone
+           [:article {:class "post standalone"}
+            [:header {:class "post-header"}
+             [:h1 :title]
+             [:div {:class "meta"}
+              [:x-badge {:class "draft" :text (:unpublished words) :variant "warning" :hidden published-page?}]]]
+            [:div {:class "post-blocks" :data-x-part "blocks"}]])
+   :lists {:blocks {:part "blocks" :row block}}})
+
 (def page-rows
   "The node of each kind of page, by its key."
-  {"post"      post
-   "entries"   entries
-   "archive"   archive
-   "not-found" not-found})
+  {"post"       post
+   "standalone" standalone
+   "entries"    entries
+   "archive"    archive
+   "not-found"  not-found})
+
+(def page-link
+  "The link to a page of the author that is no post."
+  {:split (template/split :page-link [:a {:class "nav-link" :href :href :aria-current current} :title])})

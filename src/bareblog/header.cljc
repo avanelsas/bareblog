@@ -29,13 +29,25 @@
   (when (re-matches #"\d{4}-\d{2}-\d{2}([T ].*)?" text)
     text))
 
+(defn- whole-number
+  "The number in `text`, when it is written in digits alone. Nil for anything else."
+  [text]
+  (when (re-matches #"\d{1,9}" text)
+    (parse-long text)))
+
 (def readers
   "How the text of each field that BareBlog reads from a header block is read, by the key of
    the field. A reader gives nil for text it cannot read."
   {:title   identity
    :date    date
    :tags    tags
-   :summary identity})
+   :summary identity
+   :order   whole-number})
+
+(def ^:private how-to-write
+  "What an author is told of a field whose text could not be read, by the key of the field."
+  {:date  "Write a date as 2026-10-11."
+   :order "Write a whole number, as 2."})
 
 (defn- named
   "The key and the text of the header line `line`, or nil when it is not a field."
@@ -64,7 +76,8 @@
 
 (defn- problem [{:keys [key text value]}]
   (when (nil? value)
-    (str "The " (name key) " \"" text "\" could not be read. Write a date as 2026-10-11.")))
+    (str "The " (name key) " \"" text "\" could not be read."
+         (some->> (how-to-write key) (str " ")))))
 
 (defn problems
   "What is wrong with the header `lines`, as a text for each field that could not be read."

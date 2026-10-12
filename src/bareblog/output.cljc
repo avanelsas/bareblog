@@ -28,8 +28,9 @@
 
 (defn pages
   "Every page of the blog in `site`: the pages of the home page, the page of each tag that can
-   have one, the archive, the page of each post, and the page for an address with no page."
-  [{:keys [blog posts] :as site}]
+   have one, the archive, the page of each post, each page of the author that is no post, and
+   the page for an address with no page."
+  [{:keys [blog posts] standalone :pages :as site}]
   (concat (for [number (range 1 (inc (templates/home-pages (templates/of-blog blog) site)))]
             {:kind :home :number number})
           (for [tag-name (remove pageless-tag? (site/tags site))]
@@ -37,6 +38,8 @@
           [{:kind :archive}]
           (for [{:keys [folder]} posts]
             {:kind :post :folder folder})
+          (for [{:keys [folder]} standalone]
+            {:kind :standalone :folder folder})
           [{:kind :not-found}]))
 
 (defn- from-top

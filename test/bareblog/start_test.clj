@@ -14,12 +14,12 @@
 
 (deftest draft-test
   (testing "a draft has a folder named for its title, and a post that starts with the title"
-    (is (= {:folder "a-new-blog-post" :text "# A new blog post\n\n"} (start/draft "A new blog post")))
-    (is (= {:folder "cafe-lisboa-2026" :text "# Café Lisboa, 2026!\n\n"} (start/draft " Café Lisboa, 2026! "))))
+    (is (= {:folder "a-new-blog-post" :text "# A new blog post\n\n"} (start/first-text "A new blog post")))
+    (is (= {:folder "cafe-lisboa-2026" :text "# Café Lisboa, 2026!\n\n"} (start/first-text " Café Lisboa, 2026! "))))
   (testing "a title that gives no name for a folder is a problem"
-    (is (some? (:problem (start/draft "!!!"))))
-    (is (some? (:problem (start/draft "Tags"))))
-    (is (nil? (:folder (start/draft "Archive"))))))
+    (is (some? (:problem (start/first-text "!!!"))))
+    (is (some? (:problem (start/first-text "Tags"))))
+    (is (nil? (:folder (start/first-text "Archive"))))))
 
 (deftest draft-in-a-blog-test
   (example/with-copy {}
@@ -65,7 +65,7 @@
 
 (deftest settings-text-test
   (testing "the settings of a new blog are settings: its title, and what else a blog needs"
-    (is (= {:title "My \"first\" blog" :language "en" :template :journal :presets ["ocean"]}
+    (is (= {:title "My \"first\" blog" :language "en" :template :journal :available-themes ["ocean"]}
            (edn/read-string (start/settings-text " My \"first\" blog ")))))
   (testing "what a blog has when it says nothing is written as that"
     (is (= [site/default-language templates/default]
@@ -81,7 +81,7 @@
           (is (nil? (:problem made)))
           (is (source/blog? dir))
           (is (= "My blog" (:title (source/read-settings dir))))
-          (is (every? #(fs/directory? (fs/path dir %)) ["posts" "drafts"]))
+          (is (every? #(fs/directory? (fs/path dir %)) ["posts" "drafts" "pages"]))
           (is (= "drafts/\n" (slurp (fs/file dir ".gitignore"))))
           (is (git/top? dir))
           (is (= "It is a git repository now." (:said made))))
@@ -143,6 +143,19 @@
             (is (= [{:folder "a-first-post" :title "A first post" :date "2026-10-12"}]
                    (map #(select-keys % [:folder :title :date])
                         (:posts (edn/read-string (slurp (fs/file dir "docs" "site.edn")))))))))))))
+
+(deftest page-test
+  (example/with-copy {}
+    (fn [dir]
+      (let [made (start/page! dir "Contact me")]
+        (testing "a new page is a folder among the pages, with its text"
+          (is (= (str (fs/path dir "pages" "contact-me" "page.md")) (:file made)))
+          (is (= "# Contact me\n\n" (slurp (:file made))))
+          (is (some #{"contact-me"} (map :folder (:pages (source/read-site (source/preview dir)))))))
+        (testing "a title that is taken, by a page, a post or a draft, makes nothing"
+          (is (re-find #"already" (:problem (start/page! dir "About"))))
+          (is (re-find #"already" (:problem (start/page! dir "A week in Lisbon"))))
+          (is (re-find #"already" (:problem (start/draft! dir "Contact me")))))))))
 
 (deftest git-init-test
   (testing "git says why when it cannot make a repository"

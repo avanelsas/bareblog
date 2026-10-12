@@ -94,3 +94,18 @@
     (is (= {:blog {}} (site/with-problems {:blog {}} []))))
   (testing "the readers of a published blog are told nothing of what is wrong"
     (is (= {:blog {} :posts []} (site/published {:blog {} :posts [] :problems ["First."]})))))
+
+(deftest pages-test
+  (testing "the entry of a page says enough to link to it, and nothing of a date or tags"
+    (is (= {:folder "about" :title "About" :order 1 :summary "Who."}
+           (site/page-entry "about" {:title "About" :order 1 :summary "Who." :date "2026-01-01" :tags ["x"]
+                                     :blocks []}))))
+  (testing "the pages are in the order of their numbers, and those with none follow by title"
+    (is (= ["projects" "about" "contact" "colophon"]
+           (map :folder (:pages (site/with-pages {} [{:folder "contact" :title "Contact"}
+                                                     {:folder "about" :title "About" :order 2}
+                                                     {:folder "colophon" :title "Zed"}
+                                                     {:folder "projects" :title "Projects" :order 1}]))))))
+  (testing "a site with no pages says nothing of them"
+    (is (= {:blog {}} (site/with-pages {:blog {}} [])))))
+

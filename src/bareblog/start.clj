@@ -7,7 +7,7 @@
             [bareblog.git :as git]
             [bareblog.layout :as layout]
             [bareblog.output :as output]
-            [bareblog.post :as post]
+            [bareblog.text :as text]
             [bareblog.site :as site]
             [bareblog.source :as source]
             [clojure.string :as str]))
@@ -19,10 +19,10 @@
    has it when it says nothing, and where its address goes."
   [title]
   (str/join "\n"
-            [(str "{:title    " (pr-str (str/trim title)))
-             (str " :language " (pr-str site/default-language))
-             (str " :template " (pr-str templates/default))
-             " :presets  [\"ocean\"]"
+            [(str "{:title            " (pr-str (str/trim title)))
+             (str " :language         " (pr-str site/default-language))
+             (str " :template         " (pr-str templates/default))
+             " :available-themes [\"ocean\"]"
              ""
              " ;; Where the blog is published. Every link of a published page starts there."
              (str " ;; :address " (pr-str output/example-address))
@@ -56,14 +56,14 @@
                      ""]
                     (output/publishing-steps git/branch))))
 
-(defn draft
-  "The draft for the title `title`: its `:folder` and the `:text` of its post. A title that
-   gives no name for a folder gives a `:problem`."
+(defn first-text
+  "What a post or a page with the title `title` starts as: its `:folder`, and the `:text` that
+   it holds. A title that gives no name for a folder gives a `:problem`."
   [title]
-  (let [folder (post/folder-for title)]
-    (if (post/folder? folder)
+  (let [folder (text/folder-for title)]
+    (if (text/folder? folder)
       {:folder folder :text (str "# " (str/trim title) "\n\n")}
-      {:problem (str "The title " (pr-str title) " gives no name for a folder. " post/folder-rule)})))
+      {:problem (str "The title " (pr-str title) " gives no name for a folder. " text/folder-rule)})))
 
 ;; The making. Each function below reads or writes the disk.
 
@@ -102,7 +102,7 @@
   [dir title]
   (let [ignore (fs/file dir ".gitignore")]
     (spit (fs/file dir layout/settings-file) (settings-text title))
-    (run! #(fs/create-dirs (fs/path dir %)) layout/post-dirs)
+    (run! #(fs/create-dirs (fs/path dir %)) layout/written-dirs)
     (spit ignore (with-drafts-ignored (if (fs/exists? ignore) (slurp ignore) "")))))
 
 (defn blog!
@@ -118,21 +118,32 @@
         (write-blog! dir title))
       made)))
 
-(defn- write-draft!
-  "Writes the post `text` of a draft in `folder`, in the blog in the directory `dir`."
-  [dir folder text]
-  (let [file (fs/path dir layout/drafts-dir folder layout/post-file)]
+(defn- write-text!
+  "Writes `text` as the text of `folder` in the directory `in` of the blog in `dir`."
+  [dir in folder text]
+  (let [file (fs/path dir in folder (layout/text-file in))]
     (fs/create-dirs (fs/parent file))
     (spit (fs/file file) text)
     {:file (str file)}))
 
-(defn draft!
-  "Makes the draft for `title` in the blog in the directory `dir`. Gives the file of its post,
-   or a `:problem` when the title gives no folder or the folder is there already."
-  [dir title]
-  (let [{:keys [folder text problem]} (draft title)]
+(defn- start-in!
+  "Makes a folder for `title` in the directory `in` of the blog in `dir`, with its text. Gives
+   the file of the text, or a `:problem` when the title gives no folder or the folder is there
+   already, as a post, a draft or a page."
+  [dir in title]
+  (let [{:keys [folder text problem]} (first-text title)]
     (if problem
       {:problem problem}
-      (if-some [taken (source/find-post-dir (source/preview dir) folder)]
-        {:problem (str "There is a post " folder " already, in " taken ".")}
-        (write-draft! dir folder text)))))
+      (if-some [taken (source/find-dir (source/preview dir) folder)]
+        {:problem (str "There is a " folder " already, in " taken ".")}
+        (write-text! dir in folder text)))))
+
+(defn draft!
+  "Makes the draft of a post for `title` in the blog in the directory `dir`."
+  [dir title]
+  (start-in! dir layout/drafts-dir title))
+
+(defn page!
+  "Makes a page that is no post for `title` in the blog in the directory `dir`."
+  [dir title]
+  (start-in! dir layout/pages-dir title))

@@ -3,14 +3,14 @@
             [clojure.test :refer [deftest is testing]]))
 
 (def site
-  {:blog  {:title "Bare notes" :presets ["ocean" "forest"]}
+  {:blog  {:title "Bare notes" :available-themes ["ocean" "forest"]}
    :posts [{:folder "b" :title "Second" :date "2026-02-01" :tags ["travel"]}
            {:folder "a" :title "First" :date "2025-01-01"}]})
 
 (def notebook-site (assoc-in site [:blog :template] :notebook))
 
 (def home {:page {:kind :home :number 1}})
-(def post {:page {:kind :post :folder "a"} :post {:folder "a" :title "First" :blocks []}})
+(def post {:page {:kind :post :folder "a"} :text {:folder "a" :title "First" :blocks []}})
 
 (defn- after
   "The state after `messages`, one after the other, from a page that was told nothing."

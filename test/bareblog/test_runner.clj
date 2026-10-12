@@ -13,13 +13,13 @@
     bareblog.image-test
     bareblog.output-test
     bareblog.plan-test
-    bareblog.post-test
     bareblog.publish-test
     bareblog.reader-test
     bareblog.serve-test
     bareblog.site-test
     bareblog.source-test
     bareblog.start-test
+    bareblog.text-test
     bareblog.watch-test
     bareblog.app.blocks-test
     bareblog.app.state-test

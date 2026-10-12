@@ -14,7 +14,7 @@
             [bareblog.home :as home]
             [bareblog.layout :as layout]
             [bareblog.output :as output]
-            [bareblog.post :as post]
+            [bareblog.text :as text]
             [bareblog.serve :as serve]
             [bareblog.source :as source]
             [bareblog.wire :as wire]
@@ -106,13 +106,13 @@
 ;; What a file beside a post is, is one rule, and the server has the same. A file that a page
 ;; could not name is not copied, so that none takes the place of a page or of its data.
 (defn- copy-media!
-  "Copies the files beside each post in `site`, of `blog`, into `out`."
-  [blog out {:keys [posts]}]
-  (doseq [{:keys [folder]} posts
+  "Copies the files beside each post and each page in `site`, of `blog`, into `out`."
+  [blog out {:keys [posts pages]}]
+  (doseq [{:keys [folder]} (concat posts pages)
           path             (fs/list-dir (source/find-media-dir blog folder))
           :when            (and (fs/regular-file? path)
-                                (not= layout/post-file (fs/file-name path))
-                                (post/file-name? (fs/file-name path)))]
+                                (not (contains? layout/text-files (fs/file-name path)))
+                                (text/file-name? (fs/file-name path)))]
     (fs/create-dirs (fs/path out folder))
     (fs/copy path (fs/path out folder (fs/file-name path)) {:replace-existing true})))
 

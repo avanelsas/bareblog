@@ -2,7 +2,7 @@
   (:require [bareblog.app.view :as view]
             [clojure.test :refer [deftest is testing]]))
 
-(def blog {:title "Bare notes" :template :journal :presets ["ocean" "forest"] :per-page 2})
+(def blog {:title "Bare notes" :template :journal :available-themes ["ocean" "forest"] :per-page 2})
 
 (def posts
   [{:folder "c" :title "Third" :date "2026-03-01" :tags ["travel" "food"] :summary "Three."}
@@ -37,9 +37,9 @@
       (is (= {:menu? false :palette? false :wide? false :command-key? false}
              (select-keys (:item page) [:menu? :palette? :wide? :command-key?]))))
     (testing "the document is given the lists that its blog template asks for, and no other"
-      (is (= #{:main :presets} (set (keys (:lists page)))))
+      (is (= #{:main :presets :pages} (set (keys (:lists page)))))
       (is (not (contains? (:item page) :commands))))
-    (testing "the document lists the presets that the blog offers"
+    (testing "the document lists the themes that the blog offers, as the presets to choose from"
       (is (= ["ocean" "forest"] (get-in page [:lists :presets :order]))))
     (testing "the document holds one page"
       (is (= 1 (count (get-in page [:lists :main :order])))))
@@ -58,7 +58,7 @@
     (is (= "1 post found · Bare notes" (:title (view/page "/" site {:page {:kind :home :number 1}} {:query "third"}))))
     (is (= "No posts found · Bare notes" (:title (view/page "/" site {:page {:kind :home :number 2}} {:query "zebra"}))))
     (is (= "Third · Bare notes"
-           (:title (view/page "/" site {:page {:kind :post :folder "c"} :post {:folder "c" :title "Third" :blocks []}} {}))))))
+           (:title (view/page "/" site {:page {:kind :post :folder "c"} :text {:folder "c" :title "Third" :blocks []}} {}))))))
 
 (deftest home-test
   (let [[k node] (shown {:page {:kind :home :number 1}})]
@@ -191,7 +191,7 @@
 (def two {:kind :text :content ["Two."]})
 
 (defn- post-node [folder post]
-  (second (shown {:page {:kind :post :folder folder} :post (assoc post :folder folder)})))
+  (second (shown {:page {:kind :post :folder folder} :text (assoc post :folder folder)})))
 
 (deftest post-test
   (let [node (post-node "b" {:title "Second" :date "2026-02-01" :tags ["travel" "travel"] :blocks [one two]})]
@@ -238,20 +238,20 @@
 
 (deftest notebook-home-test
   (testing "the home page of Notebook is the page of the newest post, which the page was told"
-    (let [[k node] (shown notebook {:page {:kind :home :number 1} :post newest})]
+    (let [[k node] (shown notebook {:page {:kind :home :number 1} :text newest})]
       (is (= "post" k))
       (is (= "Third" (get-in node [:item :title])))
       (is (= {:title "Second" :href "/b/"} (get-in node [:item :older])))))
   (testing "it has the name of the blog alone as its title"
-    (is (= "Bare notes" (:title (view/page "/" notebook {:page {:kind :home :number 1} :post newest} {})))))
+    (is (= "Bare notes" (:title (view/page "/" notebook {:page {:kind :home :number 1} :text newest} {})))))
   (testing "it has no later page"
-    (is (= "not-found" (first (shown notebook {:page {:kind :home :number 2} :post newest})))))
+    (is (= "not-found" (first (shown notebook {:page {:kind :home :number 2} :text newest})))))
   (testing "a blog with no posts has a home page with no entries"
     (is (= "entries" (first (shown (assoc notebook :posts []) {:page {:kind :home :number 1}})))))
   (testing "a home page that was told no post, of a blog that has posts, is not found"
     (is (= "not-found" (first (shown notebook {:page {:kind :home :number 1}})))))
   (testing "a search and a tag do not change what the home page shows"
-    (is (= "post" (first (get-in (view/page "/" notebook {:page {:kind :home :number 1} :post newest}
+    (is (= "post" (first (get-in (view/page "/" notebook {:page {:kind :home :number 1} :text newest}
                                             {:query "first" :tag "food"})
                                  [:lists :main :order]))))))
 
@@ -262,13 +262,13 @@
     (mapv (comp :item by-key) order)))
 
 (deftest sidebar-test
-  (let [on-post {:page {:kind :post :folder "b"} :post {:folder "b" :title "Second" :blocks []}}]
+  (let [on-post {:page {:kind :post :folder "b"} :text {:folder "b" :title "Second" :blocks []}}]
     (testing "every page lists every post, by year, and marks the post that it shows"
       (is (= [["/c/" "2026" true false] ["/b/" "2026" false true] ["/a/" "2025" true false]]
              (mapv (juxt :href :year :first-of-year? :current?) (sidebar on-post {})))))
     (testing "the home page marks the newest post, which it shows"
       (is (= [true false false]
-             (mapv :current? (sidebar {:page {:kind :home :number 1} :post newest} {})))))
+             (mapv :current? (sidebar {:page {:kind :home :number 1} :text newest} {})))))
     (testing "a page that shows no post marks none"
       (is (= [false false false] (mapv :current? (sidebar {:page {:kind :archive}} {})))))
     (testing "a chosen tag leaves the posts that have it, and each link carries the tag"
@@ -286,19 +286,60 @@
     (testing "a search does not narrow the list"
       (is (= 3 (count (sidebar on-post {:query "third"})))))
     (testing "the document of Notebook is given the posts as commands, and Journal's is not"
-      (is (= #{:main :presets :tags :posts} (set (keys (:lists (view/page "/" notebook on-post {}))))))
+      (is (= #{:main :presets :pages :tags :posts} (set (keys (:lists (view/page "/" notebook on-post {}))))))
       (is (contains? (:item (view/page "/" notebook on-post {})) :commands)))))
 
+(def with-pages
+  (assoc notebook :pages [{:folder "about" :title "About" :summary "Who writes." :order 1}
+                          {:folder "contact" :title "Contact" :unpublished? true}]))
+
 (deftest commands-test
-  (testing "every post is a command: what is shown, what is searched and where it leads"
-    (is (= [{:id "c" :label "Third" :group "2026" :keywords ["Three." "travel" "food"] :value "/c/"}
-            {:id "b" :label "Second" :group "2026" :keywords ["Two." "travel"] :value "/b/"}
-            {:id "a" :label "First" :group "2025" :keywords ["One."] :value "/a/"}]
+  (testing "every post is a command: what is shown, what is searched, where it leads, and its year"
+    (is (= [{:id "c" :label "Third" :year "2026" :keywords ["Three." "travel" "food"] :value "/c/"}
+            {:id "b" :label "Second" :year "2026" :keywords ["Two." "travel"] :value "/b/"}
+            {:id "a" :label "First" :year "2025" :keywords ["One."] :value "/a/"}]
            (get-in (view/page "/" notebook {:page {:kind :archive}} {}) [:item :commands]))))
-  (testing "a post with no date, no summary and no tags is still one"
-    (is (= [{:id "x" :label "X" :group "" :keywords [] :value "/x/"}]
+  (testing "a post with no date, no summary and no tags is still one, and has no year"
+    (is (= [{:id "x" :label "X" :keywords [] :value "/x/"}]
            (get-in (view/page "/" (assoc notebook :posts [{:folder "x" :title "X"}]) {:page {:kind :archive}} {})
-                   [:item :commands])))))
+                   [:item :commands]))))
+  (testing "the pages of the author are commands too, after the posts, and say that they are pages"
+    (is (= [{:id "about" :label "About" :keywords ["Who writes."] :value "/about/" :page? true}
+            {:id "contact" :label "Contact" :keywords [] :value "/contact/" :page? true}]
+           (drop 3 (get-in (view/page "/" with-pages {:page {:kind :archive}} {}) [:item :commands]))))))
+
+(deftest standalone-test
+  (let [about {:page {:kind :standalone :folder "about"} :text {:folder "about" :title "About" :blocks [one two]}}
+        page  (view/page "/" with-pages about {})
+        [k node] (let [{:keys [order by-key]} (get-in page [:lists :main])] [(first order) (by-key (first order))])]
+    (testing "a page of the author shows its title and its text, and no date, tags or other post"
+      (is (= "standalone" k))
+      (is (= {:title "About" :unpublished? false} (:item node)))
+      (is (= [:blocks] (keys (:lists node))))
+      (is (= [one two] (mapv (get-in node [:lists :blocks :by-key]) (get-in node [:lists :blocks :order])))))
+    (testing "a page that is not published says so"
+      (is (true? (get-in (view/page "/" with-pages {:page {:kind :standalone :folder "contact"}
+                                                    :text {:folder "contact" :title "Contact" :blocks []}} {})
+                         [:lists :main :by-key "standalone" :item :unpublished?]))))
+    (testing "the document lists the pages in the order they were given, each with its address"
+      (is (= [{:title "About" :href "/about/" :current? true} {:title "Contact" :href "/contact/" :current? false}]
+             (row-items page :pages))))
+    (testing "no link is to the page that is shown when that is no page of the author, also for a post of that name"
+      (is (not-any? :current? (row-items (view/page "/" with-pages {:page {:kind :archive}} {}) :pages)))
+      (is (not-any? :current? (row-items (view/page "/" with-pages {:page {:kind :post :folder "about"}
+                                                                    :text {:folder "about" :title "A" :blocks []}} {})
+                                         :pages))))
+    (testing "the addresses of the pages start at the top of the blog"
+      (is (= ["/my-blog/about/" "/my-blog/contact/"]
+             (mapv :href (row-items (view/page "/my-blog/" with-pages about {}) :pages)))))
+    (testing "a blog with no pages lists none, and a page that was told no text is not found"
+      (is (= [] (row-items (view/page "/" notebook {:page {:kind :archive}} {}) :pages)))
+      (is (= ["not-found"] (get-in (view/page "/" with-pages {:page {:kind :standalone :folder "gone"}} {})
+                                   [:lists :main :order]))))
+    (testing "the pages are not among the posts of a list"
+      (is (= ["c" "b" "a"] (get-in (view/page "/" (assoc with-pages :blog (assoc blog :per-page 10))
+                                              {:page {:kind :home :number 1}} {})
+                                   [:lists :main :by-key "entries" :lists :entries :order]))))))
 
 (deftest window-test
   (let [item (fn [local] (:item (view/page "/" notebook {:page {:kind :archive}} local)))]
@@ -313,7 +354,7 @@
         home    (get (main-of {:page {:kind :home :number 1}}) "entries")
         page    (view/page "/my-blog/"
                            (assoc site :blog (assoc blog :template :notebook))
-                           {:page {:kind :post :folder "b"} :post {:folder "b" :title "Second" :tags ["travel"]}}
+                           {:page {:kind :post :folder "b"} :text {:folder "b" :title "Second" :tags ["travel"]}}
                            {:tag "travel"})]
     (testing "every address of a page starts at the top of the blog"
       (is (= {:home "/my-blog/" :archive "/my-blog/archive/"} (select-keys (:item page) [:home :archive])))

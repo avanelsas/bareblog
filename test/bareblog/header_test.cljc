@@ -45,3 +45,17 @@
   (testing "a date that cannot be read is a problem, which says what was written and how to write it"
     (is (= ["The date \"11 Oct 2026\" could not be read. Write a date as 2026-10-11."]
            (header/problems ["title: Lisbon" "date: 11 Oct 2026"])))))
+
+(deftest order-test
+  (testing "the order of a page is a whole number"
+    (is (= {:order 2} (header/fields ["order: 2"])))
+    (is (= {:order 0} (header/fields ["Order: 0"]))))
+  (testing "what is no whole number is left out, and the author is told how to write one"
+    (is (= {} (header/fields ["order: first"])))
+    (is (= {} (header/fields ["order: 1.5"])))
+    (is (= ["The order \"first\" could not be read. Write a whole number, as 2."]
+           (header/problems ["order: first"]))))
+  (testing "a date that could not be read still says how a date is written"
+    (is (= ["The date \"soon\" could not be read. Write a date as 2026-10-11."]
+           (header/problems ["date: soon"])))))
+

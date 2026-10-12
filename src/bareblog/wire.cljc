@@ -2,8 +2,8 @@
   "The names that the command and the app share.
 
    A page loads two files. The data of the site, at the top of the blog, is the same for every
-   page. The data of a page, beside the page, says what the page is, and holds the post when it
-   is the page of one. In a preview it names a socket, and the page is told both over that.")
+   page. The data of a page, beside the page, says what the page is, and holds under `:text`
+   the post or the page of the author that it shows, when it shows one. In a preview it names a socket, and the page is told both over that.")
 
 (def site-data
   "The file at the top of a blog that holds what every page loads: the settings of the blog and

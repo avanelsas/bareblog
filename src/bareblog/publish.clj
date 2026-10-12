@@ -11,7 +11,6 @@
             [bareblog.git :as git]
             [bareblog.layout :as layout]
             [bareblog.plan :as plan]
-            [bareblog.post :as post]
             [bareblog.site :as site]
             [bareblog.source :as source]
             [clojure.string :as str]))
@@ -42,15 +41,8 @@
   "Where the folder `folder` is in the blog in the directory `dir`."
   [dir folder]
   {:in-posts?  (fs/directory? (post-dir dir folder))
-   :in-drafts? (fs/directory? (draft-dir dir folder))})
-
-(defn- list-posts
-  "The folders of the posts of the blog in the directory `dir`, as a set."
-  [dir]
-  (let [posts (fs/path dir layout/posts-dir)]
-    (into #{}
-          (comp (filter fs/directory?) (map fs/file-name) (filter post/folder?))
-          (when (fs/directory? posts) (fs/list-dir posts)))))
+   :in-drafts? (fs/directory? (draft-dir dir folder))
+   :in-pages?  (fs/directory? (fs/path dir layout/pages-dir folder))})
 
 (defn- reading
   "How the blog in the directory `dir` is read for the plan `plan`, with the settings
@@ -67,7 +59,7 @@
   (let [disk (reading dir (:blog published) {:dates (site/dates published)})
         kept (assoc disk :as-published folders)]
     (into #{}
-          (filter (fn [folder] (not= (source/read-shown-post disk folder) (source/read-shown-post kept folder))))
+          (filter (fn [folder] (not= (source/read-shown-text disk folder) (source/read-shown-text kept folder))))
           folders)))
 
 (defn- move!
@@ -80,7 +72,7 @@
   "Generates `blog`, and says how many pages it has. Throws when a post that is read has
    something wrong with it."
   [{:keys [say] :as how} blog]
-  (when-some [problems (seq (source/read-post-problems blog))]
+  (when-some [problems (seq (source/read-problems blog))]
     (throw (ex-info (str/join "\n" problems) {})))
   (say (str (count (generate/generate! how blog)) " pages.")))
 
@@ -146,11 +138,15 @@
 (defn- publish-all!
   [{:keys [ask] :as how} dir {:keys [today]}]
   (let [published (source/read-published dir)
-        on-disk   (list-posts dir)
+        settings  (source/read-settings dir)
+        on-disk   (source/list-folders (source/published dir settings))
+        there     (into (:posts on-disk) (:pages on-disk))
         edited    (when published
-                    (find-edited dir published (into #{} (filter on-disk) (map :folder (:posts published)))))
+                    (find-edited dir published
+                                 (into #{} (comp (map :folder) (filter there))
+                                       (concat (:posts published) (:pages published)))))
         held-back (if (and (seq edited) (not (ask (plan/edits-question edited)))) edited #{})]
-    (carry-out! how dir (source/read-settings dir) (plan/all published on-disk held-back today))))
+    (carry-out! how dir settings (plan/all published on-disk held-back today))))
 
 (defn- not-a-repository [dir]
   {:outcome :refused

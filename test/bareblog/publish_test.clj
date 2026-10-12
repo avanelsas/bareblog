@@ -25,7 +25,7 @@
       (let [dir    (str (fs/create-dirs (fs/path top "blog")))
             remote (str (fs/path top "remote.git"))
             app    (str (fs/create-dirs (fs/path top "the-app")))]
-        (doseq [name ["blog.edn" "posts" "drafts"]]
+        (doseq [name ["blog.edn" "posts" "drafts" "pages"]]
           (fs/move (fs/path top name) (fs/path dir name)))
         (spit (fs/file app "index.html") "the page of the app")
         (spit (fs/file app "app.css") "the styles")
@@ -107,7 +107,7 @@
         (testing "a post with no date in its text gets the day it was published"
           (is (= "2026-10-12" (:date (listed dir "hello-bareblog"))))
           (is (= "2026-10-12"
-                 (get-in (edn/read-string (slurp (fs/file dir "docs" "hello-bareblog" "page.edn"))) [:post :date]))))
+                 (get-in (edn/read-string (slurp (fs/file dir "docs" "hello-bareblog" "page.edn"))) [:text :date]))))
         (testing "a draft is not published, and not committed"
           (is (not (fs/exists? (fs/path dir "docs" "a-new-idea"))))
           (is (fs/exists? (fs/path dir "drafts" "a-new-idea" "post.md"))))
@@ -141,7 +141,7 @@
         (is (= "Why web components" (:title (listed dir "why-web-components"))))
         (is (= "Why web components"
                (get-in (edn/read-string (slurp (fs/file dir "docs" "why-web-components" "page.edn")))
-                       [:post :title])))
+                       [:text :title])))
         (is (not (contains? (:paths (committed dir)) "posts/why-web-components/post.md")))
         (is (= "M posts/why-web-components/post.md" (sh dir "status" "--porcelain"))))
       (testing "the whole blog asks about that edit, and with a no it stays unpublished"
@@ -177,6 +177,79 @@
         (is (fs/exists? (fs/path dir "drafts" "hello-bareblog" "post.md")))
         (is (pushed? repo))))))
 
+(deftest page-test
+  (with-repo
+    (fn [{:keys [dir] :as repo}]
+      (testing "the whole blog holds its pages"
+        (is (= :published (:outcome (publish! repo {:all? true} true))))
+        (is (= ["about"] (map :folder (:pages (site dir)))))
+        (is (= "/my-blog/about/" (slurp (fs/file dir "docs" "about" "index.html"))))
+        (is (= {:kind :standalone :folder "about"}
+               (:page (edn/read-string (slurp (fs/file dir "docs" "about" "page.edn"))))))
+        (is (fs/regular-file? (fs/path dir "docs" "about" "boat.svg")))
+        (is (not (fs/exists? (fs/path dir "docs" "about" "page.md"))))
+        (is (contains? (:paths (committed dir)) "docs/about/index.html"))
+        (is (clean? dir)))
+      (testing "a new page is published by its name, from where it is, and gets no date"
+        (fs/create-dirs (fs/path dir "pages" "contact"))
+        (spit (fs/file dir "pages" "contact" "page.md") "---\norder: 0\n---\n\n# Contact\n")
+        (let [{:keys [outcome message]} (publish! repo {:folder "contact"} true)]
+          (is (= [:published "Publish contact"] [outcome message]))
+          (is (= ["contact" "about"] (map :folder (:pages (site dir)))))
+          (is (not (contains? (first (:pages (site dir))) :date)))
+          (is (fs/directory? (fs/path dir "pages" "contact")))
+          (is (contains? (:paths (committed dir)) "pages/contact/page.md"))
+          (is (pushed? repo))))
+      (testing "an edit of a page is published, and an unfinished edit of another page stays where it is"
+        (spit (fs/file dir "pages" "contact" "page.md") "# Get in touch\n")
+        (spit (fs/file dir "pages" "about" "page.md") "# Not finished\n")
+        (is (= :published (:outcome (publish! repo {:folder "contact"} true))))
+        (is (= #{"Get in touch" "About"} (set (map :title (:pages (site dir))))))
+        (is (= "M pages/about/page.md" (sh dir "status" "--porcelain"))))
+      (testing "a page whose folder is gone is removed, after a yes"
+        (fs/delete-tree (fs/path dir "pages" "contact"))
+        (let [{:keys [outcome asked]} (publish! repo {:folder "contact"} true)]
+          (is (= :published outcome))
+          (is (= ["Remove from the published blog: contact?"] asked))
+          (is (= ["about"] (map :folder (:pages (site dir)))))
+          (is (not (fs/exists? (fs/path dir "docs" "contact"))))
+          (is (= "Remove contact" (:message (committed dir)))))))))
+
+(deftest page-becomes-post-test
+  (with-repo
+    (fn [{:keys [dir] :as repo}]
+      (publish! repo {:all? true} true)
+      (fs/create-dirs (fs/path dir "posts"))
+      (fs/move (fs/path dir "pages" "about") (fs/path dir "posts" "about"))
+      (fs/move (fs/path dir "posts" "about" "page.md") (fs/path dir "posts" "about" "post.md"))
+      (testing "a published page whose folder is moved to the posts is published as a post, and asks nothing"
+        (let [{:keys [outcome asked]} (publish! repo {:folder "about"} true)]
+          (is (= :published outcome))
+          (is (empty? asked))
+          (is (empty? (:pages (site dir))))
+          (is (= "2026-10-12" (:date (listed dir "about"))))
+          (is (= :post (get-in (edn/read-string (slurp (fs/file dir "docs" "about" "page.edn"))) [:page :kind])))))
+      (testing "both the place it left and the place it is in are committed"
+        (is (contains? (:paths (committed dir)) "posts/about/post.md"))
+        (is (= "" (sh dir "ls-files" "pages/about")))
+        (is (clean? dir))))))
+
+(deftest held-back-page-test
+  (with-repo
+    (fn [{:keys [dir] :as repo}]
+      (publish! repo {:all? true} true)
+      (spit (fs/file dir "pages" "about" "page.md") "# Not finished\n")
+      (testing "the whole blog asks about an edited page too, and with a no it stays as it was published"
+        (let [{:keys [outcome asked]} (publish! repo {:all? true} false)]
+          (is (= :unchanged outcome))
+          (is (re-find #"not published: about\." (first asked)))
+          (is (= ["About"] (map :title (:pages (site dir)))))
+          (is (= "M pages/about/page.md" (sh dir "status" "--porcelain")))))
+      (testing "with a yes it is published"
+        (is (= :published (:outcome (publish! repo {:all? true} true))))
+        (is (= ["Not finished"] (map :title (:pages (site dir)))))
+        (is (clean? dir))))))
+
 (deftest two-questions-test
   (with-repo
     (fn [{:keys [dir] :as repo}]
@@ -199,11 +272,11 @@
         (testing "a name that is nowhere is refused"
           (let [{:keys [outcome why]} (publish! repo {:folder "zebra"} true)]
             (is (= :refused outcome))
-            (is (re-find #"no post zebra" why))))
+            (is (re-find #"nothing named zebra" why))))
         (testing "what is no name of a post folder is refused, though it leads to a directory"
           (let [{:keys [outcome why]} (publish! repo {:folder "../docs"} true)]
             (is (= :refused outcome))
-            (is (re-find #"no name of a post folder" why))))
+            (is (re-find #"no name of a folder" why))))
         (testing "a post with something wrong is not published, and a draft is moved back"
           (fs/create-dirs (fs/path dir "drafts" "bad-date"))
           (spit (fs/file dir "drafts" "bad-date" "post.md") "---\ndate: next week\n---\n\n# Bad\n")

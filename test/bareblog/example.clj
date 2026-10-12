@@ -1,5 +1,6 @@
 (ns bareblog.example
-  "A copy of the example blog to change in a test: its settings, its posts and its drafts."
+  "A copy of the example blog to change in a test: its settings, its posts, its drafts and
+   its pages."
   (:require [babashka.fs :as fs]
             [clojure.edn :as edn]))
 
@@ -9,7 +10,7 @@
   "Copies what an author wrote of the example blog into the directory `target`, with
    `settings` put over its settings."
   [target settings]
-  (doseq [posts ["posts" "drafts"]]
+  (doseq [posts ["posts" "drafts" "pages"]]
     (fs/copy-tree (fs/path dir posts) (fs/path target posts)))
   (spit (fs/file target "blog.edn")
         (pr-str (merge (edn/read-string (slurp (fs/file dir "blog.edn"))) settings))))
