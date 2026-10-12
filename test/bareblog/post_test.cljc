@@ -144,6 +144,24 @@
     (testing "everything else stays as it is"
       (is (= (dissoc with-images :blocks) (dissoc placed :blocks))))))
 
+(deftest folder-rule-test
+  (testing "an author is told what the name of a folder may be, with the names that are kept"
+    (is (re-find #"small letters, digits and dashes" post/folder-rule))
+    (is (re-find #"archive, js, page, tags" post/folder-rule))))
+
+(deftest folder-for-test
+  (testing "a title gives a name for a folder: its letters and digits, with dashes between"
+    (is (= "a-week-in-lisbon" (post/folder-for "A week in Lisbon")))
+    (is (= "2026-in-review" (post/folder-for "2026 in review")))
+    (is (= "what-s-new" (post/folder-for "  What's new?! "))))
+  (testing "an accent is taken off its letter"
+    (is (= "cafe-lisboa" (post/folder-for "Café Lisboa"))))
+  (testing "such a name is the name of a post folder"
+    (is (every? (comp post/folder? post/folder-for) ["A week in Lisbon" "Café" "C++ in 2026"])))
+  (testing "a title with no letter or digit gives no name"
+    (is (= "" (post/folder-for "!!!")))
+    (is (= "" (post/folder-for nil)))))
+
 (deftest folder-pattern-test
   (testing "the name of a folder is small letters, digits and dashes, and does not start with a dash"
     (is (re-matches (re-pattern post/folder-pattern) "a-week-in-lisbon"))

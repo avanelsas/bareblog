@@ -84,8 +84,7 @@
       (is (source/blog? "example"))
       (is (not (source/blog? "src")))
       (is (not (source/blog? nil)))
-      (is (re-find #"bb serve" (source/refusal nil "bb serve example")))
-      (is (re-find #"No blog.edn in src" (source/refusal "src" "bb serve example"))))
+      (is (= "No blog.edn in src. A blog has one at its top." (source/refusal "src"))))
     (testing "the page of a post that is not there has no data"
       (is (nil? (source/read-page blog {:kind :post :folder "not-there"}))))))
 

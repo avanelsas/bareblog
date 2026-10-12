@@ -11,6 +11,7 @@
   (:require [babashka.fs :as fs]
             [babashka.process :as process]
             [bareblog.address :as address]
+            [bareblog.home :as home]
             [bareblog.layout :as layout]
             [bareblog.output :as output]
             [bareblog.post :as post]
@@ -24,13 +25,10 @@
   "The name of the setting of the environment that says where the saver is."
   "BAREDOM_PRERENDER")
 
-(def ^:private saver-beside
-  "Where the saver is when BareDOM is checked out beside BareBlog."
-  (fs/path ".." "BareDom" "scripts" "prerender.mjs"))
-
-(def ^:private app-script (fs/path serve/public-dir "js" "app.js"))
-
-(def ^:private development-files (fs/path serve/public-dir "js" "cljs-runtime"))
+(defn- saver-beside
+  "Where the saver is when BareDOM is checked out beside BareBlog, which is in `home`."
+  [home]
+  (fs/path home ".." "BareDom" "scripts" "prerender.mjs"))
 
 (def ^:private window
   "The window that a page is saved in, as a flag for the browser. It is a wide one, so that a
@@ -39,23 +37,24 @@
   "--window-size=1280,900")
 
 (defn- find-saver
-  "The script that saves a page, or nil when there is none."
-  []
-  (first (filter fs/regular-file? (remove nil? [(System/getenv saver-setting) saver-beside]))))
+  "The script that saves a page, for BareBlog in `home`, or nil when there is none."
+  [home]
+  (first (filter fs/regular-file? (remove nil? [(System/getenv saver-setting) (saver-beside home)]))))
 
 (defn- find-refusal
-  "Why nothing can be generated with the script `saver`, as a text, or nil when it can."
-  [saver]
+  "Why nothing can be generated with the script `saver` and the app in the directory `app`, as
+   a text, or nil when it can."
+  [saver app]
   (cond
     (nil? saver)
     (str "The saver was not found. Check BareDOM out beside BareBlog, or set " saver-setting
          " to its scripts/prerender.mjs.")
 
-    (not (fs/regular-file? app-script))
-    "The app is not built. Run: npx shadow-cljs release app"
+    (not (fs/regular-file? (fs/path app "js" "app.js")))
+    "The app is not built. Where BareBlog is, run: npx shadow-cljs release app"
 
-    (fs/directory? development-files)
-    (str "The app is a development build. Stop shadow-cljs watch, remove " (fs/parent development-files)
+    (fs/directory? (fs/path app "js" "cljs-runtime"))
+    (str "The app is a development build. Stop shadow-cljs watch, remove " (fs/path app "js")
          ", and run: npx shadow-cljs release app")))
 
 (defn- last-line [text]
@@ -122,7 +121,7 @@
    pages are saved from a server that runs for as long as this takes."
   [{:keys [say app] :as how} {:keys [root] :as blog} out]
   (let [site   (source/read-site blog)
-        server (http/run-server (partial serve/handler blog) {:port 0 :legacy-return-value? false})
+        server (http/run-server (partial serve/handler {:blog blog :app app}) {:port 0 :legacy-return-value? false})
         origin (str "http://localhost:" (http/server-port server))]
     (try
       (run! say (:problems site))
@@ -190,15 +189,15 @@
         false))))
 
 (defn -main
-  "Generates the blog in the directory `dir`."
-  [& [dir]]
-  (let [saver   (find-saver)
-        refusal (if (source/blog? dir)
-                  (find-refusal saver)
-                  (source/refusal dir "bb generate example"))]
+  "Generates the blog in the directory `dir`, for BareBlog in the directory `home`."
+  [home & [dir]]
+  (let [saver   (find-saver home)
+        app     (home/app-dir home)
+        refusal (cond
+                  (nil? dir)               "Give the directory of a blog: bb generate example"
+                  (not (source/blog? dir)) (source/refusal dir)
+                  :else                    (find-refusal saver app))]
     (when refusal
       (println refusal)
       (System/exit 1))
-    (System/exit (if (generate-or-say! {:save (save-with saver) :say println :app serve/public-dir} dir)
-                   0
-                   1))))
+    (System/exit (if (generate-or-say! {:save (save-with saver) :say println :app app} dir) 0 1))))

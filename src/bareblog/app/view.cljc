@@ -5,6 +5,7 @@
    each of its lists the keys of the rows in `:order` and what each row is given in `:by-key`."
   (:require [bareblog.address :as address]
             [bareblog.app.templates :as templates]
+            [bareblog.post :as post]
             [bareblog.site :as site]
             [clojure.string :as str]))
 
@@ -73,23 +74,15 @@
   [site]
   {:key "not-found" :named {:kind :not-found} :node {:item {:home (:root site)}}})
 
-(defn- plain-letters
-  "The `text` in small letters, with every accent taken off its letter."
-  [text]
-  (-> #?(:clj  (java.text.Normalizer/normalize (or text "") java.text.Normalizer$Form/NFD)
-         :cljs (.normalize (or text "") "NFD"))
-      (str/replace #"[\u0300-\u036f]" "")
-      str/lower-case))
-
 (defn- words-of
   "The words in `text`, as a search looks for them."
   [text]
-  (remove str/blank? (str/split (plain-letters text) #"\s+")))
+  (remove str/blank? (str/split (post/plain-letters text) #"\s+")))
 
 (defn- searched
   "The text of `entry` that a search looks through, as a search looks for it."
   [{:keys [title summary tags]}]
-  (plain-letters (str/join " " (concat [title summary] tags))))
+  (post/plain-letters (str/join " " (concat [title summary] tags))))
 
 ;; A word is found anywhere in the text, also inside a longer word, so that a search narrows
 ;; while the reader is still typing.

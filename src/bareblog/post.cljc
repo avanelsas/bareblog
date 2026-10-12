@@ -17,12 +17,33 @@
   (and (some? (re-matches (re-pattern folder-pattern) folder-name))
        (not (contains? address/reserved folder-name))))
 
-(defn- plain
+(def folder-rule
+  "What the name of a post folder may be, as a text for an author."
+  (str "A post folder has small letters, digits and dashes in its name, and the blog keeps the "
+       "names " (str/join ", " (sort address/reserved)) " for itself."))
+
+(defn plain-letters
+  "The `text` in small letters, with every accent taken off its letter."
+  [text]
+  (-> #?(:clj  (java.text.Normalizer/normalize (or text "") java.text.Normalizer$Form/NFD)
+         :cljs (.normalize (or text "") "NFD"))
+      (str/replace #"[\u0300-\u036f]" "")
+      str/lower-case))
+
+(defn folder-for
+  "A name for the folder of a post with the title `title`: its letters and digits, with a dash
+   wherever something else stands between them. It is no name of a folder when nothing is left."
+  [title]
+  (-> (plain-letters title)
+      (str/replace #"[^a-z0-9]+" "-")
+      (str/replace #"^-+|-+$" "")))
+
+(defn- text-in
   "The text of `x`, which is content of a block or a block that holds content."
   [x]
   (cond
     (string? x) x
-    (map? x)    (or (:text x) (apply str (map plain (:content x))))
+    (map? x)    (or (:text x) (apply str (map text-in (:content x))))
     :else       ""))
 
 (def summary-length
@@ -39,7 +60,7 @@
 (defn- first-paragraph
   "The start of the first text block of `blocks`, or nil when there is none."
   [blocks]
-  (some->> blocks (filter (comp #{:text} :kind)) first plain (shortened summary-length)))
+  (some->> blocks (filter (comp #{:text} :kind)) first text-in (shortened summary-length)))
 
 (defn from
   "The post in the folder `folder`, from what the reader read of its text. Its title is the one

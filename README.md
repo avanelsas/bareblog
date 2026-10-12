@@ -13,7 +13,8 @@ Eight of ten steps are built: the whole blog shows in the browser, read from its
 home page, a page for each post and tag, and an archive. A reader can search, pick a tag and
 pick a theme. An open page follows the files as you save them. Both blog templates are there,
 and one line in `blog.edn` picks between them. `bb generate` writes the blog out as static
-pages with a feed. There is no `bareblog` command yet, and nothing is published. This page
+pages with a feed. The `bareblog` command makes a draft and shows the preview. Nothing is
+published yet. This page
 describes what BareBlog will do.
 
 To see the example blog:
@@ -21,8 +22,12 @@ To see the example blog:
 ```
 npm install
 npx shadow-cljs watch app
-bb serve example
+cd example
+../bin/bareblog preview
 ```
+
+`bin/bareblog` finds BareBlog from where it is, so a link to it on your path works from the
+directory of any blog.
 
 To write it out as static pages, in `example/docs`:
 

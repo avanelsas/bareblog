@@ -5,6 +5,7 @@
 (def namespaces
   '[bareblog.address-test
     bareblog.claude-test
+    bareblog.cli-test
     bareblog.example-test
     bareblog.feed-test
     bareblog.generate-test

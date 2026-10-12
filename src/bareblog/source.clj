@@ -15,8 +15,7 @@
             [bareblog.reader :as reader]
             [bareblog.site :as site]
             [clojure.edn :as edn]
-            [clojure.java.io :as io]
-            [clojure.string :as str]))
+            [clojure.java.io :as io]))
 
 (defn- shows-newest?
   "True when the blog with the settings `settings` shows its newest post on its home page."
@@ -29,11 +28,9 @@
   (and (some? dir) (fs/regular-file? (fs/path dir layout/settings-file))))
 
 (defn refusal
-  "Why `dir` is no blog, with how the command `usage` is given one."
-  [dir usage]
-  (if dir
-    (str "No " layout/settings-file " in " dir ". A blog has one at its top.")
-    (str "Give the directory of a blog: " usage)))
+  "Why the directory `dir` is no blog."
+  [dir]
+  (str "No " layout/settings-file " in " dir ". A blog has one at its top."))
 
 (defn preview
   "How the blog in the directory `dir` is read for its author: at the top of its host, with
@@ -111,8 +108,7 @@
 (defn- refused
   "What is wrong with a directory whose name is no name of a post folder."
   [{:keys [place]}]
-  (str place " is left out. A post folder has small letters, digits and dashes in its name, "
-       "and the blog keeps the names " (str/join ", " (sort address/reserved)) " for itself."))
+  (str place " is left out. " post/folder-rule))
 
 (defn- read-entry
   "The entry of the post in a directory, and what is wrong with the post."

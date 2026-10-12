@@ -1,8 +1,9 @@
 (ns bareblog.serve
   "A local server for one blog: the app, and each post as data.
 
-   A blog is served as the map says that `bareblog.source` reads it by. A blog that is read
-   for its author has its pages told of every change, and of what is wrong with it."
+   What is served is a map: under `:blog` how the blog is read, as `bareblog.source` reads it,
+   and under `:app` the directory of the files of the app. A blog that is read for its author
+   has its pages told of every change, and of what is wrong with it."
   (:require [babashka.fs :as fs]
             [bareblog.address :as address]
             [bareblog.feed :as feed]
@@ -14,13 +15,6 @@
             [clojure.string :as str]
             [org.httpkit.server :as http])
   (:import [java.util.regex Matcher]))
-
-(def default-port 8080)
-
-(def public-dir
-  "Where the app is, from the directory the server is started in."
-  (fs/path "resources" "public"))
-
 
 ;; What a path asks for. Pure.
 
@@ -244,55 +238,55 @@
   (cond-> (without-throwing #(source/read-site blog))
     (not preview?) site/published))
 
-(defn- serve-site [blog _found _request]
+(defn- serve-site [{:keys [blog]} _found _request]
   (fresh "edn" (pr-str (read-loaded blog))))
 
-(defn- serve-feed [{:keys [root] :as blog} _found _request]
+(defn- serve-feed [{{:keys [root] :as blog} :blog} _found _request]
   (let [site (without-throwing #(source/read-site blog))]
     (if (:problem site)
       not-found
       (fresh "xml" (feed/atom-feed root site)))))
 
-(defn- serve-data [blog {:keys [page]} _request]
+(defn- serve-data [{:keys [blog]} {:keys [page]} _request]
   (if-some [told (read-shown blog page nil)]
     (fresh "edn" (pr-str told))
     not-found))
 
-(defn- serve-changes [blog {:keys [page]} request]
+(defn- serve-changes [{:keys [blog]} {:keys [page]} request]
   (if (:preview? blog)
     (live/socket (partial read-told blog) request page)
     not-found))
 
-(defn- serve-media [blog {:keys [folder file]} _request]
+(defn- serve-media [{:keys [blog]} {:keys [folder file]} _request]
   (if-some [dir (source/find-post-dir blog folder)]
     (serve-file (fs/path dir file))
     not-found))
 
-(defn- serve-static [_blog {:keys [file]} _request]
-  (serve-file (fs/path public-dir file)))
+(defn- serve-static [{:keys [app]} {:keys [file]} _request]
+  (serve-file (fs/path app file)))
 
 (defn- read-document
-  "The response that sends the page of the app for `blog`."
-  [{:keys [root]} missing?]
-  (fresh "html" (document (slurp (fs/file public-dir wire/index)) root missing?)))
+  "The response that sends the page of the app, for what is served."
+  [{:keys [app blog]} missing?]
+  (fresh "html" (document (slurp (fs/file app wire/index)) (:root blog) missing?)))
 
-(defn- serve-page [blog _found _request]
-  (read-document blog false))
+(defn- serve-page [served _found _request]
+  (read-document served false))
 
-(defn- serve-missing [blog _found _request]
-  (read-document blog true))
+(defn- serve-missing [served _found _request]
+  (read-document served true))
 
-(defn- serve-redirect [{:keys [root]} {:keys [to]} _request]
-  (redirect (above root to)))
+(defn- serve-redirect [{:keys [blog]} {:keys [to]} _request]
+  (redirect (above (:root blog) to)))
 
 (defn- serve-nothing
   "The page of the app, as the page for an address with no page."
-  [blog _found _request]
-  (assoc (read-document blog true) :status 404))
+  [served _found _request]
+  (assoc (read-document served true) :status 404))
 
 (def ^:private servers
-  "The function that serves each thing a route can ask for, from the blog, what the route
-   found and the request."
+  "The function that serves each thing a route can ask for, from what is served, what the
+   route found and the request."
   {:site     serve-site
    :feed     serve-feed
    :static   serve-static
@@ -305,28 +299,24 @@
    :nothing  serve-nothing})
 
 (defn handler
-  "The response of `blog` to `request`. A path that is not under the top of the blog serves
-   nothing."
-  [{:keys [root] :as blog} request]
-  (let [found (or (some-> (below root (:uri request)) route) {:serve :nothing})]
-    ((servers (:serve found)) blog found request)))
+  "The response to `request` of what `served` says is served. A path that is not under the top
+   of the blog serves nothing."
+  [{:keys [blog] :as served} request]
+  (let [found (or (some-> (below (:root blog) (:uri request)) route) {:serve :nothing})]
+    ((servers (:serve found)) served found request)))
 
 (defn- announce!
   "Says where `blog` is served, and what is wrong with it."
   [{:keys [dir] :as blog} port]
-  (println (str "Serving the blog in " dir " on http://localhost:" port "/"))
+  (println (str "Serving the blog in " (fs/canonicalize dir) " on http://localhost:" port "/"))
   (let [{:keys [problem problems]} (without-throwing #(source/read-site blog))]
     (run! println (if problem [] problems))))
 
-(defn -main
-  "Serves the blog in the directory `dir` until the process stops."
-  [& [dir port]]
-  (when-not (source/blog? dir)
-    (println (source/refusal dir "bb serve example [port]"))
-    (System/exit 1))
-  (let [port (if port (parse-long port) default-port)
-        blog (source/preview dir)]
-    (http/run-server (partial handler blog) {:port port})
+(defn start!
+  "Serves the blog in the directory `dir` on the port `port`, as a preview, with the files of
+   the app in the directory `app`, and says where."
+  [app dir port]
+  (let [blog (source/preview dir)]
+    (http/run-server (partial handler {:blog blog :app app}) {:port port})
     (live/watch! dir (partial read-told blog))
-    (announce! blog port)
-    @(promise)))
+    (announce! blog port)))

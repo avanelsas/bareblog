@@ -1,0 +1,20 @@
+#!/usr/bin/env bb
+;; The `bareblog` command. It is run in the directory of a blog, from wherever BareBlog is:
+;; put this file on the path with a link to it.
+
+(require '[babashka.classpath :as classpath]
+         '[babashka.deps :as deps]
+         '[babashka.fs :as fs]
+         '[clojure.edn :as edn])
+
+;; BareBlog is where this file is, also when it is run by a link. Its source and what it
+;; depends on are added here, so that a blog needs no `bb.edn`.
+(def home
+  (str (fs/parent (fs/parent (fs/real-path *file*)))))
+
+(deps/add-deps (select-keys (edn/read-string (slurp (fs/file home "bb.edn"))) [:deps]))
+(classpath/add-classpath (str (fs/path home "src")))
+
+(require '[bareblog.cli :as cli])
+
+(System/exit (cli/main home *command-line-args*))

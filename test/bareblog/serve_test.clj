@@ -1,8 +1,10 @@
 (ns bareblog.serve-test
-  (:require [bareblog.address :as address]
+  (:require [babashka.fs :as fs]
+            [bareblog.address :as address]
             [bareblog.output :as output]
             [bareblog.post :as post]
             [bareblog.example :as example]
+            [bareblog.home :as home]
             [bareblog.serve :as serve]
             [bareblog.source :as source]
             [clojure.edn :as edn]
@@ -120,7 +122,7 @@
 (defn- fetched
   "What `blog` answers to a request for `path`, read as data."
   [blog path]
-  (edn/read-string (:body (serve/handler blog {:uri path}))))
+  (edn/read-string (:body (serve/handler {:blog blog} {:uri path}))))
 
 (deftest site-data-test
   (example/with-copy {:address "https://avanelsas.github.io/my-blog/"}
@@ -131,9 +133,30 @@
           (is (seq (:problems (fetched (source/preview dir) "/site.edn")))))
         (testing "the readers are not, and the blog is under the path of its address"
           (is (not (contains? (fetched (source/published dir settings) "/my-blog/site.edn") :problems)))
-          (is (= 404 (:status (serve/handler (source/published dir settings) {:uri "/site.edn"})))))
+          (is (= 404 (:status (serve/handler {:blog (source/published dir settings) :app (home/app-dir ".")}
+                                                {:uri "/site.edn"})))))
         (testing "the data of a page names a socket for the author, and none for the readers"
           (is (= "changes" (:changes (fetched (source/preview dir) "/archive/page.edn"))))
           (is (= {:page {:kind :archive}}
                  (fetched (source/published dir settings) "/my-blog/archive/page.edn"))))))))
+
+;; The files of the app are in a directory that the server is told of, which is not the one
+;; that a command is run in.
+(deftest app-test
+  (example/with-copy {}
+    (fn [dir]
+      (let [app    (fs/create-dirs (fs/path dir "the-app" "js"))
+            served (fn [blog path] (serve/handler {:blog blog :app (fs/parent app)} {:uri path}))
+            under  (assoc (source/preview dir) :root "/my-blog/")]
+        (spit (fs/file (fs/parent app) "index.html") "<html lang=\"en\"><link href=\"/app.css\">")
+        (spit (fs/file (fs/parent app) "app.css") "the styles")
+        (spit (fs/file app "app.js") "the script")
+        (testing "a file of the app is sent from that directory"
+          (is (= "the styles" (slurp (:body (served (source/preview dir) "/app.css")))))
+          (is (= "the script" (slurp (:body (served under "/my-blog/js/app.js"))))))
+        (testing "the page of the app is the one in that directory, for the top of the blog"
+          (is (= "<html data-root=\"/my-blog/\" lang=\"en\"><link href=\"/my-blog/app.css\">"
+                 (:body (served under "/my-blog/archive/")))))
+        (testing "a file that is not in it is not found"
+          (is (= 404 (:status (served (source/preview dir) "/other.css")))))))))
 
