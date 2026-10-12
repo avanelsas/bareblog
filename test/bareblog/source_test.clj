@@ -77,7 +77,10 @@
         (is (some? (source/read-page blog {:kind :post :folder "a-new-idea"})))
         (is (nil? (source/read-page published {:kind :post :folder "a-new-idea"})))))
     (testing "a blog is published at the address in its settings, without its drafts"
-      (is (= {:dir "example" :root "/my-blog/" :preview? false}
+      (is (= {:dir      "example"
+              :root     "/my-blog/"
+              :preview? false
+              :settings {:address "https://avanelsas.github.io/my-blog"}}
              (source/published "example" {:address "https://avanelsas.github.io/my-blog"})))
       (is (= "/" (:root (source/published "example" {})))))
     (testing "a directory is a blog when it has settings at its top"
@@ -87,4 +90,41 @@
       (is (= "No blog.edn in src. A blog has one at its top." (source/refusal "src"))))
     (testing "the page of a post that is not there has no data"
       (is (nil? (source/read-page blog {:kind :post :folder "not-there"}))))))
+
+(deftest as-published-test
+  (example/with-copy {}
+    (fn [dir]
+      (let [blog   (source/published dir (source/read-settings dir))
+            lisbon {:kind :post :folder "a-week-in-lisbon"}]
+        (fs/create-dirs (fs/path dir "docs" "a-week-in-lisbon"))
+        (spit (fs/file dir "docs" "site.edn")
+              (pr-str {:blog {:title "As published"} :posts [{:folder "a-week-in-lisbon" :title "Published" :date "2020-01-01"}]}))
+        (spit (fs/file dir "docs" "a-week-in-lisbon" "page.edn")
+              (pr-str {:page lisbon :post {:folder "a-week-in-lisbon" :title "Published" :blocks []}}))
+        (testing "the site as it was published last is the one in the output directory"
+          (is (= "As published" (get-in (source/read-published dir) [:blog :title])))
+          (is (nil? (source/read-published (str (fs/path dir "posts"))))))
+        (testing "a post that is taken as published is the published one, in the list and on its page"
+          (let [kept (assoc blog :as-published #{"a-week-in-lisbon"} :read #{"hello-bareblog"})]
+            (is (= #{"Published" "hello-bareblog"} (set (map :title (:posts (source/read-site kept))))))
+            (is (= "Published" (get-in (source/read-page kept lisbon) [:post :title])))
+            (is (= "A week in Lisbon" (get-in (source/read-page blog lisbon) [:post :title])))))
+        (testing "its files are the published ones too"
+          (is (= (str (fs/path dir "docs" "a-week-in-lisbon"))
+                 (str (source/find-media-dir (assoc blog :as-published #{"a-week-in-lisbon"}) "a-week-in-lisbon"))))
+          (is (= (str (fs/path dir "posts" "a-week-in-lisbon"))
+                 (str (source/find-media-dir blog "a-week-in-lisbon")))))
+        (testing "only the folders that are named are read, and none when none is named"
+          (is (= ["hello-bareblog"] (map :folder (:posts (source/read-site (assoc blog :read #{"hello-bareblog"}))))))
+          (is (empty? (:posts (source/read-site (assoc blog :read #{}))))))
+        (testing "a folder with a name that is not allowed is said, whatever is read"
+          (fs/create-dirs (fs/path dir "posts" "Bad Name"))
+          (is (some #(re-find #"Bad Name" %) (:problems (source/read-site (assoc blog :read #{"hello-bareblog"})))))
+          (is (empty? (source/read-post-problems (assoc blog :read #{"hello-bareblog"})))))
+        (testing "a post whose text gives no date gets the one that the blog gives it, and no other"
+          (let [dated (assoc blog :dates {"hello-bareblog" "2026-10-12" "a-week-in-lisbon" "1999-01-01"})
+                entry (fn [folder] (first (filter (comp #{folder} :folder) (:posts (source/read-site dated)))))]
+            (is (= "2026-10-12" (:date (entry "hello-bareblog"))))
+            (is (= "2026-10-11" (:date (entry "a-week-in-lisbon"))))
+            (is (= "2026-10-12" (get-in (source/read-page dated {:kind :post :folder "hello-bareblog"}) [:post :date])))))))))
 

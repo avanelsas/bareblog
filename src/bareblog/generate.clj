@@ -7,7 +7,7 @@
 
    `generate!` is given how: `:save`, which saves the page at an address into a file, `:say`,
    which is told each thing that happens as a text, and `:app`, the directory of the files of
-   the app."
+   the app. `ready` gives how for BareBlog in a directory, or why nothing can be generated."
   (:require [babashka.fs :as fs]
             [babashka.process :as process]
             [bareblog.address :as address]
@@ -109,7 +109,7 @@
   "Copies the files beside each post in `site`, of `blog`, into `out`."
   [blog out {:keys [posts]}]
   (doseq [{:keys [folder]} posts
-          path             (fs/list-dir (source/find-post-dir blog folder))
+          path             (fs/list-dir (source/find-media-dir blog folder))
           :when            (and (fs/regular-file? path)
                                 (not= layout/post-file (fs/file-name path))
                                 (post/file-name? (fs/file-name path)))]
@@ -134,8 +134,6 @@
       (finally
         @(http/server-stop! server)))))
 
-(def ^:private docs "docs")
-
 ;; The old pages are moved aside before the new ones take their place, and are put back when
 ;; that fails, so that there is never a moment with no pages.
 (defn- replace!
@@ -153,51 +151,31 @@
         (throw problem)))
     (fs/delete-tree aside)))
 
-;; The pages are written beside `docs`, and take its place when every one of them is there. A
-;; run that fails leaves the pages that were there as they were.
+;; The pages are written beside the output directory, and take its place when every one of
+;; them is there. A run that fails leaves the pages that were there as they were.
 (defn generate!
-  "Writes the blog in the directory `dir` into its `docs` directory, in place of what was
-   there, as `how` says, and gives the file of each page."
-  [{:keys [say] :as how} dir]
-  (let [settings (source/read-settings dir)
-        blog     (source/published dir settings)
-        out      (fs/path dir (str docs ".new"))]
-    (say (str "Generating the blog in " dir " for " (:root blog)))
-    (when-not (:address settings)
-      (say "The settings name no :address, so the blog is written for the top of its host."))
+  "Writes `blog` into its output directory, in place of what was there, as `how` says, and
+   gives the file of each page."
+  [{:keys [say] :as how} {:keys [dir] :as blog}]
+  (let [docs (fs/path dir layout/output-dir)
+        out  (fs/path dir (str layout/output-dir ".new"))]
     (when (fs/exists? out)
       (say (str "Removing " out ", which an earlier run left.")))
     (fs/delete-tree out)
     (try
       (let [files (write-blog! how blog out)]
-        (replace! out (fs/path dir docs))
+        (replace! out docs)
         files)
       (finally
         (fs/delete-tree out)))))
 
-(defn- generate-or-say!
-  "Generates the blog in `dir`, and says how it went. True when it went well."
-  [how dir]
-  (let [started (System/currentTimeMillis)]
-    (try
-      (println (str (count (generate! how dir)) " pages in " (fs/path dir docs) ", in "
-                    (quot (- (System/currentTimeMillis) started) 1000) " seconds."))
-      true
-      (catch Exception problem
-        (println (ex-message problem))
-        (println (str "Nothing was changed in " (fs/path dir docs) "."))
-        false))))
-
-(defn -main
-  "Generates the blog in the directory `dir`, for BareBlog in the directory `home`."
-  [home & [dir]]
+(defn ready
+  "What generating takes from BareBlog in the directory `home`: `:save` and `:app`, as
+   `generate!` is given them. Or a `:refusal`, the text that says why nothing can be generated."
+  [home]
   (let [saver   (find-saver home)
         app     (home/app-dir home)
-        refusal (cond
-                  (nil? dir)               "Give the directory of a blog: bb generate example"
-                  (not (source/blog? dir)) (source/refusal dir)
-                  :else                    (find-refusal saver app))]
-    (when refusal
-      (println refusal)
-      (System/exit 1))
-    (System/exit (if (generate-or-say! {:save (save-with saver) :say println :app app} dir) 0 1))))
+        refusal (find-refusal saver app)]
+    (if refusal
+      {:refusal refusal}
+      {:save (save-with saver) :app app})))

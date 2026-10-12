@@ -49,7 +49,8 @@
   (with-blog "https://avanelsas.github.io/my-blog/"
     (fn [dir app]
       (let [said    (atom [])
-            pages   (generate/generate! {:save save-address :say (partial swap! said conj) :app app} dir)
+            pages   (generate/generate! {:save save-address :say (partial swap! said conj) :app app}
+                                        (source/published dir (source/read-settings dir)))
             docs    (fs/path dir "docs")
             written (files docs)
             site    (source/read-site (source/published dir (source/read-settings dir)))]
@@ -87,7 +88,8 @@
   (with-blog nil
     (fn [dir app]
       (let [problem (try
-                      (generate/generate! {:save refuse-archive :say (constantly nil) :app app} dir)
+                      (generate/generate! {:save refuse-archive :say (constantly nil) :app app}
+                                          (source/published dir (source/read-settings dir)))
                       nil
                       (catch Exception problem problem))]
         (testing "a page that cannot be saved stops the run, and the problem names the page"

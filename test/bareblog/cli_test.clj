@@ -24,6 +24,15 @@
                 [["preview" "nine"] ["preview" "0"] ["preview" "65536"] ["preview" "123456"]
                  ["preview" "9000" "9001"]]))
     (is (= 65535 (:port (cli/asked ["preview" "65535"])))))
+  (testing "a publish is of one post, by its folder, or of the whole blog"
+    (is (= {:command "publish" :folder "a-week-in-lisbon" :yes? false} (cli/asked ["publish" "a-week-in-lisbon"])))
+    (is (= {:command "publish" :all? true :yes? false} (cli/asked ["publish" "--all"])))
+    (is (= {:command "publish" :all? true :yes? true} (cli/asked ["publish" "--yes" "--all"])))
+    (is (= {:command "publish" :folder "a" :yes? true} (cli/asked ["publish" "a" "--yes"]))))
+  (testing "a publish of nothing, of two things, or with a flag that there is not, is refused"
+    (is (every? (comp some? :refuse cli/asked)
+                [["publish"] ["publish" "a" "b"] ["publish" "--all" "a"] ["publish" "--everything"]
+                 ["publish" "--yes"]])))
   (testing "no command, and help, ask for how the command is used"
     (is (= {:command "help"} (cli/asked [])))
     (is (= {:command "help"} (cli/asked ["help"]))))

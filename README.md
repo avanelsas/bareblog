@@ -9,13 +9,12 @@ pages.
 
 ## State
 
-Eight of ten steps are built: the whole blog shows in the browser, read from its Markdown, with a
+Nine of ten steps are built: the whole blog shows in the browser, read from its Markdown, with a
 home page, a page for each post and tag, and an archive. A reader can search, pick a tag and
 pick a theme. An open page follows the files as you save them. Both blog templates are there,
-and one line in `blog.edn` picks between them. `bb generate` writes the blog out as static
-pages with a feed. The `bareblog` command makes a draft and shows the preview. Nothing is
-published yet. This page
-describes what BareBlog will do.
+and one line in `blog.edn` picks between them. The `bareblog` command makes a draft,
+shows the preview, and publishes: it writes the blog out as static pages with a feed, commits
+them and pushes. No blog was published to GitHub Pages with it yet.
 
 To see the example blog:
 
@@ -29,16 +28,17 @@ cd example
 `bin/bareblog` finds BareBlog from where it is, so a link to it on your path works from the
 directory of any blog.
 
-To write it out as static pages, in `example/docs`:
+To publish, in a blog that is a git repository of its own:
 
 ```
-npx shadow-cljs release app
-bb generate example
+bareblog publish a-new-blog-post     one post: new, edited or removed
+bareblog publish --all               every post, as it is on disk
 ```
 
-That needs Node 22, Chrome, and BareDOM checked out beside BareBlog.
+That needs `npx shadow-cljs release app` run once in BareBlog, Node 22, Chrome, and BareDOM
+checked out beside BareBlog.
 
-## What it will do
+## What it does
 
 You write a post as Markdown in a folder. One command shows the whole blog in your browser. Another
 publishes the post to GitHub Pages.

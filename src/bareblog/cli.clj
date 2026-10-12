@@ -15,7 +15,10 @@
   (str/join "\n"
             ["bareblog new \"A new blog post\"    a draft folder with post.md"
              "bareblog preview [port]           the whole blog, in the browser"
-             "                 --no-open        without opening the browser"]))
+             "                 --no-open        without opening the browser"
+             "bareblog publish a-new-blog-post  one post: new, edited or removed"
+             "bareblog publish --all            every post, as it is on disk"
+             "                 --yes            with a yes to every question"]))
 
 (def default-port 8080)
 
@@ -41,6 +44,18 @@
       {:port  (if port (parse-long port) default-port)
        :open? (not-any? #{no-open} args)}
       {:refuse "Give a port, or nothing: bareblog preview [port] [--no-open]"})))
+
+(def ^:private all "--all")
+
+(def ^:private yes "--yes")
+
+(defn- asks-publish [args]
+  (let [[what & more] (remove #{yes} args)
+        yes?          (boolean (some #{yes} args))]
+    (cond
+      (and (= all what) (empty? more))                    {:all? true :yes? yes?}
+      (and what (empty? more) (not= \- (first what)))     {:folder what :yes? yes?}
+      :else {:refuse "Give the folder of a post, or --all: bareblog publish a-new-blog-post"})))
 
 (defn- asks-nothing [_args]
   {})
@@ -92,6 +107,31 @@
       (println (str "The port " port " is taken. Give another: bareblog preview " (inc port)))
       1)))
 
+(defn- ask!
+  "Puts `question` to the author, and gives true for a yes."
+  [question]
+  (print (str question " [y/N] "))
+  (flush)
+  (contains? #{"y" "yes"} (str/lower-case (str/trim (or (read-line) "")))))
+
+(defn- say-yes!
+  "Says `question` and that the answer is yes, so that what a yes to every question let
+   through is on record. Gives true."
+  [question]
+  (println (str question " yes"))
+  true)
+
+;; What publishes is asked for by name, as the server is.
+(defn- run-publish! [{:keys [dir home]} {:keys [yes?] :as asked}]
+  (let [{:keys [refusal] :as ready} ((requiring-resolve 'bareblog.generate/ready) home)
+        publish!                    (requiring-resolve 'bareblog.publish/publish!)
+        done?                       (requiring-resolve 'bareblog.publish/done?)]
+    (if refusal
+      (do (println refusal) 1)
+      (let [how  (assoc ready :say println :ask (if yes? say-yes! ask!))
+            came (publish! how dir (assoc asked :today (str (java.time.LocalDate/now))))]
+        (if (done? (:outcome came)) 0 1)))))
+
 (defn- run-help! [_where _asked]
   (println usage)
   0)
@@ -101,6 +141,7 @@
    directory of a blog."
   {"new"     {:asks asks-new :run run-new! :in-a-blog? true}
    "preview" {:asks asks-preview :run run-preview! :in-a-blog? true}
+   "publish" {:asks asks-publish :run run-publish! :in-a-blog? true}
    "help"    {:asks asks-nothing :run run-help!}})
 
 (defn asked

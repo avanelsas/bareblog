@@ -4,7 +4,12 @@
    The edge of the command, for both the preview and the generator. A blog is read as a map
    says: its directory under `:dir`, the top of its addresses under `:root`, and under
    `:preview?` whether it is read for its author, with its drafts, or for its readers.
-   `preview` and `published` give the two maps there are."
+   `preview` and `published` give the two maps there are.
+
+   A blog that is read for its readers may say more. `:settings` are its settings, in place of
+   the file. `:read` is the set of post folders that are read, where it is not all of them.
+   `:as-published` is the set of posts that are taken as they were published last, from the
+   output directory, and not read. `:dates` gives the date of a post whose text gives none."
   (:require [babashka.fs :as fs]
             [bareblog.address :as address]
             [bareblog.app.templates :as templates]
@@ -14,6 +19,7 @@
             [bareblog.post :as post]
             [bareblog.reader :as reader]
             [bareblog.site :as site]
+            [bareblog.wire :as wire]
             [clojure.edn :as edn]
             [clojure.java.io :as io]))
 
@@ -42,7 +48,7 @@
   "How the blog in the directory `dir` is read for its readers, for the settings `settings`:
    at the address they name, without its drafts."
   [dir settings]
-  {:dir dir :root (:root (address/of-blog (:address settings))) :preview? false})
+  {:dir dir :root (:root (address/of-blog (:address settings))) :preview? false :settings settings})
 
 (defn- post-dirs
   "The directories of `blog` that hold a folder for each post that is served."
@@ -62,6 +68,26 @@
     (edn/read-string (slurp (fs/file dir layout/settings-file)))
     (catch Exception problem
       (throw (ex-info (str layout/settings-file ": " (.getMessage problem)) {} problem)))))
+
+(defn- settings-of
+  "The settings of `blog`: those it was given, or else those in its file."
+  [{:keys [dir settings]}]
+  (or settings (read-settings dir)))
+
+(defn read-published
+  "The site of the blog in the directory `dir` as it was published last, or nil when it was
+   never published."
+  [dir]
+  (let [file (fs/file dir layout/output-dir wire/site-data)]
+    (when (fs/regular-file? file)
+      (edn/read-string (slurp file)))))
+
+(defn- read-published-post
+  "The post in `folder` of the blog in the directory `dir` as it was published last, or nil."
+  [dir folder]
+  (let [file (fs/file dir layout/output-dir folder wire/page-data)]
+    (when (fs/regular-file? file)
+      (:post (edn/read-string (slurp file))))))
 
 (def ^:private head 262144)
 
@@ -86,11 +112,17 @@
   (when-some [size (read-size (fs/path dir (post/file-beside source)))]
     [source size]))
 
+(defn- dated
+  "The `post` in `folder` with the date that `blog` gives it, when its text gives none."
+  [{:keys [dates]} folder post]
+  (cond-> post
+    (and (nil? (:date post)) (get dates folder)) (assoc :date (get dates folder))))
+
 (defn- read-post
-  "The post in the directory `dir`, with the size of each image beside it."
-  [folder dir]
+  "The post of `blog` in the directory `dir`, with the size of each image beside it."
+  [blog folder dir]
   (let [post (post/from folder (reader/read-post (slurp (fs/file dir layout/post-file))))]
-    (post/sized post (into {} (keep (partial read-sized dir)) (post/sources post)))))
+    (dated blog folder (post/sized post (into {} (keep (partial read-sized dir)) (post/sources post))))))
 
 (defn- list-dirs
   "Every directory in the post directories of `blog`, with its name, its place from the top of
@@ -111,31 +143,68 @@
   (str place " is left out. " post/folder-rule))
 
 (defn- read-entry
-  "The entry of the post in a directory, and what is wrong with the post."
-  [{:keys [dir draft? place] folder-name :folder}]
-  (let [post (read-post folder-name dir)]
+  "The entry of the post of `blog` in a directory, and what is wrong with the post."
+  [blog {:keys [dir draft? place] folder-name :folder}]
+  (let [post (read-post blog folder-name dir)]
     {:entry    (site/entry folder-name post draft?)
      :problems (map #(str place ": " %) (:problems post))}))
 
+(defn- read?
+  "True when `blog` reads the post in the directory `post-dir`: it has the name of a post
+   folder, and is among the folders that the blog reads, where it does not read them all."
+  [{:keys [read]} {:keys [folder] :as post-dir}]
+  (and (post-dir? post-dir) (or (nil? read) (contains? read folder))))
+
+(defn- read-entries
+  "The entry of each post that `blog` reads among the directories `dirs`, with what is wrong
+   with it."
+  [blog dirs]
+  (map (partial read-entry blog) (filter (partial read? blog) dirs)))
+
+(defn- read-kept
+  "The entries of the posts that `blog` takes as they were published last."
+  [{:keys [dir as-published]}]
+  (when (seq as-published)
+    (filter (comp as-published :folder) (:posts (read-published dir)))))
+
+(defn read-post-problems
+  "What is wrong with the posts that `blog` reads, as texts: with their text, and with their
+   tags."
+  [blog]
+  (let [read (read-entries blog (list-dirs blog))]
+    (concat (mapcat :problems read) (output/problems {:posts (map :entry read)}))))
+
 (defn read-site
   "What every page of `blog` loads, with what is wrong with the blog."
-  [{:keys [dir] :as blog}]
+  [blog]
   (let [dirs (list-dirs blog)
-        read (map read-entry (filter post-dir? dirs))
-        site (site/site (read-settings dir)
-                        (map :entry read)
+        read (read-entries blog dirs)
+        site (site/site (settings-of blog)
+                        (concat (map :entry read) (read-kept blog))
                         (concat (map refused (remove post-dir? dirs)) (mapcat :problems read)))]
     (site/with-problems site (output/problems site))))
 
-(defn- read-shown-post
+;; A post that is taken as it was published has its files from where they were published. The
+;; output directory is still there while new pages are written beside it.
+(defn find-media-dir
+  "The directory that holds the files beside the post in `folder` of `blog`."
+  [{:keys [dir as-published] :as blog} folder]
+  (if (contains? as-published folder)
+    (fs/path dir layout/output-dir folder)
+    (find-post-dir blog folder)))
+
+(defn read-shown-post
   "The post in the folder `folder-name` as a page shows it: with the name of its folder, and
-   with each file beside it under its full address, so that any page can show it. Nil when
-   there is no such post."
-  [{:keys [root] :as blog} folder-name]
-  (when-some [dir (some->> folder-name (find-post-dir blog))]
-    (-> (read-post folder-name dir)
-        (post/placed (address/post root folder-name))
-        (assoc :folder folder-name))))
+   with each file beside it under its full address, so that any page can show it. A post that
+   `blog` takes as it was published is the one that was published. Nil when there is no such
+   post."
+  [{:keys [dir root as-published] :as blog} folder-name]
+  (if (contains? as-published folder-name)
+    (read-published-post dir folder-name)
+    (when-some [post-dir (some->> folder-name (find-post-dir blog))]
+      (-> (read-post blog folder-name post-dir)
+          (post/placed (address/post root folder-name))
+          (assoc :folder folder-name)))))
 
 (defn- read-post-page [blog {folder-name :folder :as page} _site]
   (when-some [post (read-shown-post blog folder-name)]
@@ -147,7 +216,7 @@
   "The data of a page of the home page. It holds the newest post when the blog template shows
    that on its home page."
   [blog page site]
-  (let [post (when (shows-newest? (or (:blog site) (read-settings (:dir blog))))
+  (let [post (when (shows-newest? (or (:blog site) (settings-of blog)))
                (read-shown-post blog (site/newest-folder (or site (read-site blog)))))]
     (cond-> {:page page} post (assoc :post post))))
 

@@ -12,7 +12,9 @@
     bareblog.header-test
     bareblog.image-test
     bareblog.output-test
+    bareblog.plan-test
     bareblog.post-test
+    bareblog.publish-test
     bareblog.reader-test
     bareblog.serve-test
     bareblog.site-test

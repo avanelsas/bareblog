@@ -5,7 +5,4 @@
  :tasks
  {test  {:doc      "Run the tests of the pure code."
          :requires ([bareblog.test-runner])
-         :task     (bareblog.test-runner/run)}
-  generate {:doc      "Write a blog out as static pages in its docs directory: bb generate example."
-            :requires ([bareblog.generate])
-            :task     (apply bareblog.generate/-main "." *command-line-args*)}}}
+         :task     (bareblog.test-runner/run)}}}
