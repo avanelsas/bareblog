@@ -49,7 +49,7 @@
         (is (every? (part-names (:fixed split)) (map :part (vals lists))))))
     (testing (str template-name " shows every kind of page with templates that are fixed all the way down")
       (doseq [[kind told] pages]
-        (is (every? all-fixed? (templates/fixed-templates blog-template (view/page site told))) kind)))))
+        (is (every? all-fixed? (templates/fixed-templates blog-template (view/page site told {}))) kind)))))
 
 (deftest row-node-test
   (let [{:keys [lists]} (templates/named :journal)]
@@ -66,7 +66,7 @@
   [node shown]
   (cons [node shown]
         (for [[list-name row-list] (:lists node)
-              :let                 [{:keys [order by-key]} (get-in shown [:lists list-name])]
+              :let                 [{:keys [order by-key]} (templates/rows-of row-list list-name shown)]
               k                    order
               pair                 (shown-nodes (templates/row-node row-list k) (by-key k))]
           pair)))
@@ -81,16 +81,16 @@
     (testing "the view of every kind of page names a page that Journal has a node for"
       (doseq [[kind told] pages]
         (is (some? (templates/row-node (get-in journal [:lists :main])
-                                       (first (get-in (view/page site told) [:lists :main :order]))))
+                                       (first (get-in (view/page site told {}) [:lists :main :order]))))
             kind)))
     (testing "the view gives every node the key of each hole that is a key, for every kind of page"
       (doseq [[kind told]            pages
-              [{:keys [split]} shown] (shown-nodes journal (view/page site told))
+              [{:keys [split]} shown] (shown-nodes journal (view/page site told {}))
               hole                   (keyword-holes split)]
         (is (contains? (:item shown) hole) (str kind " " hole))))
     (testing "every hole of every node can be filled from what the view gives, for every kind of page"
       (doseq [[kind told]            pages
-              [{:keys [split]} shown] (shown-nodes journal (view/page site told))
+              [{:keys [split]} shown] (shown-nodes journal (view/page site told {}))
               :when                  split]
         (is (map? (template/writes split (:item shown))) (str kind))))))
 
@@ -104,51 +104,116 @@
       (is (= "A week in Lisbon" (title {:kind :post :post "A week in Lisbon"})))
       (is (= "Not found" (title {:kind :not-found}))))))
 
-(defn- hidden-count
-  "How many parts of the node of the page hide themselves, when the page `told` shows `site`."
-  [site told]
-  (let [journal          (templates/named :journal)
-        page             (view/page site told)
-        k                (first (get-in page [:lists :main :order]))
-        {:keys [split]}  (templates/row-node (get-in journal [:lists :main]) k)
-        shown            (get-in page [:lists :main :by-key k])]
-    (count (filter (comp true? :hidden :attrs) (vals (template/writes split (:item shown)))))))
+(defn- elements
+  "Every element of the fixed template `fixed`, as its tag, its attributes and its children."
+  [fixed]
+  (map template/pieces (filter vector? (tree-seq vector? seq fixed))))
+
+(defn- named-part
+  "What to call the element of `fixed` that is the part `part-name`: its tag and its class."
+  [fixed part-name]
+  (some (fn [[tag attrs]]
+          (when (= part-name (:data-x-part attrs))
+            (str (name tag) (some->> (:class attrs) (str ".")))))
+        (elements fixed)))
+
+(defn- hidden
+  "The parts of the node of the page that hide themselves, when the page `told` shows `site`
+   for what the reader chose in `choice`, each as its tag and its class."
+  ([site told]
+   (hidden site told {}))
+  ([site told choice]
+   (let [journal         (templates/named :journal)
+         page            (view/page site told choice)
+         k               (first (get-in page [:lists :main :order]))
+         {:keys [split]} (templates/row-node (get-in journal [:lists :main]) k)
+         shown           (get-in page [:lists :main :by-key k])]
+     (into #{}
+           (keep (fn [[part-name {:keys [attrs]}]]
+                   (when (true? (:hidden attrs))
+                     (named-part (:fixed split) part-name))))
+           (template/writes split (:item shown))))))
 
 (deftest hidden-test
   (let [empty-site (assoc site :posts [])
-        two-pages  (assoc-in site [:blog :per-page] 1)]
-    (testing "a home page on one page hides its heading, its page numbers and the text for no posts"
-      (is (= 3 (hidden-count site (:home pages)))))
+        two-pages  (assoc-in site [:blog :per-page] 1)
+        older      {:folder "0" :title "Zero" :date "2024-01-01"}
+        newer      {:folder "c" :title "Third" :date "2027-01-01"}]
+    (testing "a home page on one page hides its heading, the way back to all posts, the text for
+              no posts and its page numbers"
+      (is (= #{"div.heading" "button.clear" "p.empty" "x-pagination"} (hidden site (:home pages)))))
     (testing "a home page of more pages shows its page numbers"
-      (is (= 2 (hidden-count two-pages (:home pages)))))
+      (is (= #{"div.heading" "button.clear" "p.empty"} (hidden two-pages (:home pages)))))
     (testing "the page of a tag shows its heading"
-      (is (= 2 (hidden-count site (:tag pages)))))
+      (is (= #{"button.clear" "p.empty" "x-pagination"} (hidden site (:tag pages)))))
     (testing "a home page with no posts shows the text for that"
-      (is (= 2 (hidden-count empty-site (:home pages)))))
+      (is (= #{"div.heading" "button.clear" "x-pagination"} (hidden empty-site (:home pages)))))
+    (testing "a search shows how many posts it found and the way back to all posts"
+      (is (= #{"p.empty" "x-pagination"} (hidden site (:home pages) {:query "first"}))))
+    (testing "a search that finds nothing does not say that the blog has no posts"
+      (is (= #{"p.empty" "x-pagination"} (hidden site (:home pages) {:query "zebra"}))))
     (testing "the archive hides the text for no posts, and shows it when there are none"
-      (is (= 1 (hidden-count site (:archive pages))))
-      (is (= 0 (hidden-count empty-site (:archive pages)))))
+      (is (= #{"p.empty"} (hidden site (:archive pages))))
+      (is (= #{} (hidden empty-site (:archive pages)))))
     (testing "the page of a draft with a newer and an older post hides nothing"
-      (is (= 0 (hidden-count (update site :posts (partial into [{:folder "c" :title "Third" :date "2027-01-01"}]))
-                             {:page {:kind :post :folder "b"} :post {:title "Second" :blocks []}}))))
+      (is (= #{} (hidden (update site :posts (partial into [newer]))
+                         {:page {:kind :post :folder "b"} :post {:title "Second" :blocks []}}))))
     (testing "the page of the newest post, a draft, hides the link to a newer one"
-      (is (= 1 (hidden-count site {:page {:kind :post :folder "b"} :post {:title "Second" :blocks []}}))))
-    (testing "the page of a published post hides the badge of a draft, and a link with no post"
-      (is (= 2 (hidden-count site {:page {:kind :post :folder "a"} :post {:title "First" :blocks []}}))))))
+      (is (= #{"a.newer"} (hidden site {:page {:kind :post :folder "b"} :post {:title "Second" :blocks []}}))))
+    (testing "the page of a published post with both neighbours hides the badge of a draft"
+      (is (= #{"x-badge.draft"} (hidden (update site :posts conj older)
+                                        {:page {:kind :post :folder "a"} :post {:title "First" :blocks []}}))))
+    (testing "the page of the oldest post hides the link to an older one too"
+      (is (= #{"x-badge.draft" "a.older"}
+             (hidden site {:page {:kind :post :folder "a"} :post {:title "First" :blocks []}}))))))
+
+(deftest menu-test
+  (let [journal (templates/named :journal)
+        written (fn [choice] (template/writes (:split journal) (:item (view/page site (:home pages) choice))))
+        drawer  (fn [choice] (some (fn [[part-name write]]
+                                     (when (= "x-drawer" (named-part (:fixed (:split journal)) part-name))
+                                       (:attrs write)))
+                                   (written choice)))]
+    (testing "the menu is closed until the reader opens it"
+      (is (false? (:open (drawer {}))))
+      (is (true? (:open (drawer {:menu? true})))))
+    (testing "the search field is there twice, in the navbar and in the menu, with the same text"
+      (is (= [{:value "lisbon"} {:value "lisbon"}]
+             (keep (fn [[part-name write]]
+                     (when (= "x-search-field" (named-part (:fixed (:split journal)) part-name))
+                       (:attrs write)))
+                   (written {:query "lisbon"})))))
+    (testing "both theme selects list the presets of the blog"
+      (is (= [:presets :presets]
+             (mapv (fn [[list-name row-list]] (:of row-list list-name))
+                   (select-keys (:lists journal) [:presets :menu-presets])))))))
 
 (deftest custom-elements-test
   (let [journal (templates/named :journal)
-        tags-of (fn [told] (vec (templates/custom-elements journal (view/page site told))))]
+        tags-of (fn [told] (vec (templates/custom-elements journal (view/page site told {}))))]
     (testing "a page has the custom elements of the document and of what it shows"
-      (is (= ["x-container" "x-navbar" "x-theme"] (tags-of (:not-found pages))))
-      (is (= ["x-badge" "x-container" "x-navbar" "x-pagination" "x-theme"] (tags-of (:home pages))))
-      (is (= ["x-badge" "x-container" "x-navbar" "x-theme"] (tags-of (:archive pages)))))
+      (is (= ["x-container" "x-drawer" "x-navbar" "x-search-field" "x-select" "x-theme"]
+             (tags-of (:not-found pages))))
+      (is (= ["x-badge" "x-container" "x-drawer" "x-navbar" "x-pagination" "x-search-field" "x-select"
+              "x-theme"]
+             (tags-of (:home pages))))
+      (is (= ["x-badge" "x-container" "x-drawer" "x-navbar" "x-search-field" "x-select" "x-theme"]
+             (tags-of (:archive pages)))))
     (testing "the page of a post has the custom elements of its blocks too, at any depth"
-      (is (= ["x-badge" "x-code" "x-container" "x-image" "x-navbar" "x-table" "x-table-cell"
-              "x-table-row" "x-theme"]
+      (is (= ["x-badge" "x-code" "x-container" "x-drawer" "x-image" "x-navbar" "x-search-field" "x-select"
+              "x-table" "x-table-cell" "x-table-row" "x-theme"]
              (tags-of (:post pages)))))))
 
 (deftest events-test
   (testing "the events of Journal are the ones its templates name, by event type and part"
-    (is (= [:to-page] (vals (templates/events (templates/named :journal)))))
-    (is (= ["page-change-request"] (map first (keys (templates/events (templates/named :journal))))))))
+    (is (= #{["x-search-field-change-request" :search]
+             ["x-search-field-search" :submit-search]
+             ["x-select-change-request" :preset]
+             ["page-change-request" :to-page]
+             ["click" :tag]
+             ["click" :clear]
+             ["click" :open-menu]
+             ["click" :close-menu]
+             ["x-drawer-toggle" :menu]}
+           (set (map (fn [[[event-type _part] meaning]] [event-type meaning])
+                     (templates/events (templates/named :journal))))))))

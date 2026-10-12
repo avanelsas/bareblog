@@ -293,3 +293,99 @@ body {
 .empty {
   color: var(--x-color-text-muted, #666);
 }
+
+/* What the reader chooses: the search, the theme, a tag. */
+
+.page .actions {
+  display: flex;
+  align-items: center;
+  gap: var(--x-space-md, 0.75rem);
+}
+
+.page .actions x-search-field {
+  width: 14rem;
+  max-width: 40vw;
+}
+
+.tag-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--x-space-sm, 0.5rem);
+  margin: 0 0 calc(var(--x-space-xl, 1.5rem) * 1.5);
+  padding: 0;
+  list-style: none;
+}
+
+.tag-choices:empty {
+  display: none;
+}
+
+.tag-choices button,
+.entries .clear {
+  padding: 0.15rem 0.6rem;
+  border: var(--x-border-width, 1px) solid var(--x-color-border, #d0d7de);
+  border-radius: var(--x-radius-full, 9999px);
+  background: transparent;
+  color: var(--x-color-text-muted, #666);
+  font: inherit;
+  font-size: var(--x-font-size-sm, 0.875rem);
+  cursor: pointer;
+}
+
+.tag-choices button[aria-pressed="true"] {
+  border-color: var(--x-color-primary, #2563eb);
+  background: var(--x-color-primary, #2563eb);
+  color: var(--x-color-bg, #fff);
+}
+
+.entries .heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--x-space-md, 0.75rem);
+  margin-bottom: var(--x-space-xl, 1.5rem);
+}
+
+.entries .heading h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+/* The menu. Below 640 pixels the navbar shows its brand and the button that opens the menu. */
+
+.page .menu-button,
+.page .menu-close {
+  padding: 0.25rem 0.6rem;
+  border: var(--x-border-width, 1px) solid var(--x-color-border, #d0d7de);
+  border-radius: var(--x-radius-sm, 0.375rem);
+  background: transparent;
+  color: var(--x-color-text, #111);
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (min-width: 641px) {
+  .page .menu-button {
+    display: none;
+  }
+}
+
+.menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: var(--x-font-weight-semibold, 600);
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--x-space-lg, 1rem);
+}
+
+.page .menu .nav-link {
+  margin-left: 0;
+  font-size: var(--x-font-size-base, 1rem);
+}

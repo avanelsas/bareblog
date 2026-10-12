@@ -15,7 +15,7 @@
   "The key and the node of what the page `told` shows of `site`."
   ([told] (shown site told))
   ([site told]
-   (let [{:keys [order by-key]} (get-in (view/page site told) [:lists :main])]
+   (let [{:keys [order by-key]} (get-in (view/page site told {}) [:lists :main])]
      [(first order) (by-key (first order))])))
 
 (defn- row-items
@@ -25,35 +25,43 @@
     (mapv (comp :item by-key) order)))
 
 (deftest document-test
-  (let [page (view/page site {:page {:kind :archive}})]
+  (let [page (view/page site {:page {:kind :archive}} {})]
     (testing "the page names the blog template and the language of the blog"
       (is (= :journal (:template page)))
       (is (= "en" (:language page)))
-      (is (= "nl" (:language (view/page (assoc-in site [:blog :language] "nl") {:page {:kind :archive}})))))
+      (is (= "nl" (:language (view/page (assoc-in site [:blog :language] "nl") {:page {:kind :archive}} {})))))
     (testing "the document is given the preset, the name of the blog and the addresses of its links"
-      (is (= {:preset "ocean" :blog-title "Bare notes" :home "/" :archive "/archive/"} (:item page))))
+      (is (= {:preset "ocean" :presets 2 :query "" :menu? false :blog-title "Bare notes" :home "/"
+              :archive "/archive/"}
+             (:item page))))
+    (testing "the document lists the presets that the blog offers"
+      (is (= ["ocean" "forest"] (get-in page [:lists :presets :order]))))
     (testing "the document holds one page"
       (is (= 1 (count (get-in page [:lists :main :order])))))
     (testing "a blog that names no blog template gets the default, and no preset is none"
-      (let [bare (view/page {:blog {:title "Bare"} :posts []} {:page {:kind :archive}})]
+      (let [bare (view/page {:blog {:title "Bare"} :posts []} {:page {:kind :archive}} {})]
         (is (= :journal (:template bare)))
         (is (nil? (get-in bare [:item :preset])))))))
 
 (deftest title-test
   (testing "the first page of the home page has the name of the blog"
-    (is (= "Bare notes" (:title (view/page site {:page {:kind :home :number 1}})))))
+    (is (= "Bare notes" (:title (view/page site {:page {:kind :home :number 1}} {})))))
   (testing "every other page names itself first"
-    (is (= "Page 2 · Bare notes" (:title (view/page site {:page {:kind :home :number 2}}))))
-    (is (= "travel · Bare notes" (:title (view/page site {:page {:kind :tag :tag "travel"}}))))
-    (is (= "Archive · Bare notes" (:title (view/page site {:page {:kind :archive}}))))
+    (is (= "Page 2 · Bare notes" (:title (view/page site {:page {:kind :home :number 2}} {}))))
+    (is (= "travel · Bare notes" (:title (view/page site {:page {:kind :tag :tag "travel"}} {}))))
+    (is (= "Archive · Bare notes" (:title (view/page site {:page {:kind :archive}} {}))))
+    (is (= "1 post found · Bare notes" (:title (view/page site {:page {:kind :home :number 1}} {:query "third"}))))
+    (is (= "No posts found · Bare notes" (:title (view/page site {:page {:kind :home :number 2}} {:query "zebra"}))))
     (is (= "Third · Bare notes"
-           (:title (view/page site {:page {:kind :post :folder "c"} :post {:title "Third" :blocks []}}))))))
+           (:title (view/page site {:page {:kind :post :folder "c"} :post {:title "Third" :blocks []}} {}))))))
 
 (deftest home-test
   (let [[k node] (shown {:page {:kind :home :number 1}})]
     (testing "the home page is a page of entries with no heading"
       (is (= "entries" k))
-      (is (= {:heading nil :count 2 :number 1 :pages 2} (:item node))))
+      (is (= {:heading nil :count 2 :number 1 :pages 2 :filtered? false} (:item node))))
+    (testing "it offers every tag of the blog to choose from, and none is chosen"
+      (is (= [{:name "food" :chosen? false} {:name "travel" :chosen? false}] (row-items node :all-tags))))
     (testing "it shows the first posts of the list, as many as the blog asks for on a page"
       (is (= ["c" "b"] (get-in node [:lists :entries :order]))))
     (testing "an entry shows the title, the date, the summary and the address of its post"
@@ -80,7 +88,9 @@
   (let [[k node] (shown {:page {:kind :tag :tag "travel"}})]
     (testing "the page of a tag is a page of entries under the tag, on one page"
       (is (= "entries" k))
-      (is (= {:heading "travel" :count 2 :number 1 :pages 1} (:item node))))
+      (is (= {:heading "travel" :count 2 :number 1 :pages 1 :filtered? false} (:item node))))
+    (testing "it offers no tags to choose from"
+      (is (= [] (row-items node :all-tags))))
     (testing "it shows every post with the tag"
       (is (= ["c" "b"] (get-in node [:lists :entries :order])))))
   (testing "a tag that no post has is not found"
@@ -109,6 +119,68 @@
     (is (= [[nil true]]
            (mapv (juxt :year :first-of-year?)
                  (row-items (second (shown {:blog blog :posts [{:folder "b" :title "B"}]} {:page {:kind :archive}})) :rows))))))
+
+(defn- chosen
+  "The key and the node of the home page for what the reader chose in `choice`."
+  [choice]
+  (let [{:keys [order by-key]} (get-in (view/page site {:page {:kind :home :number 1}} choice) [:lists :main])]
+    [(first order) (by-key (first order))]))
+
+(defn- found [choice]
+  (get-in (second (chosen choice)) [:lists :entries :order]))
+
+(deftest search-test
+  (testing "a search shows every post that matches, on one page, and says that it is a choice"
+    (let [[k node] (chosen {:query "t"})]
+      (is (= "entries" k))
+      (is (= {:heading nil :count 3 :number 1 :pages 1 :filtered? true} (:item node)))))
+  (testing "a word is looked for in the title, the summary and the tags, in any case"
+    (is (= ["c"] (found {:query "THIRD"})))
+    (is (= ["a"] (found {:query "one."})))
+    (is (= ["c"] (found {:query "food"}))))
+  (testing "a letter is found with or without its accent, either way round"
+    (let [accented (assoc site :posts [{:folder "c" :title "Café Lisboa" :summary "Pastéis."}])
+          found-in (fn [query] (get-in (view/page accented {:page {:kind :home :number 1}} {:query query})
+                                       [:lists :main :by-key "entries" :lists :entries :order]))]
+      (is (= ["c"] (found-in "cafe")))
+      (is (= ["c"] (found-in "CAFÉ")))
+      (is (= ["c"] (found-in "pasteis")))))
+  (testing "a word is found inside a longer word"
+    (is (= ["c"] (found {:query "hir"}))))
+  (testing "every word must be there, and each may be in another place"
+    (is (= ["b"] (found {:query "second travel"})))
+    (is (= [] (found {:query "second food"}))))
+  (testing "a search for nothing but spaces is no search"
+    (is (= ["c" "b"] (found {:query "   "})))
+    (is (false? (get-in (second (chosen {:query "   "})) [:item :filtered?]))))
+  (testing "a search that finds nothing shows no posts, and is still the page of entries"
+    (is (= ["entries" 0] (let [[k node] (chosen {:query "zebra"})] [k (get-in node [:item :count])]))))
+  (testing "a search looks through every post, also from a later page"
+    (is (= ["a"] (get-in (view/page site {:page {:kind :home :number 2}} {:query "first"})
+                         [:lists :main :by-key "entries" :lists :entries :order])))))
+
+(deftest tag-choice-test
+  (testing "a chosen tag shows the posts that have it"
+    (is (= ["c" "b"] (found {:tag "travel"})))
+    (is (= ["c"] (found {:tag "food"}))))
+  (testing "the chosen tag is marked among the tags to choose from"
+    (is (= [{:name "food" :chosen? false} {:name "travel" :chosen? true}]
+           (row-items (second (chosen {:tag "travel"})) :all-tags))))
+  (testing "a tag and a search together show the posts that pass both"
+    (is (= ["b"] (found {:tag "travel" :query "second"}))))
+  (testing "a choice changes nothing on a page that is not the home page"
+    (is (= ["c" "b"] (get-in (view/page site {:page {:kind :tag :tag "travel"}} {:query "third" :tag "food"})
+                             [:lists :main :by-key "entries" :lists :entries :order])))))
+
+(deftest preset-test
+  (let [preset-of (fn [site choice] (get-in (view/page site {:page {:kind :archive}} choice) [:item :preset]))]
+    (testing "the preset is the first that the blog offers, until the reader chooses one"
+      (is (= "ocean" (preset-of site {})))
+      (is (= "forest" (preset-of site {:preset "forest"}))))
+    (testing "a preset that the blog does not offer is not chosen"
+      (is (= "ocean" (preset-of site {:preset "sunset"}))))
+    (testing "the page shows the text that is searched for in its search field"
+      (is (= "lisbon" (get-in (view/page site {:page {:kind :archive}} {:query "lisbon"}) [:item :query]))))))
 
 (def one {:kind :text :content ["One."]})
 (def two {:kind :text :content ["Two."]})
@@ -153,4 +225,4 @@
 (deftest not-found-test
   (testing "a page of no known kind is not found, and links home"
     (is (= ["not-found" {:item {:home "/"}}] (shown {:page {:kind :not-found}})))
-    (is (= "Not found · Bare notes" (:title (view/page site {:page {:kind :not-found}}))))))
+    (is (= "Not found · Bare notes" (:title (view/page site {:page {:kind :not-found}} {}))))))

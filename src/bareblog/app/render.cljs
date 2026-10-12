@@ -38,7 +38,7 @@
   (when (seq lists)
     (let [element-parts (parts/read-parts element)]
       (doseq [[list-name row-list] lists]
-        (bring-list! element-parts list-name row-list (get-in shown [:lists list-name]))))))
+        (bring-list! element-parts list-name row-list (templates/rows-of row-list list-name shown))))))
 
 (defn- set-title!
   "Makes `title` the title of `document`, where it differs."

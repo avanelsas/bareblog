@@ -20,3 +20,14 @@
     (is (= "/tags/web%20components/" (address/tag "web components")))
     (is (= "/tags/a%2Fb/" (address/tag "a/b")))
     (is (= "/tags/caf%C3%A9/" (address/tag "café")))))
+
+(deftest query-test
+  (testing "what an address asks for is written after a question mark, each name with its text"
+    (is (= "?q=lisbon" (address/query {:q "lisbon"})))
+    (is (= "?q=two%20words&tag=web" (address/query {:tag "web" :q "two words"}))))
+  (testing "a name with no text is left out"
+    (is (= "?tag=web" (address/query {:q "" :tag "web"})))
+    (is (= "?q=x" (address/query {:q "x" :tag nil}))))
+  (testing "nothing to ask for is no text at all"
+    (is (= "" (address/query {})))
+    (is (= "" (address/query {:q "" :tag ""})))))

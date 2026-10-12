@@ -1,36 +1,47 @@
 (ns bareblog.app.core
-  "Starts the blog app in a page."
+  "Starts the blog app in a page.
+
+   The edge of the app. The state is in one atom. A message goes through `state/step`, and
+   `state/shown` says what the page then shows. This namespace brings the document, the address
+   and the browser's storage to that, and turns events and what the socket says into messages."
   (:require [bareblog.address :as address]
             [bareblog.app.render :as render]
+            [bareblog.app.state :as state]
             [bareblog.app.templates :as templates]
-            [bareblog.app.view :as view]
             [bareblog.site :as site]
             [bareblog.wire :as wire]
             [baredom.exports.x-badge :as x-badge]
             [baredom.exports.x-code :as x-code]
             [baredom.exports.x-container :as x-container]
+            [baredom.exports.x-drawer :as x-drawer]
             [baredom.exports.x-image :as x-image]
             [baredom.exports.x-navbar :as x-navbar]
             [baredom.exports.x-pagination :as x-pagination]
+            [baredom.exports.x-search-field :as x-search-field]
+            [baredom.exports.x-select :as x-select]
             [baredom.exports.x-table :as x-table]
             [baredom.exports.x-table-cell :as x-table-cell]
             [baredom.exports.x-table-row :as x-table-row]
             [baredom.exports.x-theme :as x-theme]
+            [baredom.requests :as requests]
             [baremirror.alpha.events :as events]
             [cljs.reader :as reader]))
 
 (def ^:private registrations
   "The function that registers each custom element a blog template can name."
-  {"x-badge"      x-badge/init
-   "x-code"       x-code/init
-   "x-container"  x-container/init
-   "x-image"      x-image/init
-   "x-navbar"     x-navbar/init
-   "x-pagination" x-pagination/init
-   "x-table"      x-table/init
-   "x-table-cell" x-table-cell/init
-   "x-table-row"  x-table-row/init
-   "x-theme"      x-theme/init})
+  {"x-badge"        x-badge/init
+   "x-code"         x-code/init
+   "x-container"    x-container/init
+   "x-drawer"       x-drawer/init
+   "x-image"        x-image/init
+   "x-navbar"       x-navbar/init
+   "x-pagination"   x-pagination/init
+   "x-search-field" x-search-field/init
+   "x-select"       x-select/init
+   "x-table"        x-table/init
+   "x-table-cell"   x-table-cell/init
+   "x-table-row"    x-table-row/init
+   "x-theme"        x-theme/init})
 
 (def ^:private loading
   "The attribute that `index.html` gives the document until the page shows its data. BareDOM's
@@ -41,6 +52,10 @@
   "The name of the mark that the page leaves on its timeline each time it has shown its data."
   "bareblog-shown")
 
+(def ^:private preset-key
+  "The name under which the browser keeps the preset that the reader chose."
+  "bareblog-preset")
+
 (defn- register! [tag]
   (if-some [init (registrations tag)]
     (init)
@@ -48,26 +63,62 @@
                     {:tag tag}))))
 
 (defn- register-components!
-  "Registers the custom elements that the page view `page` puts in the page."
-  [page]
-  (run! register! (templates/custom-elements (templates/named (:template page)) page)))
+  "Registers the custom elements that the page view `view` puts in the page."
+  [view]
+  (run! register! (templates/custom-elements (templates/named (:template view)) view)))
 
-(defn- show-page!
-  "Shows the page that `told` describes, of the blog in `site`."
-  [site told]
-  (let [page (view/page site told)]
-    (register-components! page)
-    (render/render! js/document page)
-    (.removeAttribute (.-documentElement js/document) loading)
-    (js/performance.mark shown-mark)))
+;; Bringing what is outside the app to what the state shows. Each writes only where it differs.
+
+(defn- show-view!
+  "Brings the document to the page view `view`."
+  [view]
+  (register-components! view)
+  (render/render! js/document view)
+  (.removeAttribute (.-documentElement js/document) loading)
+  (js/performance.mark shown-mark))
+
+(defn- set-param!
+  "Makes `text` what `params` holds under `k`. No text takes the name away."
+  [^js params [k text]]
+  (if (seq text)
+    (.set params (name k) text)
+    (.delete params (name k))))
+
+(defn- set-asked!
+  "Makes the address ask for `asked`, a map from a name to text, without a new entry in the
+   history. Whatever else the address asks for, and what follows its hash, stays."
+  [asked]
+  (let [^js url (js/URL. (.-href js/location))]
+    (run! (partial set-param! (.-searchParams url)) asked)
+    (when (not= (.-href url) (.-href js/location))
+      (js/history.replaceState nil "" (.-href url)))))
+
+(defn- read-stored
+  "What the browser keeps under `k`, or nil when it keeps nothing or lets nobody read."
+  [k]
+  (try
+    (.getItem js/localStorage k)
+    (catch :default _ nil)))
+
+(defn- store!
+  "Makes the browser keep `text` under `k`, where it differs. A browser that keeps nothing is
+   left alone."
+  [k text]
+  (try
+    (when (and text (not= text (.getItem js/localStorage k)))
+      (.setItem js/localStorage k text))
+    (catch :default _ nil)))
 
 (defn- show!
-  "Shows what the page is told in `told`: the site and the page, or a problem in place of them.
-   Something that is wrong with the blog is shown above the page."
-  [{:keys [site page problem]}]
-  (render/notice! js/document (or problem (site/notice site)))
-  (when-not problem
-    (show-page! site page)))
+  "Brings the page to what `state/shown` gave: the notice, the document, the address and the
+   preset that the browser keeps."
+  [{:keys [notice view asked preset]}]
+  (render/notice! js/document notice)
+  (when view
+    (show-view! view))
+  (when asked
+    (set-asked! asked))
+  (store! preset-key preset))
 
 (defn- report!
   "Shows `error` in the page, and gives it to the console."
@@ -75,11 +126,102 @@
   (js/console.error error)
   (render/notice! js/document (str "This page could not be shown. " (ex-message error))))
 
-(defn- show-or-report! [told]
+(defn- show-or-report! [shown]
   (try
-    (show! told)
+    (show! shown)
     (catch :default error
       (report! error))))
+
+;; Messages.
+
+(defn- asked-for
+  "What the address of this page asks for, by name."
+  []
+  (let [params (js/URLSearchParams. (.-search js/location))]
+    {:query (.get params "q") :tag (.get params "tag")}))
+
+(defonce ^{:private true :doc "The state of this page."}
+  page-state
+  (atom (state/initial {})))
+
+(def ^:private step-and-show!
+  "A function of a message: it puts the state after the message in the atom, and shows it."
+  (events/dispatcher page-state state/step state/shown show-or-report!))
+
+(defn- changes?
+  "True when `message` changes the state of this page."
+  [message]
+  (not= @page-state (state/step @page-state message)))
+
+(defn- dispatch!
+  "Takes the reader where `message` leads, or else lets it change the state. A message that
+   does neither is dropped."
+  [message]
+  (if-some [to (state/destination @page-state message)]
+    (set! (.-href js/location) to)
+    (when (changes? message)
+      (step-and-show! message))))
+
+(defn- detail-page [_origin ^js event]
+  (.. event -detail -page))
+
+(defn- detail-value [_origin ^js event]
+  (.. event -detail -value))
+
+(defn- detail-open [_origin ^js event]
+  (.. event -detail -open))
+
+(defn- click-facts
+  "What `state/picks-in-place?` asks of a click."
+  [^js event]
+  {:button    (.-button event)
+   :modified? (or (.-metaKey event) (.-ctrlKey event) (.-shiftKey event) (.-altKey event))})
+
+(defn- tag-picked!
+  "The tag that a click on it picks in place, or nil when the click follows its link. A click
+   that picks in place is stopped from following the link."
+  [origin ^js event]
+  (when (state/picks-in-place? @page-state (click-facts event))
+    (.preventDefault event)
+    (peek (:key-path origin))))
+
+(defn- nothing [_origin _event]
+  nil)
+
+(def ^:private arguments
+  "What gives the argument of a message, for each meaning."
+  {:to-page       detail-page
+   :search        detail-value
+   :submit-search nothing
+   :preset        detail-value
+   :tag           tag-picked!
+   :clear         nothing
+   :menu          detail-open
+   :open-menu     nothing
+   :close-menu    nothing})
+
+(defn- with-argument [meaning]
+  [meaning (arguments meaning)])
+
+(defn- all-events
+  "The event meanings of every blog template, each with what gives its argument."
+  []
+  (update-vals (into {} (map templates/events) (vals templates/by-name)) with-argument))
+
+(defonce ^{:private true :doc "True once the events of the document are turned into messages."}
+  listening?
+  (atom false))
+
+(defn- listen-for-events!
+  "Turns the events that the blog templates name into messages, once."
+  []
+  (when (compare-and-set! listening? false true)
+    (events/listen! (.-body js/document)
+                    {:dispatch! dispatch!
+                     :events    (all-events)
+                     :requests  requests/requests})))
+
+;; What the page is told: by its files, or over its socket.
 
 (def ^:private no-page
   "What a page is told when the server has no data for its address."
@@ -103,44 +245,8 @@
       (.then (partial response-text missing))
       (.then reader/read-string)))
 
-(defn- to-page!
-  "Goes to page `number` of the home page."
-  [number]
-  (set! (.-href js/location) (address/home number)))
-
-(def ^:private actions
-  "What the app does for each meaning of a message."
-  {:to-page to-page!})
-
-(defn- dispatch! [[meaning argument]]
-  (if-some [act! (actions meaning)]
-    (act! argument)
-    (throw (ex-info "The app has no action for this message." {:meaning meaning}))))
-
-(defn- asked-page [_origin ^js event]
-  (.. event -detail -page))
-
-(def ^:private arguments
-  "What gives the argument of a message, for each meaning that has one."
-  {:to-page asked-page})
-
-(defn- with-argument [meaning]
-  [meaning (arguments meaning)])
-
-(defn- all-events
-  "The event meanings of every blog template, each with what gives its argument."
-  []
-  (update-vals (into {} (map templates/events) (vals templates/by-name)) with-argument))
-
-(defonce ^{:private true :doc "True once the events of the document are turned into messages."}
-  listening?
-  (atom false))
-
-(defn- listen-for-events!
-  "Turns the events that the blog templates name into messages, once."
-  []
-  (when (compare-and-set! listening? false true)
-    (events/listen! (.-body js/document) {:dispatch! dispatch! :events (all-events)})))
+(defn- told! [told]
+  (dispatch! [:told told]))
 
 (defonce ^{:private true :doc "The socket that tells this page what to show, once it is open."}
   socket
@@ -153,12 +259,12 @@
 (defn- socket-address
   "The address of the socket at `changes`, which is an address beside this page."
   [changes]
-  (let [^js url (js/URL. changes (.-href js/location))]
+  (let [^js url (js/URL. changes (str (.-origin js/location) (.-pathname js/location)))]
     (set! (.-protocol url) (if (= "https:" (.-protocol js/location)) "wss:" "ws:"))
     (.-href url)))
 
-(defn- show-message! [^js message]
-  (show-or-report! (reader/read-string (.-data message))))
+(defn- told-by-socket! [^js message]
+  (told! (reader/read-string (.-data message))))
 
 (declare listen!)
 
@@ -166,38 +272,42 @@
   (reset! socket nil)
   (js/setTimeout (partial listen! changes) try-again))
 
-;; The socket outlives a reload of the code in development. It calls `show-message!` by name
+;; The socket outlives a reload of the code in development. It calls `told-by-socket!` by name
 ;; each time, so that it calls the function of the code that is loaded now.
 (defn- listen!
-  "Opens the socket at `changes`, unless one is open, and shows what it sends."
+  "Opens the socket at `changes`, unless one is open, and takes what it sends as what the page
+   is told."
   [changes]
   (when (nil? @socket)
     (doto (reset! socket (js/WebSocket. (socket-address changes)))
-      (.addEventListener "message" #(show-message! %))
+      (.addEventListener "message" #(told-by-socket! %))
       (.addEventListener "close" (partial listen-again! changes)))))
 
-(defn- show-with-site!
-  "Fetches the data of the site and shows `page` with it."
+(defn- tell-with-site!
+  "Fetches the data of the site, and tells the page that and `page`."
   [page]
   (-> (fetch-data address/site-data nil)
-      (.then (fn [site] (show-or-report! (site/told site page))))))
+      (.then (fn [site] (told! (site/told site page))))))
 
 ;; A page whose data names a socket is told everything over it, when it opens and after each
 ;; change. Any other page fetches the data of the site once.
 (defn- start!
-  "Shows the page that `page` describes, and follows its files when it has a socket."
+  "Tells the page what `page` describes, and follows its files when it has a socket."
   [{:keys [changes] :as page}]
   (listen-for-events!)
   (if changes
     (listen! changes)
-    (show-with-site! page)))
+    (tell-with-site! page)))
 
-(defn ^:dev/after-load load!
-  "Fetches the data of this page, shows the page, and listens for it to change."
+;; After a reload of the code in development, the page shows its state again with the new code.
+(defn ^:dev/after-load reload! []
+  (show-or-report! (state/shown @page-state)))
+
+(defn init
+  "Takes what the reader chose before from the address and the browser, fetches the data of
+   this page, and starts."
   []
+  (reset! page-state (state/initial (assoc (asked-for) :preset (read-stored preset-key))))
   (-> (fetch-data wire/page-data no-page)
       (.then start!)
       (.catch report!)))
-
-(defn init []
-  (load!))

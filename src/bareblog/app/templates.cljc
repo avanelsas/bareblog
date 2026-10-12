@@ -21,6 +21,13 @@
       (get rows k)
       (throw (ex-info "The blog template has no node for this row." {:key k}))))
 
+(defn rows-of
+  "What the view gives the list `row-list`, which has the name `list-name` in its node, from
+   `shown`, which is what the view gives that node. A list with `:of` shows the rows that the
+   view gives under that name, so that two lists can show the same rows."
+  [row-list list-name shown]
+  (get-in shown [:lists (:of row-list list-name)]))
+
 (declare fixed-templates)
 
 (defn- list-templates
@@ -33,7 +40,7 @@
    which is what the view gives that node."
   [{:keys [split fixed-of lists]} shown]
   (cons (if split (:fixed split) (fixed-of shown))
-        (mapcat (fn [[list-name row-list]] (list-templates row-list (get-in shown [:lists list-name])))
+        (mapcat (fn [[list-name row-list]] (list-templates row-list (rows-of row-list list-name shown)))
                 lists)))
 
 (defn- tag-names
