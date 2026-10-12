@@ -5,13 +5,12 @@
    each of its lists the keys of the rows in `:order` and what each row is given in `:by-key`."
   (:require [bareblog.address :as address]
             [bareblog.app.templates :as templates]
+            [bareblog.site :as site]
             [clojure.string :as str]))
 
 (def between " · ")
 
 (def default-language "en")
-
-(def default-per-page 10)
 
 (defn- rows
   "A list of rows, from each key and what the row is given, in order."
@@ -31,44 +30,48 @@
 (defn- block-rows [blocks]
   (rows (:keyed (reduce with-key {:keyed [] :seen {}} blocks))))
 
-(defn- tag-row [tag-name]
-  [tag-name {:item {:name tag-name :href (address/tag tag-name)}}])
+;; Inside the view the site knows two things more than it was read with: `:root`, where the
+;; top of the blog is, and for each post its `:href`.
 
-(defn- tag-rows [tags]
-  (rows (map tag-row (distinct tags))))
+(defn- addressed
+  "The `site` for a blog whose top is at `root`, with the address of each post."
+  [site root]
+  (-> site
+      (assoc :root root)
+      (update :posts (partial mapv (fn [entry] (assoc entry :href (address/post root (:folder entry))))))))
+
+(defn- tag-row [root tag-name]
+  [tag-name {:item {:name tag-name :href (address/tag root tag-name)}}])
+
+(defn- tag-rows [root tags]
+  (rows (map (partial tag-row root) (distinct tags))))
 
 (defn- listed
   "What a post shows of itself wherever it stands in a list."
-  [{:keys [folder title date draft?]}]
-  {:title title :date date :href (address/post folder) :draft? (boolean draft?)})
+  [{:keys [title date href draft?]}]
+  {:title title :date date :href href :draft? (boolean draft?)})
 
-(defn- entry-row [{:keys [folder summary tags] :as entry}]
+(defn- entry-row [root {:keys [folder summary tags] :as entry}]
   [folder {:item  (assoc (listed entry) :summary summary)
-           :lists {:tags (tag-rows tags)}}])
+           :lists {:tags (tag-rows root tags)}}])
 
 (defn- chosen-row [chosen tag-name]
   [tag-name {:item {:name tag-name :chosen? (= chosen tag-name)}}])
-
-(defn- all-tags
-  "Every tag of `posts`, once, in the order of the alphabet."
-  [posts]
-  (sort (distinct (mapcat :tags posts))))
 
 (defn- entries-node
   "The node of a page that lists the `:entries` of `listing`. The rest of `listing` says what
    the list is: its `:heading`, the page it is and of how many, whether the reader chose to see
    only some posts, and the `:tags` to choose from, of which `:chosen-tag` is chosen."
-  [{:keys [entries tags chosen-tag] :as listing}]
+  [root {:keys [entries tags chosen-tag] :as listing}]
   {:item  (merge {:heading nil :number 1 :pages 1 :filtered? false :count (count entries)}
                  (select-keys listing [:heading :number :pages :filtered?]))
-   :lists {:entries  (rows (map entry-row entries))
+   :lists {:entries  (rows (map (partial entry-row root) entries))
            :all-tags (rows (map (partial chosen-row chosen-tag) tags))}})
 
-(defn- page-count [per-page entries]
-  (max 1 (quot (+ (count entries) (dec per-page)) per-page)))
-
-(def ^:private not-found
-  {:key "not-found" :named {:kind :not-found} :node {:item {:home address/root}}})
+(defn- not-found
+  "The page for an address with no page, with the way back to the top of the blog."
+  [site]
+  {:key "not-found" :named {:kind :not-found} :node {:item {:home (:root site)}}})
 
 (defn- plain-letters
   "The `text` in small letters, with every accent taken off its letter."
@@ -109,25 +112,24 @@
 
 (defn- filtered-home
   "The home page as one list of the posts that the reader chose to see."
-  [posts {:keys [query tag]}]
+  [{:keys [posts] :as site} {:keys [query tag]}]
   (let [found (chosen posts query tag)]
     {:key   "entries"
      :named {:kind :home :number 1 :found (count found)}
-     :node  (entries-node {:entries found :filtered? true :tags (all-tags posts) :chosen-tag tag})}))
+     :node  (entries-node (:root site)
+                          {:entries found :filtered? true :tags (site/tags site) :chosen-tag tag})}))
 
 (defn- paged-home
-  "Page `number` of the home page, or the page that is not there when there is none."
-  [{:keys [blog posts]} number]
-  (let [per-page (:per-page blog default-per-page)
-        pages    (page-count per-page posts)]
-    (if (<= 1 number pages)
-      {:key   "entries"
-       :named {:kind :home :number number}
-       :node  (entries-node {:entries (take per-page (drop (* per-page (dec number)) posts))
-                             :number  number
-                             :pages   pages
-                             :tags    (all-tags posts)})}
-      not-found)))
+  "Page `number` of the home page as a list of entries."
+  [{:keys [posts] :as site} number]
+  (let [per-page (site/per-page site)]
+    {:key   "entries"
+     :named {:kind :home :number number}
+     :node  (entries-node (:root site)
+                          {:entries (take per-page (drop (* per-page (dec number)) posts))
+                           :number  number
+                           :pages   (site/page-count site)
+                           :tags    (site/tags site)})}))
 
 (defn- filtering?
   "True when the reader chose to see only some of the posts."
@@ -141,20 +143,19 @@
 
 (defn- newest-post
   "The home page as the page of the newest post, which is the post that the page was told. A
-   blog with no posts has a home page with no entries, and there is no later page."
-  [{:keys [site page] shown :post :as told}]
+   blog with no posts has a home page with no entries."
+  [{:keys [site] shown :post :as told}]
   (cond
-    (< 1 (:number page)) not-found
-    shown                (assoc (post told) :named {:kind :home :number 1})
+    shown                  (assoc (post told) :named {:kind :home :number 1})
     (empty? (:posts site)) (paged-home site 1)
-    :else                not-found))
+    :else                  (not-found site)))
 
 (defn- entries-home
   "The home page as a list of entries: those the reader chose to see, where the home page
    shows a choice, or else the page of all of them that the address names."
   [{:keys [site page local template]}]
   (if (and (templates/chooses-on? template :home) (filtering? local))
-    (filtered-home (:posts site) local)
+    (filtered-home site local)
     (paged-home site (:number page))))
 
 (def ^:private homes
@@ -162,8 +163,13 @@
   {:entries     entries-home
    :newest-post newest-post})
 
-(defn- home [{:keys [template] :as told}]
-  ((homes (:home template)) told))
+(defn- home
+  "The page of the home page that the address names, or the page that is not there when the
+   home page has no such page."
+  [{:keys [site page template] :as told}]
+  (if (<= 1 (:number page) (templates/home-pages template site))
+    ((homes (:home template)) told)
+    (not-found site)))
 
 (defn- tag [{:keys [site page]}]
   (let [tag-name (:tag page)
@@ -171,8 +177,8 @@
     (if (seq tagged)
       {:key   "entries"
        :named {:kind :tag :tag tag-name}
-       :node  (entries-node {:entries tagged :heading tag-name})}
-      not-found)))
+       :node  (entries-node (:root site) {:entries tagged :heading tag-name})}
+      (not-found site))))
 
 (defn- year [{:keys [date]}]
   (when date (subs date 0 4)))
@@ -201,8 +207,8 @@
     (select-keys (listed entry) [:title :href])))
 
 (defn- neighbours
-  "The entries beside the post `folder` in `posts`: the newer one and the older one."
-  [posts folder]
+  "The entries beside the post `folder` in `site`: the newer one and the older one."
+  [{:keys [posts]} folder]
   (let [[newer _ older] (first (filter (comp #{folder} :folder second)
                                        (partition 3 1 (concat [nil] posts [nil]))))]
     {:newer (neighbour newer) :older (neighbour older)}))
@@ -215,13 +221,13 @@
     {:key   "post"
      :named {:kind :post :post title}
      :node  {:item  (merge {:title title :date date :draft? (draft? (:posts site) folder)}
-                           (neighbours (:posts site) folder))
-             :lists {:tags   (tag-rows tags)
+                           (neighbours site folder))
+             :lists {:tags   (tag-rows (:root site) tags)
                      :blocks (block-rows blocks)}}}
-    not-found))
+    (not-found site)))
 
-(defn- nothing [_told]
-  not-found)
+(defn- nothing [{:keys [site]}]
+  (not-found site))
 
 (def ^:private mains
   "What makes the key of each kind of page, what names it, and its node."
@@ -259,7 +265,7 @@
   [(:folder entry)
    {:item (merge (listed entry)
                  (by-year before entry)
-                 {:href     (str (address/post (:folder entry)) (address/query {:tag (or tag-name "")}))
+                 {:href     (str (:href entry) (address/query {:tag (or tag-name "")}))
                   :current? (= current (:folder entry))})}])
 
 (defn- preset-list [{:keys [site]}]
@@ -268,7 +274,7 @@
 (defn- tag-list
   "Every tag of the blog to choose from, with the one that the reader chose."
   [{:keys [site] :as told}]
-  (rows (map (partial chosen-row (chosen-tag told)) (all-tags (:posts site)))))
+  (rows (map (partial chosen-row (chosen-tag told)) (site/tags site))))
 
 (defn- post-list
   "Every post, or those with the tag that the reader chose, with the post that the page shows."
@@ -293,12 +299,12 @@
 (defn- command
   "The post of `entry` as a command of a palette: what is shown, what is searched, and where
    it leads."
-  [{:keys [folder title summary tags] :as entry}]
+  [{:keys [folder title summary tags href] :as entry}]
   {:id       folder
    :label    title
    :group    (or (year entry) "")
    :keywords (vec (remove nil? (cons summary tags)))
-   :value    (address/post folder)})
+   :value    href})
 
 (def ^:private nothing-local
   "What is local to a page that was told nothing of it, of the facts that the document is
@@ -309,26 +315,31 @@
   "What the document is given of the blog and of what is local to the page. A blog template
    with a palette is given the posts as its commands."
   [{:keys [site local template] :as told}]
-  (let [{:keys [blog posts]} site]
+  (let [{:keys [blog posts root]} site]
     (cond-> (merge nothing-local
                    (select-keys local (keys nothing-local))
                    {:preset     (preset blog (:preset local))
                     :presets    (count (:presets blog))
                     :tag        (chosen-tag told)
                     :blog-title (:title blog)
-                    :home       address/root
-                    :archive    address/archive})
+                    :home       root
+                    :archive    (address/archive root)})
       (= :palette (:search template)) (assoc :commands (mapv command posts)))))
 
 (defn page
-  "What the page that `told` describes shows of the blog in `site`, for what is local to the
-   page in `local`: what the reader chose, a `:query`, a `:tag` and a `:preset`, whether the
-   menu and the palette are open, and what the page knows of its window and its keyboard. The result names the
-   blog template, the language and the title of the document, and holds what the template is
-   given: an item, the page, and each other list that the template asks for."
-  [{:keys [blog] :as site} {shown :post what :page} local]
+  "What the page that `told` describes shows of the blog in `site`, whose top is at `root`,
+   for what is local to the page in `local`: what the reader chose, a `:query`, a `:tag` and a
+   `:preset`, whether the menu and the palette are open, and what the page knows of its window
+   and its keyboard. The result names the blog template, the language and the title of the
+   document, and holds what the template is given: an item, the page, and each other list that
+   the template asks for."
+  [root {:keys [blog] :as site} {shown :post what :page} local]
   (let [template                 (templates/of-blog blog)
-        told                     {:site site :page what :post shown :local local :template template}
+        told                     {:site     (addressed site root)
+                                  :page     what
+                                  :post     shown
+                                  :local    local
+                                  :template template}
         {:keys [key named node]} ((get mains (:kind what) nothing) told)]
     {:template (templates/name-of blog)
      :language (:language blog default-language)

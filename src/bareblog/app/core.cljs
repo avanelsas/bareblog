@@ -145,6 +145,11 @@
   (let [params (js/URLSearchParams. (.-search js/location))]
     {:query (.get params "q") :tag (.get params "tag")}))
 
+(defn- document-root
+  "Where the top of the blog is, as the document says."
+  []
+  (.getAttribute (.-documentElement js/document) wire/root-attribute))
+
 (defonce ^{:private true :doc "The state of this page."}
   page-state
   (atom (state/initial {})))
@@ -287,13 +292,14 @@
 
 (def ^:private no-page
   "What a page is told when the server has no data for its address."
-  (pr-str {:page {:kind :not-found}}))
+  {:page {:kind :not-found}})
 
-(defn- response-text
-  "The text of `response`. A response that says there is no such file gives `missing`."
+(defn- response-data
+  "A promise of the data in `response`. A response that says there is no such file gives
+   `missing`, when there is one."
   [missing ^js response]
   (cond
-    (.-ok response)                            (.text response)
+    (.-ok response)                            (.then (.text response) reader/read-string)
     (and missing (= 404 (.-status response))) missing
     :else                                      (throw (js/Error. (str "The server answered "
                                                                       (.-status response) " for "
@@ -303,9 +309,21 @@
   "A promise of the data at `address`. With `missing`, that is what an address with no file
    gives."
   [address missing]
-  (-> (js/fetch address)
-      (.then (partial response-text missing))
-      (.then reader/read-string)))
+  (.then (js/fetch address) (partial response-data missing)))
+
+(defn- missing?
+  "True when the document says that it is the page for an address with no page."
+  []
+  (.hasAttribute (.-documentElement js/document) wire/missing-attribute))
+
+;; The page for an address with no page is sent for any address, so the data beside it would
+;; be that of another page, or of none. It asks for none.
+(defn- fetch-page
+  "A promise of the data of this page."
+  []
+  (if (missing?)
+    (js/Promise.resolve no-page)
+    (fetch-data wire/page-data no-page)))
 
 (defn- told! [told]
   (dispatch! [:told told]))
@@ -348,7 +366,7 @@
 (defn- tell-with-site!
   "Fetches the data of the site, and tells the page that and `page`."
   [page]
-  (-> (fetch-data address/site-data nil)
+  (-> (fetch-data (address/site-data (:root @page-state)) nil)
       (.then (fn [site] (told! (site/told site page))))))
 
 ;; A page whose data names a socket is told everything over it, when it opens and after each
@@ -370,9 +388,10 @@
    this page, and starts."
   []
   (reset! page-state (state/initial (assoc (asked-for)
+                                           :root         (document-root)
                                            :preset       (read-stored preset-key)
                                            :wide?        (.-matches (wide-window))
                                            :command-key? (command-key?))))
-  (-> (fetch-data wire/page-data no-page)
+  (-> (fetch-page)
       (.then start!)
       (.catch report!)))

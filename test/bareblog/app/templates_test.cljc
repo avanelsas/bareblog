@@ -56,7 +56,7 @@
     (testing (str template-name " shows every kind of page with templates that are fixed all the way down")
       (doseq [[kind told] pages]
         (is (every? all-fixed? (templates/fixed-templates blog-template
-                                                          (view/page (site-of template-name) told {})))
+                                                          (view/page "/" (site-of template-name) told {})))
             kind)))
     (testing (str template-name ": a property is set on a part that its node has")
       (doseq [{:keys [split props]} (templates/nodes blog-template)]
@@ -97,21 +97,21 @@
     (testing (str "the view of every kind of page names a page that " template-name " has a node for")
       (doseq [[kind told] pages]
         (is (some? (templates/row-node (get-in blog-template [:lists :main])
-                                       (first (get-in (view/page site told {}) [:lists :main :order]))))
+                                       (first (get-in (view/page "/" site told {}) [:lists :main :order]))))
             kind)))
     (testing (str template-name ": the view gives every node the key of each hole that is a key")
       (doseq [[kind told]             pages
-              [{:keys [split]} shown] (shown-nodes blog-template (view/page site told {}))
+              [{:keys [split]} shown] (shown-nodes blog-template (view/page "/" site told {}))
               hole                    (keyword-holes split)]
         (is (contains? (:item shown) hole) (str kind " " hole))))
     (testing (str template-name ": every hole of every node can be filled from what the view gives")
       (doseq [[kind told]             pages
-              [{:keys [split]} shown] (shown-nodes blog-template (view/page site told {}))
+              [{:keys [split]} shown] (shown-nodes blog-template (view/page "/" site told {}))
               :when                   split]
         (is (map? (template/writes split (:item shown))) (str kind))))
     (testing (str template-name ": the view gives the key of every property that a node sets")
       (doseq [[kind told]             pages
-              [{:keys [props]} shown] (shown-nodes blog-template (view/page site told {}))
+              [{:keys [props]} shown] (shown-nodes blog-template (view/page "/" site told {}))
               hole                    (mapcat vals (vals props))]
         (is (contains? (:item shown) hole) (str kind " " hole))))))
 
@@ -145,7 +145,7 @@
    (hidden site told {}))
   ([site told choice]
    (let [journal         (templates/named :journal)
-         page            (view/page site told choice)
+         page            (view/page "/" site told choice)
          k               (first (get-in page [:lists :main :order]))
          {:keys [split]} (templates/row-node (get-in journal [:lists :main]) k)
          shown           (get-in page [:lists :main :by-key k])]
@@ -190,7 +190,7 @@
 
 (deftest menu-test
   (let [journal (templates/named :journal)
-        written (fn [choice] (template/writes (:split journal) (:item (view/page site (:home pages) choice))))
+        written (fn [choice] (template/writes (:split journal) (:item (view/page "/" site (:home pages) choice))))
         drawer  (fn [choice] (some (fn [[part-name write]]
                                      (when (= "x-drawer" (named-part (:fixed (:split journal)) part-name))
                                        (:attrs write)))
@@ -227,7 +227,7 @@
 
 (deftest notebook-test
   (let [notebook (templates/named :notebook)
-        item     (fn [choice] (:item (view/page (site-of :notebook) (:post pages) choice)))
+        item     (fn [choice] (:item (view/page "/" (site-of :notebook) (:post pages) choice)))
         written  (fn [named choice] (attrs-of (:split notebook) (item choice) named))]
     (testing "the sidebar is open in a wide window, and in a narrow one when the menu is open"
       (is (false? (:open (written "x-sidebar" {}))))
@@ -262,7 +262,7 @@
   (doseq [[template-name shell] shell-elements
           :let                  [tags-of (fn [told] (set (templates/custom-elements
                                                           (templates/named template-name)
-                                                          (view/page (site-of template-name) told {}))))]]
+                                                          (view/page "/" (site-of template-name) told {}))))]]
     (testing (str template-name ": a page that shows nothing has the custom elements of the document")
       (is (= (set shell) (tags-of (:not-found pages)))))
     (testing (str template-name ": a page has those of what it shows too")
@@ -271,7 +271,7 @@
       (is (= (into (set shell) ["x-badge" "x-code" "x-image" "x-table" "x-table-cell" "x-table-row"])
              (tags-of (:post pages))))))
   (testing "a home page of entries has its page numbers"
-    (is (contains? (templates/custom-elements (templates/named :journal) (view/page site (:home pages) {}))
+    (is (contains? (templates/custom-elements (templates/named :journal) (view/page "/" site (:home pages) {}))
                    "x-pagination"))))
 
 (def ^:private page-events

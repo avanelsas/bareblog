@@ -14,6 +14,7 @@
    `:palette`."
   (:require [bareblog.app.journal :as journal]
             [bareblog.app.notebook :as notebook]
+            [bareblog.site :as site]
             [clojure.string :as str]))
 
 (def default :journal)
@@ -49,6 +50,14 @@
    template `template`."
   [template kind]
   (boolean ((shows-choice (:choice template)) kind)))
+
+(defn home-pages
+  "How many pages the home page of the blog in `site` has in the blog template `template`: as
+   many as its entries fill, or one where it shows a post."
+  [template site]
+  (if (= :entries (:home template))
+    (site/page-count site)
+    1))
 
 (defn list-names
   "The names of the lists that the view gives the document of the blog template `template`."

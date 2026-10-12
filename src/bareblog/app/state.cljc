@@ -1,7 +1,8 @@
 (ns bareblog.app.state
   "The state of a page, what a message does to it, and what the page shows for it.
 
-   The state holds what the page was told, the `:site` and its own `:page` or a `:problem`, and
+   The state holds where the top of the blog is, as `:root`, what the page was told, the
+   `:site` and its own `:page` or a `:problem`, and
    under `:local` what is the page's own: what the reader chose, which is the text to search
    for, a tag and a theme preset, whether the menu and the palette are open, and what the page
    knows of its window and its keyboard."
@@ -11,10 +12,11 @@
             [bareblog.site :as site]))
 
 (defn initial
-  "The state of a page that was told nothing yet, with what the reader chose before and what
-   the page knows of its window and its keyboard."
-  [{:keys [query tag preset wide? command-key?]}]
-  {:local {:query        (or query "")
+  "The state of a page that was told nothing yet, with where the top of its blog is, what the
+   reader chose before, and what the page knows of its window and its keyboard."
+  [{:keys [root query tag preset wide? command-key?]}]
+  {:root  (or root address/top)
+   :local {:query        (or query "")
            :tag          tag
            :preset       preset
            :menu?        false
@@ -138,15 +140,15 @@
   [state {:keys [button modified?]}]
   (and (lists-entries? state) (zero? button) (not modified?)))
 
-(defn- to-page [_state number]
-  (address/home number))
+(defn- to-page [state number]
+  (address/home (:root state) number))
 
 (defn- to-submitted-search
   "Where a search that is sent leads: to the home page with the search, from a page that
    cannot show it."
   [state _]
   (when-not (shows-choice? state)
-    (str (address/home 1) (address/query {:q (get-in state [:local :query])}))))
+    (str (address/home (:root state) 1) (address/query {:q (get-in state [:local :query])}))))
 
 (defn- to-post
   "Where picking a post leads: to the address that the pick names."
@@ -175,9 +177,9 @@
   "What the page shows for `state`, as a value: a notice or nil, the view of the document or
    nil when there is nothing to show yet, what the address asks for by name or nil when the
    address is left alone, and the preset to keep."
-  [{:keys [site page problem local] :as state}]
+  [{:keys [root site page problem local] :as state}]
   {:notice (or problem (site/notice site))
    :view   (when (and site page (not problem))
-             (view/page site page local))
+             (view/page root site page local))
    :asked  (asked state)
    :preset (:preset local)})

@@ -8,4 +8,7 @@
          :task     (bareblog.test-runner/run)}
   serve {:doc      "Serve a blog and the app: bb serve example [port]."
          :requires ([bareblog.serve])
-         :task     (apply bareblog.serve/-main *command-line-args*)}}}
+         :task     (apply bareblog.serve/-main *command-line-args*)}
+  generate {:doc      "Write a blog out as static pages in its docs directory: bb generate example."
+            :requires ([bareblog.generate])
+            :task     (apply bareblog.generate/-main *command-line-args*)}}}

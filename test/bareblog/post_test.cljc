@@ -94,7 +94,12 @@
     (is (= "what?.jpg" (post/file-beside "what%3F.jpg"))))
   (testing "the names that a page keeps for itself name no file"
     (is (nil? (post/file-beside "page.edn")))
-    (is (nil? (post/file-beside "changes"))))
+    (is (nil? (post/file-beside "changes")))
+    (is (nil? (post/file-beside "index.html"))))
+  (testing "the name of a file on disk is held to the same rule, as it is written"
+    (is (post/file-name? "harbour.jpg"))
+    (is (post/file-name? "100%.jpg"))
+    (is (not-any? post/file-name? [".DS_Store" "index.html" "page.edn" "a..b" "sub/b.jpg"])))
   (testing "a hidden file, nothing, and a broken escape name none"
     (is (nil? (post/file-beside ".env")))
     (is (nil? (post/file-beside "")))
@@ -123,17 +128,19 @@
       (is (= with-images (post/sized with-images {}))))))
 
 (deftest placed-test
-  (let [placed (post/placed with-images "a-post")]
+  (let [placed (post/placed with-images "/a-post/")]
     (testing "a photo beside the post gets the address of its file"
       (is (= "/a-post/harbour.jpg" (get-in placed [:blocks 0 :src])))
-      (is (= "/a-post/my%20photo.jpg" (get-in placed [:blocks 5 :src]))))
+      (is (= "/a-post/my%20photo.jpg" (get-in placed [:blocks 5 :src])))
+      (is (= "/my-blog/a-post/harbour.jpg"
+             (get-in (post/placed with-images "/my-blog/a-post/") [:blocks 0 :src]))))
     (testing "an image and a link inside a block get it too"
       (is (= "/a-post/map.png" (get-in placed [:blocks 1 :content 1 :content 0 :src])))
       (is (= "/a-post/notes.txt" (get-in placed [:blocks 1 :content 3 :href]))))
     (testing "an address that names no file beside the post stays as it is"
       (is (= (subvec (:blocks with-images) 2 5) (subvec (:blocks placed) 2 5)))
       (is (= {:kind :link :href "#note" :content ["a note"]}
-             (first (:blocks (post/placed {:blocks [{:kind :link :href "#note" :content ["a note"]}]} "a-post"))))))
+             (first (:blocks (post/placed {:blocks [{:kind :link :href "#note" :content ["a note"]}]} "/a-post/"))))))
     (testing "everything else stays as it is"
       (is (= (dissoc with-images :blocks) (dissoc placed :blocks))))))
 

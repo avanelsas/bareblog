@@ -58,24 +58,21 @@
   "What the name of a file beside a post looks like, as the text of a pattern."
   "(?!\\.)[^/\\\\:]+")
 
-(defn decoded
-  "The address `text` with each percent escape as the character it stands for, or nil when an
-   escape is broken."
-  [text]
-  #?(:clj  (try (java.net.URLDecoder/decode (str/replace text "+" "%2B") "UTF-8")
-                (catch IllegalArgumentException _ nil))
-     :cljs (try (js/decodeURIComponent text)
-                (catch :default _ nil))))
+(defn file-name?
+  "True when `file-name` is the name of a file beside a post that a page can show: it is no
+   hidden file, it leads nowhere else, and a page does not keep the name for itself."
+  [file-name]
+  (boolean (and (not (str/includes? file-name ".."))
+                (not (contains? wire/reserved file-name))
+                (re-matches (re-pattern file-pattern) file-name))))
 
 (defn file-beside
   "The name of the file beside a post that the address `source` names, or nil when it names
    none. What an address asks of the file after a question mark, and the place in it that it
    names after a hash, are no part of the name."
   [source]
-  (when-some [file-name (some-> source (str/replace #"[?#].*" "") decoded)]
-    (when (and (not (str/includes? file-name ".."))
-               (not (contains? wire/reserved file-name))
-               (re-matches (re-pattern file-pattern) file-name))
+  (when-some [file-name (some-> source (str/replace #"[?#].*" "") address/decoded)]
+    (when (file-name? file-name)
       file-name)))
 
 (defn- shows-file?
@@ -106,19 +103,20 @@
   [:src :href])
 
 (defn- placed-at
-  "The address under `k` in `x` as the address of the file it names in `folder`, when it names
+  "The address under `k` in `x` as the address of the file it names under `at`, when it names
    one beside the post."
-  [folder x k]
+  [at x k]
   (cond-> x
-    (file-beside (get x k)) (update k (partial str (address/post folder)))))
+    (file-beside (get x k)) (update k (partial str at))))
 
-(defn- with-place [folder x]
+(defn- with-place [at x]
   (if (map? x)
-    (reduce (partial placed-at folder) x names-a-file)
+    (reduce (partial placed-at at) x names-a-file)
     x))
 
 (defn placed
-  "The `post` with every address that names a file beside it as the address of that file in
-   `folder`. The post then shows its files from any page, and not only from its own."
-  [post folder]
-  (update post :blocks (partial walk/postwalk (partial with-place folder))))
+  "The `post` with every address that names a file beside it as the address of that file
+   under `at`, the address of the post. The post then shows its files from any page, and not
+   only from its own."
+  [post at]
+  (update post :blocks (partial walk/postwalk (partial with-place at))))

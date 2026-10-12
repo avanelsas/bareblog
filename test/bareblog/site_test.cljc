@@ -71,3 +71,26 @@
     (is (nil? (site/newest-folder {:posts []})))
     (is (nil? (site/newest-folder {:problem "No settings."})))))
 
+(deftest page-count-test
+  (let [of (fn [n per-page] (site/page-count {:blog {:per-page per-page} :posts (repeat n {})}))]
+    (testing "the posts fill as many pages as it takes, and the last may be short"
+      (is (= [1 1 2 2 3] (mapv #(of % 2) [1 2 3 4 5]))))
+    (testing "no posts fill one page"
+      (is (= 1 (of 0 2))))
+    (testing "a blog that asks for nothing gets ten on a page"
+      (is (= 10 (site/per-page {:blog {}})))
+      (is (= 2 (site/page-count {:blog {} :posts (repeat 11 {})}))))))
+
+(deftest tags-test
+  (testing "the tags of a site are every tag of its posts, once, in the order of the alphabet"
+    (is (= ["food" "travel" "web"]
+           (site/tags {:posts [{:tags ["travel" "web"]} {:tags ["food" "travel"]} {}]})))))
+
+(deftest problems-test
+  (testing "what is wrong is added after what was wrong already"
+    (is (= ["First." "Second."] (:problems (site/with-problems {:problems ["First."]} ["Second."]))))
+    (is (= ["First."] (:problems (site/with-problems {} ["First."])))))
+  (testing "a site with nothing wrong says nothing of problems"
+    (is (= {:blog {}} (site/with-problems {:blog {}} []))))
+  (testing "the readers of a published blog are told nothing of what is wrong"
+    (is (= {:blog {} :posts []} (site/published {:blog {} :posts [] :problems ["First."]})))))

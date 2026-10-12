@@ -6,12 +6,16 @@
   '[bareblog.address-test
     bareblog.claude-test
     bareblog.example-test
+    bareblog.feed-test
+    bareblog.generate-test
     bareblog.header-test
     bareblog.image-test
+    bareblog.output-test
     bareblog.post-test
     bareblog.reader-test
     bareblog.serve-test
     bareblog.site-test
+    bareblog.source-test
     bareblog.watch-test
     bareblog.app.blocks-test
     bareblog.app.state-test

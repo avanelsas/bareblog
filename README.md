@@ -9,11 +9,12 @@ pages.
 
 ## State
 
-Seven of ten steps are built: the whole blog shows in the browser, read from its Markdown, with a
+Eight of ten steps are built: the whole blog shows in the browser, read from its Markdown, with a
 home page, a page for each post and tag, and an archive. A reader can search, pick a tag and
 pick a theme. An open page follows the files as you save them. Both blog templates are there,
-and one line in `blog.edn` picks between them. There is no `bareblog` command yet, and nothing
-is published. This page describes what BareBlog will do.
+and one line in `blog.edn` picks between them. `bb generate` writes the blog out as static
+pages with a feed. There is no `bareblog` command yet, and nothing is published. This page
+describes what BareBlog will do.
 
 To see the example blog:
 
@@ -22,6 +23,15 @@ npm install
 npx shadow-cljs watch app
 bb serve example
 ```
+
+To write it out as static pages, in `example/docs`:
+
+```
+npx shadow-cljs release app
+bb generate example
+```
+
+That needs Node 22, Chrome, and BareDOM checked out beside BareBlog.
 
 ## What it will do
 

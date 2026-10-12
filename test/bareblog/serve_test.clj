@@ -1,10 +1,10 @@
 (ns bareblog.serve-test
-  (:require [babashka.fs :as fs]
-            [bareblog.address :as address]
-            [bareblog.app.templates :as templates]
-            [bareblog.app.view :as view]
+  (:require [bareblog.address :as address]
+            [bareblog.output :as output]
             [bareblog.post :as post]
+            [bareblog.example :as example]
             [bareblog.serve :as serve]
+            [bareblog.source :as source]
             [clojure.edn :as edn]
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]))
@@ -24,7 +24,7 @@
     (is (= {:serve :nothing} (serve/route "/tags/a/b/"))))
   (testing "the server has the page of every tag that the app links to"
     (doseq [tag-name ["travel" "web components" "a/b" "c++" "100%" "café" "what?"]]
-      (is (= {:serve :page :page {:kind :tag :tag tag-name}} (serve/route (address/tag tag-name))))))
+      (is (= {:serve :page :page {:kind :tag :tag tag-name}} (serve/route (address/tag "/" tag-name))))))
   (testing "a tag with a broken escape serves nothing"
     (is (= {:serve :nothing} (serve/route "/tags/%zz/"))))
   (testing "the archive"
@@ -73,63 +73,67 @@
     (is (= {:serve :nothing} (serve/route "/a-post/..")))
     (is (= {:serve :nothing} (serve/route "/a-post/%2e%2e")))))
 
-;; What the server reads of a blog on disk. The example blog is the blog.
+(deftest top-files-test
+  (testing "the feed, and the page for an address with no page, are at the top"
+    (is (= {:serve :feed} (serve/route "/feed.xml")))
+    (is (= {:serve :missing} (serve/route "/404.html")))))
 
-(def ^:private example "example")
+(deftest under-a-path-test
+  (testing "a path of a request is read from the top of the blog"
+    (is (= "/archive/" (serve/below "/my-blog/" "/my-blog/archive/")))
+    (is (= "/" (serve/below "/my-blog/" "/my-blog/")))
+    (is (= "/archive/" (serve/below "/" "/archive/"))))
+  (testing "a path that is not under the top of the blog is none"
+    (is (nil? (serve/below "/my-blog/" "/archive/")))
+    (is (nil? (serve/below "/my-blog/" "/my-blog"))))
+  (testing "a path from the top of the blog is written as a path of a request"
+    (is (= "/my-blog/archive/" (serve/above "/my-blog/" "/archive/")))
+    (is (= "/archive/" (serve/above "/" "/archive/")))))
 
-(defn- read-copy-as
-  "What `read` gives for a copy of the example blog with the blog template `template-name`.
-   The copy is gone afterwards."
-  [template-name read]
-  (let [dir (fs/create-temp-dir)]
-    (try
-      (fs/copy-tree example dir)
-      (spit (fs/file dir "blog.edn")
-            (pr-str (assoc (edn/read-string (slurp (fs/file example "blog.edn"))) :template template-name)))
-      (read (str dir))
-      (finally
-        (fs/delete-tree dir)))))
+(deftest document-test
+  (let [html "<html lang=\"en\" data-loading>\n<link href=\"/app.css\">\n<script src=\"/js/app.js\"></script>"]
+    (testing "the page of the app names its files from the top of the blog, and says where that is"
+      (is (= "<html data-root=\"/my-blog/\" lang=\"en\" data-loading>\n<link href=\"/my-blog/app.css\">\n<script src=\"/my-blog/js/app.js\"></script>"
+             (serve/document html "/my-blog/" false))))
+    (testing "at the top of a host it is as it was, but for where the top is"
+      (is (= (str/replace html "<html " "<html data-root=\"/\" ") (serve/document html "/" false))))
+    (testing "the page for an address with no page says that it is that"
+      (is (str/starts-with? (serve/document html "/" true) "<html data-root=\"/\" data-not-found lang")))
+    (testing "the page of the app itself is one that this can be done to"
+      (let [page (serve/document (slurp "resources/public/index.html") "/my-blog/" false)]
+        (is (str/includes? page "data-root=\"/my-blog/\""))
+        (is (str/includes? page "src=\"/my-blog/js/app.js\""))
+        (is (str/includes? page "href=\"/my-blog/feed.xml\""))
+        (is (not (re-find #"(href|src)=\"/(?!my-blog/)" page)))))))
 
-(defn- post-shown
-  "What the page `told` shows of the post, for `site` as a blog with the blog template
-   `template-name`."
-  [site told template-name]
-  (get-in (view/page (assoc-in site [:blog :template] template-name) told {})
-          [:lists :main :by-key "post"]))
+(deftest every-page-is-served-test
+  (let [site {:blog  {:per-page 1}
+              :posts [{:folder "b" :tags ["travel" "web components" "c++" "café" "100%"]} {:folder "a"}]}]
+    (testing "the server has, under the top of a blog, every page that a generated blog holds"
+      (doseq [root ["/" "/my-blog/"]
+              page (remove (comp #{:not-found} :kind) (output/pages site))]
+        (is (= {:serve :page :page page} (serve/route (serve/below root (address/of-page root page))))
+            (str root " " page))))
+    (testing "and the page for an address with no page"
+      (is (= {:serve :missing} (serve/route (serve/below "/my-blog/" (address/of-page "/my-blog/" {:kind :not-found}))))))))
 
-;; The blog is read once, and the name of the blog template is then the one thing that
-;; differs. This holds the view to showing a post the same way whatever the blog template. It
-;; does not show that a page looks right, which is seen in a browser.
-(deftest every-blog-template-shows-the-same-posts
-  (let [site (serve/read-site example)]
-    (testing "the example blog has posts to show"
-      (is (seq (:posts site))))
-    (doseq [{:keys [folder]} (:posts site)
-            :let             [told  (serve/read-page example {:kind :post :folder folder})
-                              shown (map (partial post-shown site told) (keys templates/by-name))]]
-      (testing (str folder " is shown, with the same title, tags and blocks under every blog template")
-        (is (some? (first shown)))
-        (is (apply = shown)))
-      (testing (str folder " names its folder, and shows its files by their full address")
-        (is (= folder (get-in told [:post :folder])))
-        (is (every? #(str/starts-with? % (address/post folder))
-                    (keep :src (tree-seq coll? seq (get-in told [:post :blocks])))))))))
+(defn- fetched
+  "What `blog` answers to a request for `path`, read as data."
+  [blog path]
+  (edn/read-string (:body (serve/handler blog {:uri path}))))
 
-(deftest home-page-test
-  (let [home {:kind :home :number 1}]
-    (testing "a home page that lists entries is told no post"
-      (is (= {:page home} (serve/read-page example home))))
-    (testing "a home page that shows the newest post is told that post, with or without the site
-              as it was read"
-      (let [[site alone with-site] (read-copy-as :notebook
-                                                 (fn [root]
-                                                   (let [site (serve/read-site root)]
-                                                     [site
-                                                      (serve/read-page root home)
-                                                      (serve/read-page root home site)])))]
-        (is (= (:folder (first (:posts site))) (get-in alone [:post :folder])))
-        (is (seq (get-in alone [:post :blocks])))
-        (is (= alone with-site))))
-    (testing "the page of a post that is not there has no data"
-      (is (nil? (serve/read-page example {:kind :post :folder "not-there"}))))))
+(deftest site-data-test
+  (example/with-copy {:address "https://avanelsas.github.io/my-blog/"}
+    (fn [dir]
+      (spit (str dir "/posts/hello-bareblog/post.md") "---\ntags: a/b\n---\n\n# Hello\n")
+      (let [settings (source/read-settings dir)]
+        (testing "the author is told what is wrong with the blog"
+          (is (seq (:problems (fetched (source/preview dir) "/site.edn")))))
+        (testing "the readers are not, and the blog is under the path of its address"
+          (is (not (contains? (fetched (source/published dir settings) "/my-blog/site.edn") :problems)))
+          (is (= 404 (:status (serve/handler (source/published dir settings) {:uri "/site.edn"})))))
+        (testing "the data of a page names a socket for the author, and none for the readers"
+          (is (= "changes" (:changes (fetched (source/preview dir) "/archive/page.edn"))))
+          (is (= {:page {:kind :archive}}
+                 (fetched (source/published dir settings) "/my-blog/archive/page.edn"))))))))
 

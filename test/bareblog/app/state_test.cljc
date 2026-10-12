@@ -24,9 +24,12 @@
 
 (deftest initial-test
   (testing "a page that was told nothing searches for nothing and has chosen nothing"
-    (is (= {:local {:query "" :tag nil :preset nil :menu? false :palette? false :wide? false
+    (is (= {:root  "/"
+            :local {:query "" :tag nil :preset nil :menu? false :palette? false :wide? false
                     :command-key? false}}
            (state/initial {}))))
+  (testing "it starts with where the top of its blog is"
+    (is (= "/my-blog/" (:root (state/initial {:root "/my-blog/"})))))
   (testing "it starts with what the reader chose before, and with what the page knows of its
             window and its keyboard"
     (is (= {:query "lisbon" :tag "travel" :preset "forest" :menu? false :palette? false :wide? true
@@ -95,6 +98,14 @@
       (is (= "/?q=two%20words" (state/destination on-post [:submit-search]))))
     (testing "a search that is sent from the home page leads nowhere"
       (is (nil? (state/destination on-home [:submit-search]))))
+    (testing "an address starts at the top of the blog"
+      (let [under (fn [& messages] (reduce state/step (state/initial {:root "/my-blog/"}) messages))]
+        (is (= "/my-blog/page/2/" (state/destination (under [:told {:site site :page home}]) [:to-page 2])))
+        (is (= "/my-blog/?q=x"
+               (state/destination (under [:told {:site site :page post}] [:search "x"]) [:submit-search])))
+        (is (= "/my-blog/a/"
+               (get-in (state/shown (under [:told {:site site :page home}]))
+                       [:view :lists :main :by-key "entries" :lists :entries :by-key "a" :item :href])))))
     (testing "a post that is picked leads to its address"
       (is (= "/a/" (state/destination on-home [:open-post "/a/"]))))
     (testing "any other message leads nowhere"
