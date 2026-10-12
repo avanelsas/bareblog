@@ -2,6 +2,7 @@
   "A local server for one blog: the app, and each post as data."
   (:require [babashka.fs :as fs]
             [bareblog.address :as address]
+            [bareblog.app.templates :as templates]
             [bareblog.image :as image]
             [bareblog.layout :as layout]
             [bareblog.live :as live]
@@ -125,6 +126,11 @@
         (or (page-routes path) (redirect-route path) (file-route path)))
       {:serve :nothing}))
 
+(defn- shows-newest?
+  "True when the blog with the settings `settings` shows its newest post on its home page."
+  [settings]
+  (= :newest-post (:home (templates/of-blog settings))))
+
 ;; The responses. Pure.
 
 (def ^:private content-types
@@ -232,7 +238,7 @@
     {:entry    (site/entry folder-name post draft?)
      :problems (map #(str place ": " %) (:problems post))}))
 
-(defn- read-site
+(defn read-site
   "What every page of the blog at `root` loads."
   [root]
   (let [dirs (list-dirs root)
@@ -241,14 +247,46 @@
                (map :entry read)
                (concat (map refused (remove post-dir? dirs)) (mapcat :problems read)))))
 
-(defn- read-page
-  "The data of the page `page` of the blog at `root`: what the page is, and the post when it is
-   the page of one. Nil when it is the page of a post that is not there."
-  [root {:keys [kind] folder-name :folder :as page}]
-  (if (= :post kind)
-    (when-some [dir (find-post-dir root folder-name)]
-      {:page page :post (read-post folder-name dir)})
-    {:page page}))
+(defn- read-shown-post
+  "The post in the folder `folder-name` as a page shows it: with the name of its folder, and
+   with each file beside it under its full address, so that any page can show it. Nil when
+   there is no such post."
+  [root folder-name]
+  (when-some [dir (some->> folder-name (find-post-dir root))]
+    (-> (read-post folder-name dir)
+        (post/placed folder-name)
+        (assoc :folder folder-name))))
+
+(defn- read-post-page [root {folder-name :folder :as page} _site]
+  (when-some [post (read-shown-post root folder-name)]
+    {:page page :post post}))
+
+;; The settings say what the home page shows, and they are one small file. The list of posts
+;; is read only when the home page shows a post, and nobody read it yet.
+(defn- read-home-page
+  "The data of a page of the home page. It holds the newest post when the blog template shows
+   that on its home page."
+  [root page site]
+  (let [post (when (shows-newest? (or (:blog site) (read-settings root)))
+               (read-shown-post root (site/newest-folder (or site (read-site root)))))]
+    (cond-> {:page page} post (assoc :post post))))
+
+(defn- read-plain-page [_root page _site]
+  {:page page})
+
+(def ^:private page-readers
+  "What reads the data of each kind of page."
+  {:post read-post-page
+   :home read-home-page})
+
+(defn read-page
+  "The data of the page `page` of the blog at `root`: what the page is, and the post that it
+   shows when it shows one. Nil when it is the page of a post that is not there. With `site`,
+   the site as it was read, nothing of it is read again."
+  ([root page]
+   (read-page root page nil))
+  ([root page site]
+   ((get page-readers (:kind page) read-plain-page) root page site)))
 
 ;; The preview. A page of the preview is told one of two things: the site and its own data,
 ;; with the address of the socket that tells it again, or a problem to show in place of them.
@@ -270,9 +308,9 @@
 
 (defn- read-preview
   "The data of the page `page`, with the address of its socket. It does not throw. Nil when it
-   is the page of a post that is not there."
-  [root page]
-  (without-throwing #(some-> (read-page root page) (assoc :changes wire/changes))))
+   is the page of a post that is not there. `site` is the site as it was read, or nil."
+  [root page site]
+  (without-throwing #(some-> (read-page root page site) (assoc :changes wire/changes))))
 
 (defn- gone [page]
   {:problem (str "There is no post " (:folder page) " any more.")})
@@ -283,14 +321,14 @@
   [root pages]
   (let [site (without-throwing #(read-site root))]
     (into {}
-          (map (fn [page] [page (site/told site (or (read-preview root page) (gone page)))]))
+          (map (fn [page] [page (site/told site (or (read-preview root page site) (gone page)))]))
           pages)))
 
 (defn- serve-site [root _found _request]
   (fresh "edn" (pr-str (without-throwing #(read-site root)))))
 
 (defn- serve-data [root {:keys [page]} _request]
-  (if-some [told (read-preview root page)]
+  (if-some [told (read-preview root page nil)]
     (fresh "edn" (pr-str told))
     not-found))
 

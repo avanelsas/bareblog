@@ -1,7 +1,12 @@
 (ns bareblog.serve-test
-  (:require [bareblog.address :as address]
+  (:require [babashka.fs :as fs]
+            [bareblog.address :as address]
+            [bareblog.app.templates :as templates]
+            [bareblog.app.view :as view]
             [bareblog.post :as post]
             [bareblog.serve :as serve]
+            [clojure.edn :as edn]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]))
 
 (deftest page-routes-test
@@ -67,3 +72,64 @@
     (is (= {:serve :nothing} (serve/route "/js/../../blog.edn")))
     (is (= {:serve :nothing} (serve/route "/a-post/..")))
     (is (= {:serve :nothing} (serve/route "/a-post/%2e%2e")))))
+
+;; What the server reads of a blog on disk. The example blog is the blog.
+
+(def ^:private example "example")
+
+(defn- read-copy-as
+  "What `read` gives for a copy of the example blog with the blog template `template-name`.
+   The copy is gone afterwards."
+  [template-name read]
+  (let [dir (fs/create-temp-dir)]
+    (try
+      (fs/copy-tree example dir)
+      (spit (fs/file dir "blog.edn")
+            (pr-str (assoc (edn/read-string (slurp (fs/file example "blog.edn"))) :template template-name)))
+      (read (str dir))
+      (finally
+        (fs/delete-tree dir)))))
+
+(defn- post-shown
+  "What the page `told` shows of the post, for `site` as a blog with the blog template
+   `template-name`."
+  [site told template-name]
+  (get-in (view/page (assoc-in site [:blog :template] template-name) told {})
+          [:lists :main :by-key "post"]))
+
+;; The blog is read once, and the name of the blog template is then the one thing that
+;; differs. This holds the view to showing a post the same way whatever the blog template. It
+;; does not show that a page looks right, which is seen in a browser.
+(deftest every-blog-template-shows-the-same-posts
+  (let [site (serve/read-site example)]
+    (testing "the example blog has posts to show"
+      (is (seq (:posts site))))
+    (doseq [{:keys [folder]} (:posts site)
+            :let             [told  (serve/read-page example {:kind :post :folder folder})
+                              shown (map (partial post-shown site told) (keys templates/by-name))]]
+      (testing (str folder " is shown, with the same title, tags and blocks under every blog template")
+        (is (some? (first shown)))
+        (is (apply = shown)))
+      (testing (str folder " names its folder, and shows its files by their full address")
+        (is (= folder (get-in told [:post :folder])))
+        (is (every? #(str/starts-with? % (address/post folder))
+                    (keep :src (tree-seq coll? seq (get-in told [:post :blocks])))))))))
+
+(deftest home-page-test
+  (let [home {:kind :home :number 1}]
+    (testing "a home page that lists entries is told no post"
+      (is (= {:page home} (serve/read-page example home))))
+    (testing "a home page that shows the newest post is told that post, with or without the site
+              as it was read"
+      (let [[site alone with-site] (read-copy-as :notebook
+                                                 (fn [root]
+                                                   (let [site (serve/read-site root)]
+                                                     [site
+                                                      (serve/read-page root home)
+                                                      (serve/read-page root home site)])))]
+        (is (= (:folder (first (:posts site))) (get-in alone [:post :folder])))
+        (is (seq (get-in alone [:post :blocks])))
+        (is (= alone with-site))))
+    (testing "the page of a post that is not there has no data"
+      (is (nil? (serve/read-page example {:kind :post :folder "not-there"}))))))
+

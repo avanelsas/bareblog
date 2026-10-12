@@ -63,3 +63,11 @@
   (testing "the first of more problems is the notice, with how many more there are"
     (is (= "A is left out. There are 2 more in the terminal."
            (site/notice {:problems ["A is left out." "B." "C."]})))))
+
+(deftest newest-folder-test
+  (testing "the newest post is the first in the list"
+    (is (= "b" (site/newest-folder {:posts [{:folder "b"} {:folder "a"}]}))))
+  (testing "a site with no posts, and one that could not be read, have none"
+    (is (nil? (site/newest-folder {:posts []})))
+    (is (nil? (site/newest-folder {:problem "No settings."})))))
+

@@ -9,9 +9,11 @@ pages.
 
 ## State
 
-Six of ten steps are built: the whole blog shows in the browser, read from its Markdown, with a
+Seven of ten steps are built: the whole blog shows in the browser, read from its Markdown, with a
 home page, a page for each post and tag, and an archive. A reader can search, pick a tag and
-pick a theme. An open page follows the files as you save them. There is no `bareblog` command yet, and nothing is published. This page describes what BareBlog will do.
+pick a theme. An open page follows the files as you save them. Both blog templates are there,
+and one line in `blog.edn` picks between them. There is no `bareblog` command yet, and nothing
+is published. This page describes what BareBlog will do.
 
 To see the example blog:
 

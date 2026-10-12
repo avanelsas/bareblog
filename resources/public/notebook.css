@@ -1,0 +1,140 @@
+/* The Notebook blog template: a sidebar that lists every post, beside what the page shows. */
+
+/* The sidebar stays under the navbar, which is this high. */
+
+.notebook {
+  --notebook-navbar-height: 4rem;
+}
+
+.notebook .columns {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+}
+
+.notebook x-sidebar {
+  --x-sidebar-width: 17rem;
+  position: sticky;
+  top: var(--notebook-navbar-height);
+  max-height: calc(100vh - var(--notebook-navbar-height));
+  overflow-y: auto;
+}
+
+.notebook .sidebar {
+  padding: var(--x-space-xl, 1.5rem) var(--x-space-lg, 1rem);
+}
+
+/* The links and the controls of the navbar are in the sidebar too, for a narrow window. */
+
+.notebook .sidebar .menu {
+  display: none;
+  margin-bottom: var(--x-space-xl, 1.5rem);
+}
+
+.notebook .sidebar .tag-choices {
+  margin-bottom: var(--x-space-sm, 0.5rem);
+}
+
+.notebook .sidebar .clear {
+  margin-bottom: var(--x-space-sm, 0.5rem);
+}
+
+.notebook .sidebar-posts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--x-font-size-sm, 0.875rem);
+  line-height: 1.5;
+}
+
+.notebook .sidebar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--x-space-xs, 0.25rem);
+  margin-bottom: var(--x-space-sm, 0.5rem);
+}
+
+.notebook .sidebar-row .year {
+  flex-basis: 100%;
+  margin-top: var(--x-space-md, 0.75rem);
+  color: var(--x-color-text-muted, #666);
+  font-weight: var(--x-font-weight-semibold, 600);
+}
+
+.notebook .sidebar-row .year:empty {
+  display: none;
+}
+
+.notebook .sidebar-row a {
+  color: var(--x-color-text, #111);
+  text-decoration: none;
+}
+
+.notebook .sidebar-row a:hover {
+  color: var(--x-color-primary, #2563eb);
+}
+
+.notebook .sidebar-row a[aria-current="page"] {
+  color: var(--x-color-primary, #2563eb);
+  font-weight: var(--x-font-weight-semibold, 600);
+}
+
+.notebook .search-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--x-space-sm, 0.5rem);
+  padding: 0.3rem 0.7rem;
+  border: var(--x-border-width, 1px) solid var(--x-color-border, #d0d7de);
+  border-radius: var(--x-radius-sm, 0.375rem);
+  background: transparent;
+  color: var(--x-color-text-muted, #666);
+  font: inherit;
+  font-size: var(--x-font-size-sm, 0.875rem);
+  cursor: pointer;
+}
+
+.notebook .search-button kbd {
+  padding: 0 0.3em;
+  border: var(--x-border-width, 1px) solid var(--x-color-border, #d0d7de);
+  border-radius: var(--x-radius-sm, 0.375rem);
+  font-family: var(--x-font-family-mono, ui-monospace, monospace);
+  font-size: 0.85em;
+}
+
+.notebook .post,
+.notebook .entries,
+.notebook .archive,
+.notebook .not-found {
+  margin: 0 auto 0 var(--x-space-xl, 1.5rem);
+}
+
+/* Below 641 pixels, which is `wide-from` in the app, the sidebar is a panel. */
+
+@media (max-width: 640px) {
+  .notebook .columns {
+    display: block;
+  }
+
+  .notebook x-sidebar {
+    position: static;
+    max-height: none;
+  }
+
+  /* Until its script has run, a sidebar is no panel yet. It is left out, so that the page is
+     not pushed aside by it. */
+  .notebook x-sidebar:not(:defined) {
+    display: none;
+  }
+
+  .notebook .sidebar .menu {
+    display: flex;
+  }
+
+  .notebook .post,
+  .notebook .entries,
+  .notebook .archive,
+  .notebook .not-found {
+    margin-left: 0;
+  }
+}

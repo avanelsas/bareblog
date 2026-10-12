@@ -5,6 +5,7 @@
    `state/shown` says what the page then shows. This namespace brings the document, the address
    and the browser's storage to that, and turns events and what the socket says into messages."
   (:require [bareblog.address :as address]
+            [bareblog.app.pages :as pages]
             [bareblog.app.render :as render]
             [bareblog.app.state :as state]
             [bareblog.app.templates :as templates]
@@ -12,6 +13,7 @@
             [bareblog.wire :as wire]
             [baredom.exports.x-badge :as x-badge]
             [baredom.exports.x-code :as x-code]
+            [baredom.exports.x-command-palette :as x-command-palette]
             [baredom.exports.x-container :as x-container]
             [baredom.exports.x-drawer :as x-drawer]
             [baredom.exports.x-image :as x-image]
@@ -19,6 +21,7 @@
             [baredom.exports.x-pagination :as x-pagination]
             [baredom.exports.x-search-field :as x-search-field]
             [baredom.exports.x-select :as x-select]
+            [baredom.exports.x-sidebar :as x-sidebar]
             [baredom.exports.x-table :as x-table]
             [baredom.exports.x-table-cell :as x-table-cell]
             [baredom.exports.x-table-row :as x-table-row]
@@ -30,14 +33,16 @@
 (def ^:private registrations
   "The function that registers each custom element a blog template can name."
   {"x-badge"        x-badge/init
-   "x-code"         x-code/init
+   "x-code"            x-code/init
+   "x-command-palette" x-command-palette/init
    "x-container"    x-container/init
    "x-drawer"       x-drawer/init
    "x-image"        x-image/init
    "x-navbar"       x-navbar/init
    "x-pagination"   x-pagination/init
    "x-search-field" x-search-field/init
-   "x-select"       x-select/init
+   "x-select"          x-select/init
+   "x-sidebar"         x-sidebar/init
    "x-table"        x-table/init
    "x-table-cell"   x-table-cell/init
    "x-table-row"    x-table-row/init
@@ -172,18 +177,28 @@
   (.. event -detail -open))
 
 (defn- click-facts
-  "What `state/picks-in-place?` asks of a click."
+  "What `state/link-picks?` asks of a click."
   [^js event]
   {:button    (.-button event)
    :modified? (or (.-metaKey event) (.-ctrlKey event) (.-shiftKey event) (.-altKey event))})
 
+(defn- row-key
+  "The key of the row that the event came from."
+  [origin _event]
+  (peek (:key-path origin)))
+
 (defn- tag-picked!
-  "The tag that a click on it picks in place, or nil when the click follows its link. A click
-   that picks in place is stopped from following the link."
+  "The tag that a click on a link to it picks in place, or nil when the click follows the
+   link. A click that picks in place is stopped from following the link."
   [origin ^js event]
-  (when (state/picks-in-place? @page-state (click-facts event))
+  (when (state/link-picks? @page-state (click-facts event))
     (.preventDefault event)
-    (peek (:key-path origin))))
+    (row-key origin event)))
+
+(defn- detail-address
+  "The address that the command picked in a palette leads to."
+  [_origin ^js event]
+  (.. event -detail -item -value))
 
 (defn- nothing [_origin _event]
   nil)
@@ -194,11 +209,16 @@
    :search        detail-value
    :submit-search nothing
    :preset        detail-value
-   :tag           tag-picked!
+   :tag           row-key
+   :tag-link      tag-picked!
    :clear         nothing
    :menu          detail-open
+   :sidebar       detail-open
    :open-menu     nothing
-   :close-menu    nothing})
+   :close-menu    nothing
+   :open-palette  nothing
+   :close-palette nothing
+   :open-post     detail-address})
 
 (defn- with-argument [meaning]
   [meaning (arguments meaning)])
@@ -208,6 +228,47 @@
   []
   (update-vals (into {} (map templates/events) (vals templates/by-name)) with-argument))
 
+;; What the page knows of its window, and the key that opens the palette.
+
+(defn- wide-window
+  "What says whether the window is wide: `x-navbar` then shows what it holds."
+  []
+  (js/matchMedia (str "(min-width: " pages/wide-from "px)")))
+
+(defn- platform
+  "The name of what the browser runs on, by the newer way of asking where there is one."
+  []
+  (str (or (some-> (unchecked-get js/navigator "userAgentData") (unchecked-get "platform"))
+           (unchecked-get js/navigator "platform"))))
+
+(defn- command-key?
+  "True when the keyboard of the reader has a Command key."
+  []
+  (boolean (re-find #"(?i)mac|iphone|ipad|ios" (platform))))
+
+(defn- window-is! [^js media]
+  (dispatch! [:wide (.-matches media)]))
+
+(defn- palette-key?
+  "True when `event` is the key that opens the palette: K with Command or Control held."
+  [^js event]
+  (and (= "k" (.toLowerCase (str (.-key event))))
+       (or (.-metaKey event) (.-ctrlKey event))))
+
+(defn- open-palette-by-key!
+  "Opens the palette for its key, where the blog template has one."
+  [^js event]
+  (when (and (palette-key? event) (= :palette (:search (state/template @page-state))))
+    (.preventDefault event)
+    (dispatch! [:open-palette])))
+
+(defn- listen-to-window!
+  "Tells the page when its window becomes wide or narrow, and listens for the key that opens
+   the palette."
+  []
+  (.addEventListener (wide-window) "change" #(window-is! %))
+  (.addEventListener js/document "keydown" #(open-palette-by-key! %)))
+
 (defonce ^{:private true :doc "True once the events of the document are turned into messages."}
   listening?
   (atom false))
@@ -216,6 +277,7 @@
   "Turns the events that the blog templates name into messages, once."
   []
   (when (compare-and-set! listening? false true)
+    (listen-to-window!)
     (events/listen! (.-body js/document)
                     {:dispatch! dispatch!
                      :events    (all-events)
@@ -307,7 +369,10 @@
   "Takes what the reader chose before from the address and the browser, fetches the data of
    this page, and starts."
   []
-  (reset! page-state (state/initial (assoc (asked-for) :preset (read-stored preset-key))))
+  (reset! page-state (state/initial (assoc (asked-for)
+                                           :preset       (read-stored preset-key)
+                                           :wide?        (.-matches (wide-window))
+                                           :command-key? (command-key?))))
   (-> (fetch-data wire/page-data no-page)
       (.then start!)
       (.catch report!)))

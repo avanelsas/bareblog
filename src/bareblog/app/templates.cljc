@@ -1,18 +1,59 @@
 (ns bareblog.app.templates
-  "The blog templates, by the name a blog gives in its settings, and what can be read from one."
+  "The blog templates, by the name a blog gives in its settings, and what can be read from one.
+
+   A blog template is a tree of nodes. A node has a template: `:split`, with a hole for each
+   thing the view gives it, or `:fixed-of`, a function from what the view gives it to a fixed
+   template. A node may have `:lists`. A list names the part that holds its rows, and says what
+   node a row is: `:row` for every row, or `:rows` by the key of the row. A list with `:of`
+   shows the rows that the view gives under that name. A node may have `:props`: by part, the
+   properties that the renderer sets, each with what gives its value.
+
+   The node of the document also says three things of the blog template. `:home` is what its
+   home page shows, `:entries` or `:newest-post`. `:choice` is where what a reader chose takes
+   effect, `:home` or `:everywhere`. `:search` is how a reader searches, with a `:field` or a
+   `:palette`."
   (:require [bareblog.app.journal :as journal]
+            [bareblog.app.notebook :as notebook]
             [clojure.string :as str]))
 
 (def default :journal)
 
 (def by-name
-  {:journal journal/template})
+  {:journal  journal/template
+   :notebook notebook/template})
 
 (defn named
   "The blog template with the name `template-name`. Throws when there is none."
   [template-name]
   (or (by-name template-name)
       (throw (ex-info "No blog template has this name." {:template template-name}))))
+
+(defn name-of
+  "The name of the blog template that the settings `blog` name, or of the default one when
+   they name none."
+  [blog]
+  (:template blog default))
+
+(defn of-blog
+  "The blog template of the blog with the settings `blog`."
+  [blog]
+  (named (name-of blog)))
+
+(def ^:private shows-choice
+  "The kinds of page that show what a reader chose, for each place that a blog template names."
+  {:home       #{:home}
+   :everywhere some?})
+
+(defn chooses-on?
+  "True when a page of the kind `kind` shows what a reader chose of the posts, in the blog
+   template `template`."
+  [template kind]
+  (boolean ((shows-choice (:choice template)) kind)))
+
+(defn list-names
+  "The names of the lists that the view gives the document of the blog template `template`."
+  [template]
+  (into #{} (map (fn [[list-name row-list]] (:of row-list list-name))) (:lists template)))
 
 (defn row-node
   "The node of the row with the key `k` in the list `row-list` of a blog template."
@@ -57,7 +98,7 @@
   [template view]
   (into (sorted-set) (comp (mapcat tag-names) (filter custom?)) (fixed-templates template view)))
 
-(defn- nodes
+(defn nodes
   "The node `node` of a blog template and every node below it."
   [{:keys [lists] :as node}]
   (cons node (mapcat nodes (mapcat (fn [{:keys [row rows]}] (if row [row] (vals rows))) (vals lists)))))

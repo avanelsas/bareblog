@@ -69,9 +69,10 @@
 
 (defn file-beside
   "The name of the file beside a post that the address `source` names, or nil when it names
-   none."
+   none. What an address asks of the file after a question mark, and the place in it that it
+   names after a hash, are no part of the name."
   [source]
-  (when-some [file-name (some-> source decoded)]
+  (when-some [file-name (some-> source (str/replace #"[?#].*" "") decoded)]
     (when (and (not (str/includes? file-name ".."))
                (not (contains? wire/reserved file-name))
                (re-matches (re-pattern file-pattern) file-name))
@@ -99,3 +100,25 @@
    them under its address."
   [post sizes]
   (update post :blocks (partial walk/postwalk (partial with-size sizes))))
+
+(def ^:private names-a-file
+  "The keys under which a thing in a post holds an address."
+  [:src :href])
+
+(defn- placed-at
+  "The address under `k` in `x` as the address of the file it names in `folder`, when it names
+   one beside the post."
+  [folder x k]
+  (cond-> x
+    (file-beside (get x k)) (update k (partial str (address/post folder)))))
+
+(defn- with-place [folder x]
+  (if (map? x)
+    (reduce (partial placed-at folder) x names-a-file)
+    x))
+
+(defn placed
+  "The `post` with every address that names a file beside it as the address of that file in
+   `folder`. The post then shows its files from any page, and not only from its own."
+  [post folder]
+  (update post :blocks (partial walk/postwalk (partial with-place folder))))

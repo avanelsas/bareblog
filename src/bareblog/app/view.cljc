@@ -134,13 +134,40 @@
   [{:keys [query tag]}]
   (boolean (or (seq (words-of query)) tag)))
 
-(defn- home [site {:keys [number]} _shown choice]
-  (if (filtering? choice)
-    (filtered-home (:posts site) choice)
-    (paged-home site number)))
+(declare post)
 
-(defn- tag [{:keys [posts]} {tag-name :tag} _shown _choice]
-  (let [tagged (filter (partial tagged? tag-name) posts)]
+;; What makes a page is given one map: the `:site`, the `:page` and the `:post` that the page
+;; was told, what is `:local` to the page, and the blog `:template`.
+
+(defn- newest-post
+  "The home page as the page of the newest post, which is the post that the page was told. A
+   blog with no posts has a home page with no entries, and there is no later page."
+  [{:keys [site page] shown :post :as told}]
+  (cond
+    (< 1 (:number page)) not-found
+    shown                (assoc (post told) :named {:kind :home :number 1})
+    (empty? (:posts site)) (paged-home site 1)
+    :else                not-found))
+
+(defn- entries-home
+  "The home page as a list of entries: those the reader chose to see, where the home page
+   shows a choice, or else the page of all of them that the address names."
+  [{:keys [site page local template]}]
+  (if (and (templates/chooses-on? template :home) (filtering? local))
+    (filtered-home (:posts site) local)
+    (paged-home site (:number page))))
+
+(def ^:private homes
+  "What makes the home page, for each thing that a blog template says its home page shows."
+  {:entries     entries-home
+   :newest-post newest-post})
+
+(defn- home [{:keys [template] :as told}]
+  ((homes (:home template)) told))
+
+(defn- tag [{:keys [site page]}]
+  (let [tag-name (:tag page)
+        tagged   (filter (partial tagged? tag-name) (:posts site))]
     (if (seq tagged)
       {:key   "entries"
        :named {:kind :tag :tag tag-name}
@@ -150,19 +177,22 @@
 (defn- year [{:keys [date]}]
   (when date (subs date 0 4)))
 
-(defn- archive-row
-  "The row of `entry` in the archive. It is the first of its year when there is no entry
-   `before` it, or that one has another year."
+(defn- by-year
+  "What `entry` shows of its year in a list by date. It is the first of its year when there is
+   no entry `before` it, or that one has another year."
   [before entry]
-  [(:folder entry) {:item (assoc (listed entry)
-                                 :year           (year entry)
-                                 :first-of-year? (or (nil? before) (not= (year before) (year entry))))}])
+  {:year           (year entry)
+   :first-of-year? (or (nil? before) (not= (year before) (year entry)))})
 
-(defn- archive [{:keys [posts]} _page _shown _choice]
-  {:key   "archive"
-   :named {:kind :archive}
-   :node  {:item  {:count (count posts)}
-           :lists {:rows (rows (map archive-row (cons nil posts) posts))}}})
+(defn- archive-row [before entry]
+  [(:folder entry) {:item (merge (listed entry) (by-year before entry))}])
+
+(defn- archive [{:keys [site]}]
+  (let [posts (:posts site)]
+    {:key   "archive"
+     :named {:kind :archive}
+     :node  {:item  {:count (count posts)}
+             :lists {:rows (rows (map archive-row (cons nil posts) posts))}}}))
 
 (defn- neighbour
   "What a post shows of the post beside it, or nil when there is none."
@@ -180,22 +210,21 @@
 (defn- draft? [posts folder]
   (boolean (some (fn [entry] (and (= folder (:folder entry)) (:draft? entry))) posts)))
 
-(defn- post [{:keys [posts]} {:keys [folder]} {:keys [title date tags blocks] :as shown} _choice]
+(defn- post [{:keys [site] {:keys [folder title date tags blocks] :as shown} :post}]
   (if shown
     {:key   "post"
      :named {:kind :post :post title}
-     :node  {:item  (merge {:title title :date date :draft? (draft? posts folder)}
-                           (neighbours posts folder))
+     :node  {:item  (merge {:title title :date date :draft? (draft? (:posts site) folder)}
+                           (neighbours (:posts site) folder))
              :lists {:tags   (tag-rows tags)
                      :blocks (block-rows blocks)}}}
     not-found))
 
-(defn- nothing [_site _page _shown _choice]
+(defn- nothing [_told]
   not-found)
 
 (def ^:private mains
-  "What makes the key of each kind of page, what names it, and its node, from the site, the
-   page, the post of a post page, and what the reader chose."
+  "What makes the key of each kind of page, what names it, and its node."
   {:home    home
    :tag     tag
    :archive archive
@@ -217,23 +246,94 @@
   [{:keys [presets]} chosen]
   (or (some #{chosen} presets) (first presets)))
 
+(defn- chosen-tag
+  "The tag that the reader chose, on a page that shows a choice."
+  [{:keys [page local template]}]
+  (when (templates/chooses-on? template (:kind page))
+    (:tag local)))
+
+(defn- post-row
+  "The row of `entry` in a list of every post, on the page of the post `current`. Its link
+   carries the tag `tag-name` when the reader chose one."
+  [current tag-name before entry]
+  [(:folder entry)
+   {:item (merge (listed entry)
+                 (by-year before entry)
+                 {:href     (str (address/post (:folder entry)) (address/query {:tag (or tag-name "")}))
+                  :current? (= current (:folder entry))})}])
+
+(defn- preset-list [{:keys [site]}]
+  (rows (map preset-row (get-in site [:blog :presets]))))
+
+(defn- tag-list
+  "Every tag of the blog to choose from, with the one that the reader chose."
+  [{:keys [site] :as told}]
+  (rows (map (partial chosen-row (chosen-tag told)) (all-tags (:posts site)))))
+
+(defn- post-list
+  "Every post, or those with the tag that the reader chose, with the post that the page shows."
+  [{:keys [site] shown :post :as told}]
+  (let [tag-name (chosen-tag told)
+        posts    (cond->> (:posts site) tag-name (filter (partial tagged? tag-name)))]
+    (rows (map (partial post-row (:folder shown) tag-name) (cons nil posts) posts))))
+
+(def ^:private lists
+  "What makes each list that the document of a blog template may ask for, by its name."
+  {:presets preset-list
+   :tags    tag-list
+   :posts   post-list})
+
+(defn- list-rows
+  "The rows of the list `list-name` of the document. Throws when the view has no such list."
+  [told list-name]
+  (if-some [make (lists list-name)]
+    (make told)
+    (throw (ex-info "The view has no list with this name." {:list list-name}))))
+
+(defn- command
+  "The post of `entry` as a command of a palette: what is shown, what is searched, and where
+   it leads."
+  [{:keys [folder title summary tags] :as entry}]
+  {:id       folder
+   :label    title
+   :group    (or (year entry) "")
+   :keywords (vec (remove nil? (cons summary tags)))
+   :value    (address/post folder)})
+
+(def ^:private nothing-local
+  "What is local to a page that was told nothing of it, of the facts that the document is
+   given as they are."
+  {:query "" :menu? false :palette? false :wide? false :command-key? false})
+
+(defn- item
+  "What the document is given of the blog and of what is local to the page. A blog template
+   with a palette is given the posts as its commands."
+  [{:keys [site local template] :as told}]
+  (let [{:keys [blog posts]} site]
+    (cond-> (merge nothing-local
+                   (select-keys local (keys nothing-local))
+                   {:preset     (preset blog (:preset local))
+                    :presets    (count (:presets blog))
+                    :tag        (chosen-tag told)
+                    :blog-title (:title blog)
+                    :home       address/root
+                    :archive    address/archive})
+      (= :palette (:search template)) (assoc :commands (mapv command posts)))))
+
 (defn page
-  "What the page that `told` describes shows of the blog in `site`, for what the reader chose
-   in `choice`, which has a `:query`, a `:tag`, a `:preset` and whether the menu is open: the
-   name of the blog template, the language and the title of the document, and what the template
-   is given."
-  [{:keys [blog] :as site} {shown :post what :page} choice]
-  (let [template-name            (:template blog templates/default)
-        {:keys [key named node]} ((get mains (:kind what) nothing) site what shown choice)]
-    {:template template-name
+  "What the page that `told` describes shows of the blog in `site`, for what is local to the
+   page in `local`: what the reader chose, a `:query`, a `:tag` and a `:preset`, whether the
+   menu and the palette are open, and what the page knows of its window and its keyboard. The result names the
+   blog template, the language and the title of the document, and holds what the template is
+   given: an item, the page, and each other list that the template asks for."
+  [{:keys [blog] :as site} {shown :post what :page} local]
+  (let [template                 (templates/of-blog blog)
+        told                     {:site site :page what :post shown :local local :template template}
+        {:keys [key named node]} ((get mains (:kind what) nothing) told)]
+    {:template (templates/name-of blog)
      :language (:language blog default-language)
-     :title    (document-title ((:title (templates/named template-name)) named) (:title blog))
-     :item     {:preset     (preset blog (:preset choice))
-                :presets    (count (:presets blog))
-                :query      (or (:query choice) "")
-                :menu?      (boolean (:menu? choice))
-                :blog-title (:title blog)
-                :home       address/root
-                :archive    address/archive}
-     :lists    {:main    (rows [[key node]])
-                :presets (rows (map preset-row (:presets blog)))}}))
+     :title    (document-title ((:title template) named) (:title blog))
+     :item     (item told)
+     :lists    (into {:main (rows [[key node]])}
+                     (map (juxt identity (partial list-rows told)))
+                     (disj (templates/list-names template) :main))}))

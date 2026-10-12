@@ -84,6 +84,14 @@
     (is (nil? (post/file-beside "sub/b.jpg")))
     (is (nil? (post/file-beside "/etc/passwd")))
     (is (nil? (post/file-beside "https://example.com/far.jpg"))))
+  (testing "what an address asks of a file, and the place in it that it names, are not in the name"
+    (is (= "a.jpg" (post/file-beside "a.jpg#top")))
+    (is (= "a.jpg" (post/file-beside "a.jpg?size=2"))))
+  (testing "a place in the page itself names no file"
+    (is (nil? (post/file-beside "#note")))
+    (is (nil? (post/file-beside "?page=2"))))
+  (testing "a question mark that is spelled as an escape is part of the name"
+    (is (= "what?.jpg" (post/file-beside "what%3F.jpg"))))
   (testing "the names that a page keeps for itself name no file"
     (is (nil? (post/file-beside "page.edn")))
     (is (nil? (post/file-beside "changes"))))
@@ -113,6 +121,21 @@
     (testing "everything else stays as it is"
       (is (= (dissoc with-images :blocks) (dissoc sized :blocks)))
       (is (= with-images (post/sized with-images {}))))))
+
+(deftest placed-test
+  (let [placed (post/placed with-images "a-post")]
+    (testing "a photo beside the post gets the address of its file"
+      (is (= "/a-post/harbour.jpg" (get-in placed [:blocks 0 :src])))
+      (is (= "/a-post/my%20photo.jpg" (get-in placed [:blocks 5 :src]))))
+    (testing "an image and a link inside a block get it too"
+      (is (= "/a-post/map.png" (get-in placed [:blocks 1 :content 1 :content 0 :src])))
+      (is (= "/a-post/notes.txt" (get-in placed [:blocks 1 :content 3 :href]))))
+    (testing "an address that names no file beside the post stays as it is"
+      (is (= (subvec (:blocks with-images) 2 5) (subvec (:blocks placed) 2 5)))
+      (is (= {:kind :link :href "#note" :content ["a note"]}
+             (first (:blocks (post/placed {:blocks [{:kind :link :href "#note" :content ["a note"]}]} "a-post"))))))
+    (testing "everything else stays as it is"
+      (is (= (dissoc with-images :blocks) (dissoc placed :blocks))))))
 
 (deftest folder-pattern-test
   (testing "the name of a folder is small letters, digits and dashes, and does not start with a dash"

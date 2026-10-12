@@ -7,20 +7,32 @@
    :posts [{:folder "b" :title "Second" :date "2026-02-01" :tags ["travel"]}
            {:folder "a" :title "First" :date "2025-01-01"}]})
 
+(def notebook-site (assoc-in site [:blog :template] :notebook))
+
 (def home {:page {:kind :home :number 1}})
-(def post {:page {:kind :post :folder "a"} :post {:title "First" :blocks []}})
+(def post {:page {:kind :post :folder "a"} :post {:folder "a" :title "First" :blocks []}})
 
 (defn- after
   "The state after `messages`, one after the other, from a page that was told nothing."
   [& messages]
   (reduce state/step (state/initial {}) messages))
 
+(defn- local-after
+  "What is local to the page after `messages`."
+  [& messages]
+  (:local (apply after messages)))
+
 (deftest initial-test
   (testing "a page that was told nothing searches for nothing and has chosen nothing"
-    (is (= {:query "" :tag nil :preset nil :menu? false} (state/initial {}))))
-  (testing "it starts with what the reader chose before"
-    (is (= {:query "lisbon" :tag "travel" :preset "forest" :menu? false}
-           (state/initial {:query "lisbon" :tag "travel" :preset "forest"})))))
+    (is (= {:local {:query "" :tag nil :preset nil :menu? false :palette? false :wide? false
+                    :command-key? false}}
+           (state/initial {}))))
+  (testing "it starts with what the reader chose before, and with what the page knows of its
+            window and its keyboard"
+    (is (= {:query "lisbon" :tag "travel" :preset "forest" :menu? false :palette? false :wide? true
+            :command-key? true}
+           (:local (state/initial {:query "lisbon" :tag "travel" :preset "forest" :wide? true
+                                   :command-key? true}))))))
 
 (deftest told-test
   (testing "what a page is told becomes its site and its page"
@@ -32,29 +44,44 @@
   (testing "being told the site and the page again takes the problem away"
     (is (nil? (:problem (after [:told {:problem "No settings."}] [:told {:site site :page home}])))))
   (testing "what the reader chose stays when the page is told again"
-    (is (= "lisbon" (:query (after [:search "lisbon"] [:told {:site site :page home}]))))))
+    (is (= "lisbon" (:query (local-after [:search "lisbon"] [:told {:site site :page home}]))))))
 
 (deftest choice-test
   (testing "a search is the text that is searched for"
-    (is (= "lisbon" (:query (after [:search "lisbon"]))))
-    (is (= "" (:query (after [:search "lisbon"] [:search nil])))))
+    (is (= "lisbon" (:query (local-after [:search "lisbon"]))))
+    (is (= "" (:query (local-after [:search "lisbon"] [:search nil])))))
   (testing "a tag that is picked is chosen, and picked again it is let go"
-    (is (= "travel" (:tag (after [:tag "travel"]))))
-    (is (nil? (:tag (after [:tag "travel"] [:tag "travel"]))))
-    (is (= "food" (:tag (after [:tag "travel"] [:tag "food"])))))
+    (is (= "travel" (:tag (local-after [:tag "travel"]))))
+    (is (nil? (:tag (local-after [:tag "travel"] [:tag "travel"]))))
+    (is (= "travel" (:tag (local-after [:tag-link "travel"]))))
+    (is (nil? (:tag (local-after [:tag "travel"] [:tag-link "travel"]))))
+    (is (= "food" (:tag (local-after [:tag "travel"] [:tag "food"])))))
   (testing "a pick of no tag changes nothing"
-    (is (= "travel" (:tag (after [:tag "travel"] [:tag nil])))))
+    (is (= "travel" (:tag (local-after [:tag "travel"] [:tag nil])))))
   (testing "clearing takes the search and the tag away, and keeps the preset"
-    (is (= {:query "" :tag nil :preset "forest" :menu? false}
-           (after [:search "x"] [:tag "travel"] [:preset "forest"] [:clear]))))
+    (is (= {:query "" :tag nil :preset "forest"}
+           (select-keys (local-after [:search "x"] [:tag "travel"] [:preset "forest"] [:clear])
+                        [:query :tag :preset]))))
   (testing "a pick of no preset changes nothing"
-    (is (= "forest" (:preset (after [:preset "forest"] [:preset ""]))))
-    (is (= "forest" (:preset (after [:preset "forest"] [:preset nil])))))
+    (is (= "forest" (:preset (local-after [:preset "forest"] [:preset ""]))))
+    (is (= "forest" (:preset (local-after [:preset "forest"] [:preset nil])))))
   (testing "the menu is opened and closed, by its button and by what the drawer says of itself"
-    (is (true? (:menu? (after [:open-menu]))))
-    (is (false? (:menu? (after [:open-menu] [:close-menu]))))
-    (is (true? (:menu? (after [:menu true]))))
-    (is (false? (:menu? (after [:open-menu] [:menu false])))))
+    (is (true? (:menu? (local-after [:open-menu]))))
+    (is (false? (:menu? (local-after [:open-menu] [:close-menu]))))
+    (is (true? (:menu? (local-after [:menu true]))))
+    (is (false? (:menu? (local-after [:open-menu] [:menu false])))))
+  (testing "the palette is opened and closed, by its button and by what it asks for itself"
+    (is (true? (:palette? (local-after [:open-palette]))))
+    (is (false? (:palette? (local-after [:open-palette] [:close-palette])))))
+  (testing "a window that becomes wide or narrow closes the menu"
+    (is (= {:wide? true :menu? false} (select-keys (local-after [:open-menu] [:wide true]) [:wide? :menu?])))
+    (is (= {:wide? false :menu? false} (select-keys (local-after [:wide true] [:open-menu] [:wide false])
+                                                    [:wide? :menu?]))))
+  (testing "what a sidebar says of itself opens and closes the menu in a narrow window"
+    (is (true? (:menu? (local-after [:sidebar true]))))
+    (is (false? (:menu? (local-after [:open-menu] [:sidebar false])))))
+  (testing "in a wide window the sidebar is always there, and says nothing of the menu"
+    (is (false? (:menu? (local-after [:wide true] [:sidebar true])))))
   (testing "a message with no meaning for the state changes nothing"
     (is (= (after [:search "x"]) (after [:search "x"] [:to-page 2] [:submit-search] [:unknown 1])))))
 
@@ -68,6 +95,8 @@
       (is (= "/?q=two%20words" (state/destination on-post [:submit-search]))))
     (testing "a search that is sent from the home page leads nowhere"
       (is (nil? (state/destination on-home [:submit-search]))))
+    (testing "a post that is picked leads to its address"
+      (is (= "/a/" (state/destination on-home [:open-post "/a/"]))))
     (testing "any other message leads nowhere"
       (is (nil? (state/destination on-home [:search "x"])))
       (is (nil? (state/destination on-post [:tag "travel"]))))))
@@ -100,6 +129,15 @@
            (:asked (state/shown (after [:told {:site site :page home}] [:search "lisbon"] [:tag "travel"]))))))
   (testing "on any other page the address is left alone"
     (is (nil? (:asked (state/shown (after [:told {:site site :page post}] [:search "lisbon"]))))))
+  (testing "the view knows whether the palette is open and the window is wide"
+    (let [item (fn [& messages] (get-in (state/shown (apply after [:told {:site notebook-site :page post}] messages))
+                                        [:view :item]))]
+      (is (true? (:palette? (item [:open-palette]))))
+      (is (false? (:wide? (item))))
+      (is (true? (:wide? (item [:wide true]))))))
+  (testing "where a choice takes effect on every page, the address asks for it on every page"
+    (is (= {:q "" :tag "travel"}
+           (:asked (state/shown (after [:told {:site notebook-site :page post}] [:tag "travel"]))))))
   (testing "the preset to keep is the one the reader chose"
     (is (= "forest" (:preset (state/shown (after [:preset "forest"])))))))
 
@@ -108,13 +146,20 @@
         on-post (after [:told {:site site :page post}])
         plain   {:button 0 :modified? false}]
     (testing "only a page of the home page shows a choice in place"
-      (is (state/chooses-in-place? on-home))
-      (is (not (state/chooses-in-place? on-post)))
-      (is (not (state/chooses-in-place? (state/initial {})))))
-    (testing "a plain click on a tag picks it in place on the home page"
-      (is (state/picks-in-place? on-home plain)))
+      (is (state/shows-choice? on-home))
+      (is (not (state/shows-choice? on-post)))
+      (is (not (state/shows-choice? (state/initial {})))))
+    (testing "a blog template may show a choice on every page, once the page was told what it is"
+      (is (state/shows-choice? (after [:told {:site notebook-site :page post}])))
+      (is (not (state/shows-choice? (state/initial {})))))
+    (testing "a plain click on the tag of an entry picks it in place on a home page of entries"
+      (is (state/link-picks? on-home plain)))
+    (testing "where the home page shows a post, a click on a tag of the post follows the link to the
+              page of the tag, on the home page and on the page of a post"
+      (is (not (state/link-picks? (after [:told {:site notebook-site :page home}]) plain)))
+      (is (not (state/link-picks? (after [:told {:site notebook-site :page post}]) plain))))
     (testing "a click with a key held, or with another button, follows the link"
-      (is (not (state/picks-in-place? on-home {:button 0 :modified? true})))
-      (is (not (state/picks-in-place? on-home {:button 1 :modified? false}))))
+      (is (not (state/link-picks? on-home {:button 0 :modified? true})))
+      (is (not (state/link-picks? on-home {:button 1 :modified? false}))))
     (testing "on any other page a click follows the link"
-      (is (not (state/picks-in-place? on-post plain))))))
+      (is (not (state/link-picks? on-post plain))))))

@@ -1,104 +1,163 @@
 (ns bareblog.app.state
   "The state of a page, what a message does to it, and what the page shows for it.
 
-   The state holds what the page was told, the site and its own data or a problem, and what the
-   reader chose: the text to search for, a tag, a theme preset, and whether the menu is open."
+   The state holds what the page was told, the `:site` and its own `:page` or a `:problem`, and
+   under `:local` what is the page's own: what the reader chose, which is the text to search
+   for, a tag and a theme preset, whether the menu and the palette are open, and what the page
+   knows of its window and its keyboard."
   (:require [bareblog.address :as address]
+            [bareblog.app.templates :as templates]
             [bareblog.app.view :as view]
             [bareblog.site :as site]))
 
 (defn initial
-  "The state of a page that was told nothing yet, with what the reader chose before."
-  [{:keys [query tag preset]}]
-  {:query (or query "") :tag tag :preset preset :menu? false})
+  "The state of a page that was told nothing yet, with what the reader chose before and what
+   the page knows of its window and its keyboard."
+  [{:keys [query tag preset wide? command-key?]}]
+  {:local {:query        (or query "")
+           :tag          tag
+           :preset       preset
+           :menu?        false
+           :palette?     false
+           :wide?        (boolean wide?)
+           :command-key? (boolean command-key?)}})
 
-(defn chooses-in-place?
-  "True when the page of `state` can show what the reader chose of the list: it is a page of
-   the home page."
+(defn template
+  "The blog template of the blog that the page of `state` was told of."
   [state]
-  (= :home (get-in state [:page :page :kind])))
+  (templates/of-blog (get-in state [:site :blog])))
+
+(defn- kind
+  "The kind of the page of `state`, or nil when it was told nothing yet."
+  [state]
+  (get-in state [:page :page :kind]))
+
+(defn shows-choice?
+  "True when the page of `state` shows what the reader chose of the posts, where the blog
+   template says that a choice takes effect."
+  [state]
+  (templates/chooses-on? (template state) (kind state)))
 
 (defn- told [state {:keys [site page problem]}]
   (if problem
     (assoc state :problem problem)
     (-> state (dissoc :problem) (assoc :site site :page page))))
 
-(defn- search [state text]
-  (assoc state :query (or text "")))
+;; Every other step changes what is local to the page, and is given that.
+
+(defn- search [local text]
+  (assoc local :query (or text "")))
 
 (defn- pick-tag
-  "The state after the tag `tag-name` is picked: it is chosen, or let go when it was chosen."
-  [state tag-name]
+  "What is local after the tag `tag-name` is picked: it is chosen, or let go when it was."
+  [local tag-name]
   (cond
-    (nil? tag-name)             state
-    (= tag-name (:tag state))   (assoc state :tag nil)
-    :else                       (assoc state :tag tag-name)))
+    (nil? tag-name)           local
+    (= tag-name (:tag local)) (assoc local :tag nil)
+    :else                     (assoc local :tag tag-name)))
 
-(defn- clear [state _]
-  (assoc state :query "" :tag nil))
+(defn- clear [local _]
+  (assoc local :query "" :tag nil))
 
 (defn- pick-preset
-  "The state after `preset` is picked. A pick of no preset changes nothing."
-  [state preset]
+  "What is local after `preset` is picked. A pick of no preset changes nothing."
+  [local preset]
   (if (seq preset)
-    (assoc state :preset preset)
-    state))
+    (assoc local :preset preset)
+    local))
 
 (defn- menu
-  "The state after the menu is opened or closed."
-  [state open?]
-  (assoc state :menu? (boolean open?)))
+  "What is local after the menu is opened or closed."
+  [local open?]
+  (assoc local :menu? (boolean open?)))
 
-(defn- open-menu [state _]
-  (menu state true))
+(defn- open-menu [local _]
+  (menu local true))
 
-(defn- close-menu [state _]
-  (menu state false))
+(defn- close-menu [local _]
+  (menu local false))
 
-(def ^:private steps
-  "What each meaning of a message does to the state."
-  {:told       told
-   :search     search
-   :tag        pick-tag
-   :clear      clear
-   :preset     pick-preset
-   :menu       menu
-   :open-menu  open-menu
-   :close-menu close-menu})
+;; A sidebar says so whenever it opens or closes, also when the page opened it because the
+;; window is wide. That says nothing of the menu.
+(defn- sidebar
+  "What is local after a sidebar said that it is open or closed. In a narrow window the
+   sidebar is the menu. In a wide one it is always there, and the menu stays as it is."
+  [local open?]
+  (if (:wide? local)
+    local
+    (menu local open?)))
+
+(defn- open-palette [local _]
+  (assoc local :palette? true))
+
+(defn- close-palette [local _]
+  (assoc local :palette? false))
+
+(defn- wide
+  "What is local after the window became wide or narrow. A menu that was open is closed."
+  [local wide?]
+  (assoc local :wide? (boolean wide?) :menu? false))
+
+(def ^:private local-steps
+  "What each meaning of a message does to what is local to the page."
+  {:search        search
+   :tag           pick-tag
+   :tag-link      pick-tag
+   :clear         clear
+   :preset        pick-preset
+   :menu          menu
+   :sidebar       sidebar
+   :open-menu     open-menu
+   :close-menu    close-menu
+   :open-palette  open-palette
+   :close-palette close-palette
+   :wide          wide})
 
 (defn step
   "The state after `message`, which is a meaning and an optional argument. A message that
    changes no state leaves it as it is."
   [state [meaning argument]]
-  (if-some [change (steps meaning)]
-    (change state argument)
-    state))
+  (cond
+    (= :told meaning)     (told state argument)
+    (local-steps meaning) (update state :local (local-steps meaning) argument)
+    :else                 state))
 
-(defn picks-in-place?
-  "True when a click with the facts in `click` picks a tag in place on the page of `state`, and
-   does not follow its link: the page can show the choice, and the click is a plain one, with
-   the main button and no key held that opens a link elsewhere."
-  [state {:keys [button modified?]}]
-  (and (chooses-in-place? state) (zero? button) (not modified?)))
-
-(defn- to-search
-  "The address of the home page with what `state` searches for."
+(defn- lists-entries?
+  "True when the page of `state` is a home page that lists entries, with the tags to choose
+   from above them."
   [state]
-  (str (address/home 1) (address/query {:q (:query state)})))
+  (and (= :home (kind state)) (= :entries (:home (template state)))))
+
+;; A link to a tag leads to the page of the tag. Where the entries of the home page stand
+;; under the tags to choose from, a click on the tag of an entry does what a click on one of
+;; those does. Anywhere else the link is followed, so that the page of a tag can be reached.
+(defn link-picks?
+  "True when a click with the facts in `click` on a link to a tag picks the tag on the page of
+   `state`, and does not follow the link: the page lists entries to choose from, and the click
+   is a plain one, with the main button and no key held that opens a link elsewhere."
+  [state {:keys [button modified?]}]
+  (and (lists-entries? state) (zero? button) (not modified?)))
 
 (defn- to-page [_state number]
   (address/home number))
 
 (defn- to-submitted-search
-  "Where a search that is sent leads: to the home page, from a page that cannot show it."
+  "Where a search that is sent leads: to the home page with the search, from a page that
+   cannot show it."
   [state _]
-  (when-not (chooses-in-place? state)
-    (to-search state)))
+  (when-not (shows-choice? state)
+    (str (address/home 1) (address/query {:q (get-in state [:local :query])}))))
+
+(defn- to-post
+  "Where picking a post leads: to the address that the pick names."
+  [_state address]
+  address)
 
 (def ^:private destinations
   "Where each meaning of a message leads, from the state and the argument of the message."
   {:to-page       to-page
-   :submit-search to-submitted-search})
+   :submit-search to-submitted-search
+   :open-post     to-post})
 
 (defn destination
   "The address that `message` takes the reader to, or nil when it takes them nowhere."
@@ -108,17 +167,17 @@
 
 (defn- asked
   "What the address asks for of the list, when the page is one that can show it."
-  [{:keys [query tag] :as state}]
-  (when (chooses-in-place? state)
+  [{{:keys [query tag]} :local :as state}]
+  (when (shows-choice? state)
     {:q query :tag (or tag "")}))
 
 (defn shown
   "What the page shows for `state`, as a value: a notice or nil, the view of the document or
    nil when there is nothing to show yet, what the address asks for by name or nil when the
    address is left alone, and the preset to keep."
-  [{:keys [site page problem query tag preset menu?] :as state}]
+  [{:keys [site page problem local] :as state}]
   {:notice (or problem (site/notice site))
    :view   (when (and site page (not problem))
-             (view/page site page {:query query :tag tag :preset preset :menu? menu?}))
+             (view/page site page local))
    :asked  (asked state)
-   :preset preset})
+   :preset (:preset local)})

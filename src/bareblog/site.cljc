@@ -29,6 +29,11 @@
            :posts (listed entries)}
     (seq problems) (assoc :problems (vec problems))))
 
+(defn newest-folder
+  "The name of the folder of the newest post in `site`, or nil when it has no posts."
+  [site]
+  (:folder (first (:posts site))))
+
 (defn told
   "What a page is told to show, from the data of the site and of the page: both, or the problem
    that one of them is."
