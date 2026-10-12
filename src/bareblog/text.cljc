@@ -39,6 +39,13 @@
       (str/replace #"[^a-z0-9]+" "-")
       (str/replace #"^-+|-+$" "")))
 
+(defn title-for
+  "A title for a post or a page that gives none, from the name `folder` of its folder: its
+   words with a space between them, and a capital for the first."
+  [folder]
+  (let [words (str/replace folder "-" " ")]
+    (str (str/upper-case (subs words 0 1)) (subs words 1))))
+
 (defn- text-in
   "The text of `x`, which is content of a block or a block that holds content. A break of a
    line is a space, so that the words on its two sides stay two words."
@@ -67,11 +74,11 @@
 
 (defn from
   "The post or the page in the folder `folder`, from what the reader read of its text. Its
-   title is the heading that opens it, or else the name of its folder. Its summary is the
-   start of its first paragraph. It keeps its tags when it has them."
+   title is the heading that opens it, or else one from the name of its folder. Its summary
+   is the start of its first paragraph. It keeps its tags when it has them."
   [folder {:keys [heading tags blocks]}]
   (let [summary (first-paragraph blocks)]
-    (cond-> {:title (or heading folder) :blocks blocks}
+    (cond-> {:title (or heading (title-for folder)) :blocks blocks}
       (seq tags) (assoc :tags tags)
       summary    (assoc :summary summary))))
 

@@ -7,13 +7,19 @@
 (deftest from-test
   (testing "the heading that opens the text is the title"
     (is (= "From the heading" (:title (text/from "a-post" {:heading "From the heading" :blocks blocks})))))
-  (testing "with no heading, the name of the folder is the title"
-    (is (= "a-post" (:title (text/from "a-post" {:heading nil :blocks blocks})))))
+  (testing "with no heading, the title is from the name of the folder"
+    (is (= "A post" (:title (text/from "a-post" {:heading nil :blocks blocks})))))
   (testing "a text is its title, its tags, its summary and its blocks"
-    (is (= {:title "a-post" :tags ["travel"] :summary "Text." :blocks blocks}
+    (is (= {:title "A post" :tags ["travel"] :summary "Text." :blocks blocks}
            (text/from "a-post" {:heading nil :tags ["travel"] :blocks blocks}))))
   (testing "a text with no tags says nothing of tags"
     (is (= #{:title :summary :blocks} (set (keys (text/from "a-post" {:tags [] :blocks blocks})))))))
+
+(deftest title-for-test
+  (testing "the words of the folder with a space between them, and a capital for the first"
+    (is (= "About" (text/title-for "about")))
+    (is (= "A first post" (text/title-for "a-first-post")))
+    (is (= "2026 in review" (text/title-for "2026-in-review")))))
 
 (deftest summary-test
   (testing "the first paragraph is the summary, as plain text"

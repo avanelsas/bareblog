@@ -7,8 +7,7 @@
 
 (def words
   "Every word that a blog template puts in a page that is not from the blog."
-  {:home        "Home"
-   :archive     "Archive"
+  {:archive     "Archive"
    :draft       "Draft"
    :unpublished "Not published"
    :page-numbers "Pages"
@@ -201,11 +200,11 @@
   ((get titles (:kind named) (constantly (:not-found words))) named))
 
 (defn links
-  "The links that every page has: to the home page, to the archive, and to each page of the
-   author that is no post. `part-name` names the part that holds the last of these."
+  "The links that every page has: to the archive, and to each page of the author that is no
+   post. `part-name` names the part that holds the last of these. The name of the blog leads
+   to the home page, so no link does."
   [part-name]
-  [[:a {:class "nav-link" :href :home} (:home words)]
-   [:a {:class "nav-link" :href :archive} (:archive words)]
+  [[:a {:class "nav-link" :href :archive} (:archive words)]
    [:span {:class "page-links" :data-x-part part-name}]])
 
 (def search-field
@@ -236,8 +235,9 @@
    "\u2630"])
 
 (defn navbar
-  "The navbar of a page: the name of the blog, the links, and `search` and the theme select,
-   with the button that opens the menu where the navbar hides them."
+  "The navbar of a page: the name of the blog, which leads to the home page, the links, and
+   `search` and the theme select, with the button that opens the menu where the navbar hides
+   them."
   [search]
   (into [:x-navbar {:label :blog-title :sticky true}
          [:a {:slot "brand" :class "brand" :href :home} :blog-title]]

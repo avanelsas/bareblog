@@ -16,6 +16,8 @@
   (testing "a draft has a folder named for its title, and a post that starts with the title"
     (is (= {:folder "a-new-blog-post" :text "# A new blog post\n\n"} (start/first-text "A new blog post")))
     (is (= {:folder "cafe-lisboa-2026" :text "# Café Lisboa, 2026!\n\n"} (start/first-text " Café Lisboa, 2026! "))))
+  (testing "the heading is the title as it was typed"
+    (is (= {:folder "iphone-notes" :text "# iPhone notes\n\n"} (start/first-text "iPhone notes"))))
   (testing "a title that gives no name for a folder is a problem"
     (is (some? (:problem (start/first-text "!!!"))))
     (is (some? (:problem (start/first-text "Tags"))))

@@ -106,7 +106,7 @@
           (is (nil? (source/read-published (str (fs/path dir "posts"))))))
         (testing "a post that is taken as published is the published one, in the list and on its page"
           (let [kept (assoc blog :as-published #{"a-week-in-lisbon"} :read #{"hello-bareblog"})]
-            (is (= #{"Published" "hello-bareblog"} (set (map :title (:posts (source/read-site kept))))))
+            (is (= #{"Published" "Hello bareblog"} (set (map :title (:posts (source/read-site kept))))))
             (is (= "Published" (get-in (source/read-page kept lisbon) [:text :title])))
             (is (= "A week in Lisbon" (get-in (source/read-page blog lisbon) [:text :title])))))
         (testing "its files are the published ones too"

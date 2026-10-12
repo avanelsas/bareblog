@@ -16,10 +16,12 @@ git clone https://github.com/avanelsas/bareblog
 cd bareblog
 npm install
 npx shadow-cljs release app
-ln -s "$PWD/bin/bareblog" ~/bin/bareblog
+mkdir -p ~/.local/bin
+ln -s "$PWD/bin/bareblog" ~/.local/bin/bareblog
 ```
 
-The last line puts the `bareblog` command on your path; any directory on your path will do.
+The last two lines put the `bareblog` command on your path. `~/.local/bin` has to be on your
+path for that; any other directory that is on it will do as well.
 
 ## See what a post can hold
 
@@ -86,6 +88,9 @@ git add --all && git commit -m "A blog" && git push -u origin main
 
 On GitHub, under Settings and Pages, serve the branch `main` from `/docs`.
 
+GitHub does not link to the blog from the page of the repository by itself. To add the link,
+click the gear beside "About" on that page and tick "Use your GitHub Pages website".
+
 **6. Publish the post.**
 
 ```
@@ -146,7 +151,7 @@ BareBlog works out the rest:
 
 | What | Where it comes from |
 |---|---|
-| The title | The first heading, when the post starts with one. Without it, the name of the folder |
+| The title | The first heading, when the post starts with one. Without it, the name of the folder as words: `a-first-post` is "A first post" |
 | The summary | The start of the first paragraph |
 | The tags | The last line, when it holds nothing but tags |
 | The date | The day you first publish the post |

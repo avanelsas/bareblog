@@ -1,5 +1,6 @@
 (ns bareblog.app.templates-test
   (:require [bareblog.app.blocks-test :refer [all-fixed? examples]]
+            [bareblog.app.pages :as pages]
             [bareblog.app.templates :as templates]
             [bareblog.app.view :as view]
             [baremirror.alpha.template :as template]
@@ -290,6 +291,19 @@
     (testing (str template-name ": a page is named by its title in the title of the document")
       (is (= "About · Bare notes"
              (:title (view/page "/" (site-of template-name) (:standalone pages) {})))))))
+
+(defn- home-links
+  "The elements in the tree `tree` that lead to the home page."
+  [tree]
+  (filter (fn [x] (and (vector? x) (map? (second x)) (= :home (:href (second x)))))
+          (tree-seq vector? seq tree)))
+
+(deftest home-link-test
+  (testing "in the navbar the name of the blog leads to the home page, and nothing else does"
+    (is (= [[:a {:slot "brand" :class "brand" :href :home} :blog-title]]
+           (home-links (pages/navbar pages/search-field)))))
+  (testing "the links of the navbar, which a menu holds too, have none to the home page"
+    (is (empty? (home-links (pages/links "menu-pages"))))))
 
 (def ^:private shell-elements
   "The custom elements of the document of each blog template, on a page that shows nothing."
