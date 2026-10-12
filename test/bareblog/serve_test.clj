@@ -130,7 +130,7 @@
 (deftest site-data-test
   (example/with-copy {:address "https://avanelsas.github.io/my-blog/"}
     (fn [dir]
-      (spit (str dir "/posts/hello-bareblog/post.md") "---\ntags: a/b\n---\n\n# Hello\n")
+      (spit (str dir "/posts/hello-bareblog/post.md") "# Hello\n\nText.\n\n#a/b\n")
       (let [settings (source/read-settings dir)]
         (testing "the author is told what is wrong with the blog"
           (is (seq (:problems (fetched (source/preview dir) "/site.edn")))))

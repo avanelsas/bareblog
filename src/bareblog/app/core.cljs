@@ -218,7 +218,6 @@
    :tag-link      tag-picked!
    :clear         nothing
    :menu          detail-open
-   :sidebar       detail-open
    :open-menu     nothing
    :close-menu    nothing
    :open-palette  nothing
@@ -233,12 +232,7 @@
   []
   (update-vals (into {} (map templates/events) (vals templates/by-name)) with-argument))
 
-;; What the page knows of its window, and the key that opens the palette.
-
-(defn- wide-window
-  "What says whether the window is wide: `x-navbar` then shows what it holds."
-  []
-  (js/matchMedia (str "(min-width: " pages/wide-from "px)")))
+;; What the page knows of its keyboard, and the key that opens the palette.
 
 (defn- platform
   "The name of what the browser runs on, by the newer way of asking where there is one."
@@ -250,9 +244,6 @@
   "True when the keyboard of the reader has a Command key."
   []
   (boolean (re-find #"(?i)mac|iphone|ipad|ios" (platform))))
-
-(defn- window-is! [^js media]
-  (dispatch! [:wide (.-matches media)]))
 
 (defn- palette-key?
   "True when `event` is the key that opens the palette: K with Command or Control held."
@@ -267,12 +258,20 @@
     (.preventDefault event)
     (dispatch! [:open-palette])))
 
-(defn- listen-to-window!
-  "Tells the page when its window becomes wide or narrow, and listens for the key that opens
-   the palette."
+;; A menu is for a narrow window. One that is open when the window becomes wide would lie
+;; over a page that shows its links, and would be open again when the window becomes narrow.
+(defn- close-menu-with-window!
+  "Closes the menu whenever the window becomes wide or narrow."
   []
-  (.addEventListener (wide-window) "change" #(window-is! %))
-  (.addEventListener js/document "keydown" #(open-palette-by-key! %)))
+  (.addEventListener (js/matchMedia (str "(min-width: " pages/wide-from "px)"))
+                     "change"
+                     (fn [_event] (dispatch! [:close-menu]))))
+
+(defn- listen-to-window!
+  "Listens for the key that opens the palette, and for the window becoming wide or narrow."
+  []
+  (.addEventListener js/document "keydown" #(open-palette-by-key! %))
+  (close-menu-with-window!))
 
 (defonce ^{:private true :doc "True once the events of the document are turned into messages."}
   listening?
@@ -390,7 +389,6 @@
   (reset! page-state (state/initial (assoc (asked-for)
                                            :root         (document-root)
                                            :preset       (read-stored preset-key)
-                                           :wide?        (.-matches (wide-window))
                                            :command-key? (command-key?))))
   (-> (fetch-page)
       (.then start!)

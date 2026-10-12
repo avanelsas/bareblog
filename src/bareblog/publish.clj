@@ -123,7 +123,7 @@
           (committed! dir plan)))))
 
 (defn- publish-one!
-  [{:keys [say] :as how} dir {:keys [folder today]}]
+  [{:keys [say] :as how} dir {:keys [folder now]}]
   (let [published (source/read-published dir)
         on-disk   (source/read-settings dir)
         settings  (or (:blog published) on-disk)]
@@ -133,10 +133,10 @@
 
       (not= settings on-disk)
       (say (str layout/settings-file " is not as it was published. Publish it with: bareblog publish --all")))
-    (carry-out! how dir settings (plan/one published folder (find-where dir folder) today))))
+    (carry-out! how dir settings (plan/one published folder (find-where dir folder) now))))
 
 (defn- publish-all!
-  [{:keys [ask] :as how} dir {:keys [today]}]
+  [{:keys [ask] :as how} dir {:keys [now]}]
   (let [published (source/read-published dir)
         settings  (source/read-settings dir)
         on-disk   (source/list-folders (source/published dir settings))
@@ -146,7 +146,7 @@
                                  (into #{} (comp (map :folder) (filter there))
                                        (concat (:posts published) (:pages published)))))
         held-back (if (and (seq edited) (not (ask (plan/edits-question edited)))) edited #{})]
-    (carry-out! how dir settings (plan/all published on-disk held-back today))))
+    (carry-out! how dir settings (plan/all published on-disk held-back now))))
 
 (defn- not-a-repository [dir]
   {:outcome :refused
@@ -155,8 +155,8 @@
 
 (defn publish!
   "Publishes what `request` names of the blog in the directory `dir`: the post in its
-   `:folder`, or the whole blog with `:all?`. `:today` in it is the date of today. Says what
-   came of it, and gives that."
+   `:folder`, or the whole blog with `:all?`. `:now` in it is the moment of the publish,
+   as text. Says what came of it, and gives that."
   [{:keys [say] :as how} dir {:keys [all?] :as request}]
   (let [came (try
                (cond

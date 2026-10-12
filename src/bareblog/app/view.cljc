@@ -50,7 +50,7 @@
 (defn- listed
   "What a post shows of itself wherever it stands in a list."
   [{:keys [title date href draft?]}]
-  {:title title :date date :href href :draft? (boolean draft?)})
+  {:title title :date (site/day date) :href href :draft? (boolean draft?)})
 
 (defn- entry-row [root {:keys [folder summary tags] :as entry}]
   [folder {:item  (assoc (listed entry) :summary summary)
@@ -215,7 +215,7 @@
   (if shown
     {:key   "post"
      :named {:kind :post :name title}
-     :node  {:item  (merge {:title title :date date :draft? (marked? (:posts site) folder :draft?)}
+     :node  {:item  (merge {:title title :date (site/day date) :draft? (marked? (:posts site) folder :draft?)}
                            (neighbours site folder))
              :lists {:tags   (tag-rows (:root site) tags)
                      :blocks (block-rows blocks)}}}
@@ -337,7 +337,7 @@
 (def ^:private nothing-local
   "What is local to a page that was told nothing of it, of the facts that the document is
    given as they are."
-  {:query "" :menu? false :palette? false :wide? false :command-key? false})
+  {:query "" :menu? false :palette? false :command-key? false})
 
 (defn- item
   "What the document is given of the blog and of what is local to the page. A blog template
@@ -357,8 +357,8 @@
 (defn page
   "What the page that `told` describes shows of the blog in `site`, whose top is at `root`,
    for what is local to the page in `local`: what the reader chose, a `:query`, a `:tag` and a
-   `:preset`, whether the menu and the palette are open, and what the page knows of its window
-   and its keyboard. The result names the blog template, the language and the title of the
+   `:preset`, whether the menu and the palette are open, and what the page knows of its
+   keyboard. The result names the blog template, the language and the title of the
    document, and holds what the template is given: an item, the page, and each other list that
    the template asks for."
   [root {:keys [blog] :as site} {shown :text what :page} local]

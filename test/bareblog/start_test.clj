@@ -61,17 +61,21 @@
   (testing "an author is told how to write and see a post, and how to publish on GitHub Pages"
     (is (every? (partial str/includes? start/next-steps)
                 ["bareblog new" "bareblog preview" "bareblog publish --all" "git push -u origin main"
-                 "from /docs" "https://<you>.github.io/<repository>/"]))))
+                 "from /docs" "https://<you>.github.io/<repository>/" "set :author and :address"]))))
 
 (deftest settings-text-test
   (testing "the settings of a new blog are settings: its title, and what else a blog needs"
-    (is (= {:title "My \"first\" blog" :language "en" :template :journal :available-themes ["ocean"]}
+    (is (= {:title "My \"first\" blog" :language "en" :template :journal :available-themes ["ocean"]
+            :per-page 10}
            (edn/read-string (start/settings-text " My \"first\" blog ")))))
-  (testing "what a blog has when it says nothing is written as that"
-    (is (= [site/default-language templates/default]
-           ((juxt :language :template) (edn/read-string (start/settings-text "My blog"))))))
-  (testing "they show where the address goes, and name none"
-    (is (re-find #";; :address" (start/settings-text "My blog")))))
+  (testing "every setting that a blog has a value for when it says nothing is written with that value"
+    (is (= [site/default-language templates/default site/default-per-page]
+           ((juxt :language :template :per-page) (edn/read-string (start/settings-text "My blog"))))))
+  (testing "they show where the author and the address go, name neither, and say when to set them"
+    (is (re-find #";; :author \"Your name\"" (start/settings-text "My blog")))
+    (is (re-find #";; :address \"https://<you>" (start/settings-text "My blog")))
+    (is (re-find #"before you publish" (start/settings-text "My blog")))
+    (is (not-any? (edn/read-string (start/settings-text "My blog")) [:author :address]))))
 
 (deftest init-test
   (with-empty-dir
@@ -129,18 +133,22 @@
         (process/shell {:dir dir} "git" "config" "user.email" "test@example.com")
         (process/shell {:dir dir} "git" "config" "commit.gpgsign" "false")
         (spit (:file (start/draft! dir "A first post")) "# A first post\n\nIt has a paragraph.\n")
-        (let [came (publish/publish! {:save (fn [address file] (spit (fs/file file) address))
+        (let [came (publish/publish! {:save (fn [pages saved!]
+                                              (doseq [{:keys [address file]} pages]
+                                                (fs/create-dirs (fs/parent file))
+                                                (spit (fs/file file) address)
+                                                (saved! file)))
                                       :say  (partial swap! said conj)
                                       :ask  (constantly true)
                                       :app  app}
                                      dir
-                                     {:folder "a-first-post" :today "2026-10-12"})]
+                                     {:folder "a-first-post" :now "2026-10-12T09:00:00+02:00"})]
           (testing "the post is published and committed, and only the push has nowhere to go"
             (is (= :not-pushed (:outcome came)))
             (is (= "Publish a-first-post" (:message came)))
             (is (fs/regular-file? (fs/path dir "docs" "a-first-post" "index.html")))
             (is (fs/regular-file? (fs/path dir "posts" "a-first-post" "post.md")))
-            (is (= [{:folder "a-first-post" :title "A first post" :date "2026-10-12"}]
+            (is (= [{:folder "a-first-post" :title "A first post" :date "2026-10-12T09:00:00+02:00"}]
                    (map #(select-keys % [:folder :title :date])
                         (:posts (edn/read-string (slurp (fs/file dir "docs" "site.edn")))))))))))))
 

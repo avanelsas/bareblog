@@ -1,9 +1,4 @@
----
-title: Every kind of block
-date: 2026-10-12
-tags: bareblog, reference
-summary: One of each thing a post can hold, to see how a blog template shows them.
----
+# Every kind of block
 
 This post holds one of each kind of block. A paragraph can have **strong** text, *emphasis*,
 `inline code`, ~~text that is struck~~, a [link](https://github.com/avanelsas/baredom), and a
@@ -44,7 +39,7 @@ const greeting = name => `Hello, ${name}.`;
 console.log(greeting("reader"));
 ```
 
-Code in Clojure, which it does not colour yet:
+Code in Clojure:
 
 ```clojure
 (defn greeting [name]
@@ -68,6 +63,10 @@ and on lines of its own like this:
   <summary>More</summary>
   Hidden text.
 </details>
+
+A post names its tags on its last line, as this one does. An underscore is a space.
+
+#bareblog #reference #every_kind
 
 [^first]: The first note. It has a [link](https://github.com/avanelsas/bareblog) of its own.
 [^second]: The second note.

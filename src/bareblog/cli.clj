@@ -113,6 +113,11 @@
   (println (str question " yes"))
   true)
 
+;; A text gets the moment of its first publish as its date, on the clock of the author, so
+;; that the day in it is the day the author published.
+(defn- now []
+  (.format (java.time.OffsetDateTime/now) (java.time.format.DateTimeFormatter/ofPattern "uuuu-MM-dd'T'HH:mm:ssxxx")))
+
 ;; What publishes is asked for by name, as the server is.
 (defn- run-publish! [{:keys [dir home]} {:keys [yes?] :as asked}]
   (let [{:keys [refusal] :as ready} ((requiring-resolve 'bareblog.generate/ready) home)
@@ -121,7 +126,7 @@
     (if refusal
       (do (println refusal) 1)
       (let [how  (assoc ready :say println :ask (if yes? say-yes! ask!))
-            came (publish! how dir (assoc asked :today (str (java.time.LocalDate/now))))]
+            came (publish! how dir (assoc asked :now (now)))]
         (if (done? (:outcome came)) 0 1)))))
 
 (defn- run-help! [_where _asked]

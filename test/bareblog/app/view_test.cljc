@@ -5,7 +5,7 @@
 (def blog {:title "Bare notes" :template :journal :available-themes ["ocean" "forest"] :per-page 2})
 
 (def posts
-  [{:folder "c" :title "Third" :date "2026-03-01" :tags ["travel" "food"] :summary "Three."}
+  [{:folder "c" :title "Third" :date "2026-03-01T21:15:00+01:00" :tags ["travel" "food"] :summary "Three."}
    {:folder "b" :title "Second" :date "2026-02-01" :tags ["travel"] :summary "Two." :draft? true}
    {:folder "a" :title "First" :date "2025-01-01" :summary "One."}])
 
@@ -33,9 +33,9 @@
     (testing "the document is given the preset, the name of the blog and the addresses of its links"
       (is (= {:preset "ocean" :presets 2 :query "" :blog-title "Bare notes" :home "/" :archive "/archive/"}
              (select-keys (:item page) [:preset :presets :query :blog-title :home :archive]))))
-    (testing "nothing is open, and the window is narrow, until the page is told otherwise"
-      (is (= {:menu? false :palette? false :wide? false :command-key? false}
-             (select-keys (:item page) [:menu? :palette? :wide? :command-key?]))))
+    (testing "nothing is open until the page is told otherwise"
+      (is (= {:menu? false :palette? false :command-key? false}
+             (select-keys (:item page) [:menu? :palette? :command-key?]))))
     (testing "the document is given the lists that its blog template asks for, and no other"
       (is (= #{:main :presets :pages} (set (keys (:lists page)))))
       (is (not (contains? (:item page) :commands))))
@@ -194,7 +194,7 @@
   (second (shown {:page {:kind :post :folder folder} :text (assoc post :folder folder)})))
 
 (deftest post-test
-  (let [node (post-node "b" {:title "Second" :date "2026-02-01" :tags ["travel" "travel"] :blocks [one two]})]
+  (let [node (post-node "b" {:title "Second" :date "2026-02-01T08:00:00+01:00" :tags ["travel" "travel"] :blocks [one two]})]
     (testing "the page of a post shows its title and its date, and that it is a draft"
       (is (= {:title "Second" :date "2026-02-01" :draft? true}
              (select-keys (:item node) [:title :date :draft?]))))
@@ -343,9 +343,9 @@
 
 (deftest window-test
   (let [item (fn [local] (:item (view/page "/" notebook {:page {:kind :archive}} local)))]
-    (testing "the document is given what the page knows of its window, and what is open"
-      (is (= {:wide? true :command-key? true :menu? false :palette? false}
-             (select-keys (item {:wide? true :command-key? true}) [:wide? :command-key? :menu? :palette?])))
+    (testing "the document is given what the page knows of its keyboard, and what is open"
+      (is (= {:command-key? true :menu? false :palette? false}
+             (select-keys (item {:command-key? true}) [:command-key? :menu? :palette?])))
       (is (true? (:menu? (item {:menu? true}))))
       (is (true? (:palette? (item {:palette? true})))))))
 

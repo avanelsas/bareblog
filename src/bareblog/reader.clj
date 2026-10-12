@@ -13,8 +13,12 @@
    type.
 
    HTML that an author types outside a code fence is shown as code. A comment is the
-   exception: it is left out, since an author writes one so that it does not show."
-  (:require [bareblog.header :as header]
+   exception: it is left out, since an author writes one so that it does not show.
+
+   A text says two things of itself that are no blocks. A heading of the first level that
+   opens it is its title. A last paragraph of nothing but tags, as `#travel #x-code`, names
+   its tags."
+  (:require [clojure.string :as str]
             [nextjournal.markdown :as md]))
 
 (defn- plain
@@ -242,18 +246,45 @@
           blocks
           (first-of-its-note blocks (mark-paths [] blocks))))
 
+;; An author writes the tags of a text as its last paragraph: `#travel #x-code #two_words`.
+;; An underscore stands for a space, since a tag is written without one. A dash is a dash. A
+;; tag starts with something else than an underscore, which Markdown would read as emphasis.
+(def ^:private tags-pattern
+  "What a paragraph of nothing but tags looks like."
+  #"\s*#[^\s#_][^\s#]*(?:\s+#[^\s#_][^\s#]*)*\s*")
+
+(defn- tag-of
+  "The tag that an author wrote as `written`, with its mark."
+  [written]
+  (-> (subs written 1) (str/replace #"_+" " ") str/trim))
+
+(defn tags
+  "The tags that the paragraph `paragraph` names, in the order they are written and each once,
+   when it holds nothing but tags. Nil when it holds anything else."
+  [paragraph]
+  (when (re-matches tags-pattern paragraph)
+    (vec (distinct (map tag-of (str/split (str/trim paragraph) #"\s+"))))))
+
+(defn- with-tags
+  "The blocks `blocks` and the tags that their last paragraph names. A last paragraph of
+   nothing but tags is no block."
+  [blocks]
+  (let [{:keys [kind content]} (peek blocks)
+        named                  (when (and (= :text kind) (every? string? content))
+                                 (tags (apply str content)))]
+    (if named
+      {:blocks (pop blocks) :tags named}
+      {:blocks blocks})))
+
 (defn read-post
-  "What the post `text` holds: the fields of its header block and what is wrong with it, the
-   text of the heading that opens it, and its blocks. A heading of the first level that opens
-   the text is not a block. The footnotes are the last block."
+  "What the text `text` of a post or a page holds: the text of the heading that opens it, its
+   tags, and its blocks. A heading of the first level that opens the text is not a block, and
+   neither is a last paragraph of nothing but tags. The footnotes are the last block."
   [text]
-  (let [{:keys [lines body]} (header/split text)
-        doc                  (md/parse body)
-        nodes                (:content doc)
-        opening              (when (title-heading? (first nodes)) (first nodes))]
-    {:fields   (header/fields lines)
-     :problems (header/problems lines)
-     :heading  (some-> opening plain)
-     :blocks   (with-first-marks
-                (into (blocks-of (if opening (rest nodes) nodes))
-                      (footnotes (:footnotes doc))))}))
+  (let [doc                   (md/parse text)
+        nodes                 (:content doc)
+        opening               (when (title-heading? (first nodes)) (first nodes))
+        {:keys [blocks tags]} (with-tags (blocks-of (if opening (rest nodes) nodes)))]
+    {:heading (some-> opening plain)
+     :tags    tags
+     :blocks  (with-first-marks (into blocks (footnotes (:footnotes doc))))}))

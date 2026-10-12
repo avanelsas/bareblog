@@ -1,9 +1,4 @@
----
-title: A week in Lisbon
-date: 2026-10-11
-tags: travel, portugal
-summary: Seven days of hills, trams and custard tarts.
----
+# A week in Lisbon
 
 We arrived late on Sunday and walked straight down to the river. The city is built on
 hills, so every street ends in a view.
@@ -25,3 +20,5 @@ We had one every morning.
 
 Wear shoes with a grip. The pavements are polished stone, and after rain they are as
 smooth as glass.
+
+#travel #portugal

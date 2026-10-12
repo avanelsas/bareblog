@@ -5,11 +5,13 @@
    served here without its drafts, at the address in its settings, and a saver opens each page
    in a browser and writes it out with its components drawn.
 
-   `generate!` is given how: `:save`, which saves the page at an address into a file, `:say`,
+   `generate!` is given how: `:save`, which saves pages, each the `:address` it is at and the
+   `:file` it goes into, and calls a function with each file as it is saved, `:say`,
    which is told each thing that happens as a text, and `:app`, the directory of the files of
    the app. `ready` gives how for BareBlog in a directory, or why nothing can be generated."
   (:require [babashka.fs :as fs]
             [babashka.process :as process]
+            [clojure.java.io :as io]
             [bareblog.address :as address]
             [bareblog.home :as home]
             [bareblog.layout :as layout]
@@ -25,10 +27,17 @@
   "The name of the setting of the environment that says where the saver is."
   "BAREDOM_PRERENDER")
 
+(def ^:private saver-script (fs/path "scripts" "prerender.mjs"))
+
+(defn- saver-installed
+  "Where the saver is when BareBlog, which is in `home`, has the package of BareDOM installed."
+  [home]
+  (fs/path home "node_modules" "@vanelsas" "baredom" saver-script))
+
 (defn- saver-beside
   "Where the saver is when BareDOM is checked out beside BareBlog, which is in `home`."
   [home]
-  (fs/path home ".." "BareDom" "scripts" "prerender.mjs"))
+  (fs/path home ".." "BareDom" saver-script))
 
 (def ^:private window
   "The window that a page is saved in, as a flag for the browser. It is a wide one, so that a
@@ -36,10 +45,17 @@
    of the author comes after it, and wins."
   "--window-size=1280,900")
 
+(defn saver-places
+  "Where the saver may be, for BareBlog in `home`, in the order they are looked in: where the
+   environment says with `setting`, in the package of BareDOM that BareBlog has installed, and
+   in a BareDOM beside BareBlog."
+  [home setting]
+  (remove nil? [setting (saver-installed home) (saver-beside home)]))
+
 (defn- find-saver
   "The script that saves a page, for BareBlog in `home`, or nil when there is none."
   [home]
-  (first (filter fs/regular-file? (remove nil? [(System/getenv saver-setting) (saver-beside home)]))))
+  (first (filter fs/regular-file? (saver-places home (System/getenv saver-setting)))))
 
 (defn- find-refusal
   "Why nothing can be generated with the script `saver` and the app in the directory `app`, as
@@ -47,8 +63,8 @@
   [saver app]
   (cond
     (nil? saver)
-    (str "The saver was not found. Check BareDOM out beside BareBlog, or set " saver-setting
-         " to its scripts/prerender.mjs.")
+    (str "The saver was not found. Where BareBlog is, run npm install, or check BareDOM out "
+         "beside BareBlog, or set " saver-setting " to its " saver-script ".")
 
     (not (fs/regular-file? (fs/path app "js" "app.js")))
     "The app is not built. Where BareBlog is, run: npx shadow-cljs release app"
@@ -60,38 +76,85 @@
 (defn- last-line [text]
   (last (remove str/blank? (str/split-lines (str text)))))
 
-(defn- save-with
-  "A function that saves the page at an address into a file, with the script `saver`. It
-   throws with what the script said when the page could not be saved."
-  [saver]
-  (fn [address file]
-    (let [flags              (str/trim (str window " " (System/getenv "CHROME_FLAGS")))
-          {:keys [exit err]} (process/shell {:out :string :err :string :continue true
-                                             :extra-env {"CHROME_FLAGS" flags}}
-                                            "node" (str saver) address (str file))]
+(def ^:private pages-a-run
+  "How many pages the saver is given in one run, so that its arguments stay within what a
+   command may be given."
+  200)
+
+(defn- saved-file
+  "The file that a line of what the saver says names, or nil when the line names none."
+  [line]
+  (second (re-matches #"(.+): \d+ characters, \d+ shadow roots" line)))
+
+(defn- run-saver!
+  "Runs the script `saver` for `pages`, and calls `saved!` with each file as the script says
+   that it is written. Throws with what the script said when a page could not be saved."
+  [saver pages saved!]
+  (let [flags (str/trim (str window " " (System/getenv "CHROME_FLAGS")))
+        run   (apply process/process
+                     {:err :string :extra-env {"CHROME_FLAGS" flags}}
+                     "node" (str saver)
+                     (mapcat (juxt :address (comp str :file)) pages))]
+    (with-open [said (io/reader (:out run))]
+      (run! saved! (keep saved-file (line-seq said))))
+    (let [{:keys [exit err]} @run]
       (when-not (zero? exit)
         (throw (ex-info (or (last-line err) "The saver stopped.") {}))))))
+
+;; The script takes many pages in one run, and opens them all in one browser.
+(defn- save-with
+  "A function that saves pages with the script `saver`, each the `:address` it is at and the
+   `:file` it goes into, and calls `saved!` with each file as it is saved. It throws with what
+   the script said when a page could not be saved."
+  [saver]
+  (fn [pages saved!]
+    (doseq [some-pages (partition-all pages-a-run pages)]
+      (run-saver! saver some-pages saved!))))
 
 (defn- write-text! [out file text]
   (let [path (fs/path out file)]
     (fs/create-dirs (fs/parent path))
     (spit (fs/file path) text)))
 
-(defn- save-page!
-  "Saves the page `page` of `blog`, which is served at `origin`, into `out`, and writes its
-   data beside it. Gives the file of the page."
-  [{:keys [save say]} {:keys [root] :as blog} site origin out page]
-  (let [file   (output/file-of root page)
-        target (fs/path out file)]
-    (fs/create-dirs (fs/parent target))
+(defn- targets
+  "What is saved for each of `pages` of `blog`, which is served at `origin`: the page, the
+   `:address` it is at, the `:file` it goes into under `out`, and the name of that file and of
+   the file of its data, from the top of the blog."
+  [{:keys [root]} origin out pages]
+  (for [page pages
+        :let [file (output/file-of root page)]]
+    {:page      page
+     :address   (str origin (address/of-page root page))
+     :name      file
+     :file      (str (fs/path out file))
+     :data-name (output/data-of root page)}))
+
+;; The saver names a page by the address it opened, which is one of a server that is gone
+;; when the author reads it. The name of the file says more.
+(defn named-by-file
+  "The text `message` of a saver, with the address of each of `targets` as the name of its
+   file."
+  [message targets]
+  (reduce (fn [text {:keys [address name]}] (str/replace text address name))
+          message
+          (sort-by (comp - count :address) targets)))
+
+(defn- save-pages!
+  "Saves the pages `pages` of `blog`, which is served at `origin`, into `out`, says each as it
+   is saved, and writes the data of each beside it. Gives the name of the file of each page."
+  [{:keys [save say]} blog site origin out pages]
+  (let [targets (targets blog origin out pages)
+        names   (into {} (map (juxt :file :name)) targets)]
     (try
-      (save (str origin (address/of-page root page)) target)
+      (save targets (fn [file] (say (str "  " (names (str file))))))
       (catch Exception problem
-        (throw (ex-info (str "Could not save " file ". " (ex-message problem)) {} problem))))
-    (when-some [data-file (output/data-of root page)]
-      (write-text! out data-file (pr-str (source/read-page blog page site))))
-    (say (str "  " file))
-    file))
+        (throw (ex-info (str "Could not save the pages. " (named-by-file (ex-message problem) targets))
+                        {}
+                        problem))))
+    (doseq [{:keys [page data-name]} targets
+            :when data-name]
+      (write-text! out data-name (pr-str (source/read-page blog page site))))
+    (mapv :name targets)))
 
 (defn- copy-app!
   "Copies the files of the app in the directory `app` into `out`: every file but its page,
@@ -125,7 +188,7 @@
         origin (str "http://localhost:" (http/server-port server))]
     (try
       (run! say (:problems site))
-      (let [files (mapv (partial save-page! how blog site origin out) (output/pages site))]
+      (let [files (save-pages! how blog site origin out (output/pages site))]
         (doseq [[file text] (output/texts root site)]
           (write-text! out file text))
         (copy-app! app out)

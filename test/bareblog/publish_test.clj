@@ -11,6 +11,10 @@
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]))
 
+(def now
+  "The moment of every publish in these tests."
+  "2026-10-12T09:00:00+02:00")
+
 (defn- sh
   "What git says to `args` in `dir`, trimmed. Throws when git could not."
   [dir & args]
@@ -43,8 +47,11 @@
 
 ;; The port of the server differs from run to run, so it is left out of what is saved. A page
 ;; that did not change is then the same file.
-(defn- save-path [address file]
-  (spit (fs/file file) (str/replace address #"^http://localhost:\d+" "")))
+(defn- save-path [pages saved!]
+  (doseq [{:keys [address file]} pages]
+    (fs/create-dirs (fs/parent file))
+    (spit (fs/file file) (str/replace address #"^http://localhost:\d+" ""))
+    (saved! file)))
 
 (defn- publish!
   "Publishes `request` of the blog in `dir`. `answer` gives the answer to a question: true or
@@ -60,7 +67,7 @@
                                          (if (fn? answer) (answer question) answer))
                                  :app  app}
                                 dir
-                                (assoc request :today "2026-10-12"))]
+                                (assoc request :now now))]
     (assoc came :said @said :asked @asked)))
 
 (defn- site [dir]
@@ -105,8 +112,8 @@
           (is (clean? dir))
           (is (= "Published: Publish the whole blog." (last said))))
         (testing "a post with no date in its text gets the day it was published"
-          (is (= "2026-10-12" (:date (listed dir "hello-bareblog"))))
-          (is (= "2026-10-12"
+          (is (= now (:date (listed dir "hello-bareblog"))))
+          (is (= now
                  (get-in (edn/read-string (slurp (fs/file dir "docs" "hello-bareblog" "page.edn"))) [:text :date]))))
         (testing "a draft is not published, and not committed"
           (is (not (fs/exists? (fs/path dir "docs" "a-new-idea"))))
@@ -136,7 +143,7 @@
         (spit (fs/file dir "posts" "hello-bareblog" "post.md") "# Hello again\n\nNew text.\n")
         (spit (fs/file dir "posts" "why-web-components" "post.md") "# Not finished\n")
         (is (= :published (:outcome (publish! repo {:folder "hello-bareblog"} true))))
-        (is (= {:title "Hello again" :date "2026-10-12"}
+        (is (= {:title "Hello again" :date now}
                (select-keys (listed dir "hello-bareblog") [:title :date])))
         (is (= "Why web components" (:title (listed dir "why-web-components"))))
         (is (= "Why web components"
@@ -192,11 +199,11 @@
         (is (clean? dir)))
       (testing "a new page is published by its name, from where it is, and gets no date"
         (fs/create-dirs (fs/path dir "pages" "contact"))
-        (spit (fs/file dir "pages" "contact" "page.md") "---\norder: 0\n---\n\n# Contact\n")
+        (spit (fs/file dir "pages" "contact" "page.md") "# Contact\n")
         (let [{:keys [outcome message]} (publish! repo {:folder "contact"} true)]
           (is (= [:published "Publish contact"] [outcome message]))
-          (is (= ["contact" "about"] (map :folder (:pages (site dir)))))
-          (is (not (contains? (first (:pages (site dir))) :date)))
+          (is (= ["about" "contact"] (map :folder (:pages (site dir)))))
+          (is (= [now now] (map :date (:pages (site dir)))))
           (is (fs/directory? (fs/path dir "pages" "contact")))
           (is (contains? (:paths (committed dir)) "pages/contact/page.md"))
           (is (pushed? repo))))
@@ -227,7 +234,7 @@
           (is (= :published outcome))
           (is (empty? asked))
           (is (empty? (:pages (site dir))))
-          (is (= "2026-10-12" (:date (listed dir "about"))))
+          (is (= now (:date (listed dir "about"))))
           (is (= :post (get-in (edn/read-string (slurp (fs/file dir "docs" "about" "page.edn"))) [:page :kind])))))
       (testing "both the place it left and the place it is in are committed"
         (is (contains? (:paths (committed dir)) "posts/about/post.md"))
@@ -278,15 +285,15 @@
             (is (= :refused outcome))
             (is (re-find #"no name of a folder" why))))
         (testing "a post with something wrong is not published, and a draft is moved back"
-          (fs/create-dirs (fs/path dir "drafts" "bad-date"))
-          (spit (fs/file dir "drafts" "bad-date" "post.md") "---\ndate: next week\n---\n\n# Bad\n")
-          (let [{:keys [outcome why said]} (publish! repo {:folder "bad-date"} true)]
+          (fs/create-dirs (fs/path dir "drafts" "bad-tag"))
+          (spit (fs/file dir "drafts" "bad-tag" "post.md") "Text.\n\n#a/b\n")
+          (let [{:keys [outcome why said]} (publish! repo {:folder "bad-tag"} true)]
             (is (= :failed outcome))
-            (is (re-find #"next week" why))
+            (is (re-find #"The tag \"a/b\" gets no page" why))
             (is (str/ends-with? (last said) "Nothing was published."))
-            (is (fs/exists? (fs/path dir "drafts" "bad-date" "post.md")))
-            (is (not (fs/exists? (fs/path dir "posts" "bad-date"))))
-            (is (not-any? #{"bad-date"} (folders dir)))))
+            (is (fs/exists? (fs/path dir "drafts" "bad-tag" "post.md")))
+            (is (not (fs/exists? (fs/path dir "posts" "bad-tag"))))
+            (is (not-any? #{"bad-tag"} (folders dir)))))
         (testing "a draft that cannot be read at all is moved back too"
           (fs/create-dirs (fs/path dir "drafts" "no-text"))
           (let [{:keys [outcome]} (publish! repo {:folder "no-text"} true)]

@@ -14,15 +14,26 @@
 
 ;; What is made. Pure.
 
+(def ^:private example-author
+  "What the author of a blog looks like in its settings, to show an author."
+  "Your name")
+
 (defn settings-text
-  "The text of the settings of a new blog with the title `title`: what a blog needs, as a blog
-   has it when it says nothing, and where its address goes."
+  "The text of the settings of a new blog with the title `title`: every setting that a blog
+   has a value for when it says nothing, with that value, and where its author and its address
+   go, which an author gives before the blog is published."
   [title]
   (str/join "\n"
             [(str "{:title            " (pr-str (str/trim title)))
              (str " :language         " (pr-str site/default-language))
              (str " :template         " (pr-str templates/default))
              " :available-themes [\"ocean\"]"
+             (str " :per-page         " (pr-str site/default-per-page))
+             ""
+             " ;; Set these two before you publish."
+             ""
+             " ;; Who writes the blog, in its feed. The title of the blog when left out."
+             (str " ;; :author " (pr-str example-author))
              ""
              " ;; Where the blog is published. Every link of a published page starts there."
              (str " ;; :address " (pr-str output/example-address))

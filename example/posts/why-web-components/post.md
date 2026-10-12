@@ -1,8 +1,3 @@
----
-date: 2026-10-02
-tags: web
----
-
 # Why web components
 
 A web component is an element the browser already knows how to run. It needs no framework
@@ -20,3 +15,5 @@ can be **stateless**: what it shows is a function of its attributes, and nothing
 They are not an application framework. Something still has to decide what the page shows.
 That part is small when the components do the drawing, and it is what
 [BareMirror](https://github.com/avanelsas/baredom/blob/main/docs/baremirror.md) is for.
+
+#web

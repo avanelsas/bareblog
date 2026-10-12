@@ -76,7 +76,7 @@
   "What an author does once to publish a new blog from its branch `branch`, as lines of text."
   [branch]
   ["To publish it, make a repository on GitHub, and then:"
-   (str "  set :address in " layout/settings-file ", as " example-address)
+   (str "  set :author and :address in " layout/settings-file ", the address as " example-address)
    "  git remote add origin git@github.com:<you>/<repository>.git"
    (str "  git add --all && git commit -m \"A blog\" && git push -u origin " branch)
    "  bareblog publish --all"

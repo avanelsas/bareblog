@@ -1,4 +1,3 @@
-This post has no header block at all. Its title is the name of its folder, and it has no
-date and no tags.
+This post has no heading at its top, so its title is the name of its folder. It has no tags.
 
-It still shows as a post, because nothing in a header block is required.
+It still shows as a post, because a post is only its text.

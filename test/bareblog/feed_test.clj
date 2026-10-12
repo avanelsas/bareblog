@@ -8,8 +8,8 @@
 
 (def site
   {:blog  {:title "Bare <notes>" :address "https://avanelsas.github.io/my-blog/"}
-   :posts [{:folder "c" :title "Tom & Jerry" :date "2026-03-01" :tags ["travel" "food"] :summary "Three < \"four\"."}
-           {:folder "b" :title "Second" :date "2026-02-01T10:00"}
+   :posts [{:folder "c" :title "Tom & Jerry" :date "2026-03-01T09:30:00+01:00" :tags ["travel" "food"] :summary "Three < \"four\"."}
+           {:folder "b" :title "Second" :date "2026-02-01T10:00:00+01:00"}
            {:folder "a" :title "No date"}]})
 
 (defn- read-feed
@@ -34,16 +34,16 @@
             [:id {} "/"]
             [:link {:href "/"}]
             [:link {:rel "self" :href "/feed.xml"}]
-            [:updated {} "2026-01-01T00:00:00Z"]
+            [:updated {} "2026-01-01T09:00:00Z"]
             [:author {} [:name {} "Bare"]]
             [:entry {}
              [:title {} "A"]
              [:link {:href "/a/"}]
              [:id {} "/a/"]
-             [:updated {} "2026-01-01T00:00:00Z"]
+             [:updated {} "2026-01-01T09:00:00Z"]
              nil
              [:category {:term "x"}]]]
-           (feed/tree "/" {:blog {:title "Bare"} :posts [{:folder "a" :title "A" :date "2026-01-01" :tags ["x"]}]})))))
+           (feed/tree "/" {:blog {:title "Bare"} :posts [{:folder "a" :title "A" :date "2026-01-01T09:00:00Z" :tags ["x"]}]})))))
 
 (deftest feed-test
   (let [document (read-feed root site)
@@ -61,11 +61,11 @@
       (is (= "Tom & Jerry" (text-of c :title)))
       (is (= "Three < \"four\"." (text-of c :summary))))
     (testing "the feed was changed when its newest post was"
-      (is (= "2026-03-01T00:00:00Z" (text-of document :updated))))
+      (is (= "2026-03-01T09:30:00+01:00" (text-of document :updated))))
     (testing "a post has its full address, its date as a moment, and its tags"
       (is (= "https://avanelsas.github.io/my-blog/c/" (text-of c :id)))
       (is (= {:href "https://avanelsas.github.io/my-blog/c/"} (:attrs (first (children c :link)))))
-      (is (= "2026-02-01T00:00:00Z" (text-of b :updated)))
+      (is (= "2026-02-01T10:00:00+01:00" (text-of b :updated)))
       (is (= ["travel" "food"] (map (comp :term :attrs) (children c :category)))))
     (testing "a post with no summary has none, and a post with no date is left out"
       (is (empty? (children b :summary)))

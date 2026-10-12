@@ -233,9 +233,8 @@
   (let [notebook (templates/named :notebook)
         item     (fn [choice] (:item (view/page "/" (site-of :notebook) (:post pages) choice)))
         written  (fn [named choice] (attrs-of (:split notebook) (item choice) named))]
-    (testing "the sidebar is open in a wide window, and in a narrow one when the menu is open"
+    (testing "the sidebar is open when the menu is, and is docked beside the page by itself"
       (is (false? (:open (written "x-sidebar" {}))))
-      (is (true? (:open (written "x-sidebar" {:wide? true}))))
       (is (true? (:open (written "x-sidebar" {:menu? true})))))
     (testing "the palette is open when the reader opened it"
       (is (false? (:open (written "x-command-palette" {}))))
@@ -334,7 +333,7 @@
                ["x-select-change-request" :preset]
                ["click" :open-palette]
                ["click" :open-menu]
-               ["toggle" :sidebar]}})
+               ["toggle" :menu]}})
 
 (deftest events-test
   (doseq [[template-name shell] shell-events]

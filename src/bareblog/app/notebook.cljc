@@ -32,11 +32,6 @@
   [:button {:type "button" :class "clear" :hidden no-tag? :on {"click" :clear}}
    (:clear pages/words)])
 
-(def ^:private sidebar-shown?
-  "True when the sidebar is there: beside the page in a wide window, or as the menu when the
-   reader opened that."
-  (some-fn :wide? :menu?))
-
 (defn- group
   "The name of the group of a command in the palette: its year, or what a post with no date
    and a page that is no post are under."
@@ -77,8 +72,8 @@
                   [:div {:class "columns"}
                    [:x-sidebar {:label      (:posts pages/words)
                                 :breakpoint pages/wide-from
-                                :open       sidebar-shown?
-                                :on         {"toggle" :sidebar}}
+                                :open       :menu?
+                                :on         {"toggle" :menu}}
                     [:div {:class "sidebar"}
                      (-> [:div {:class "menu"}]
                          (into (pages/links "menu-pages"))

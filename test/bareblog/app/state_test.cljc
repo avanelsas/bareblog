@@ -25,17 +25,13 @@
 (deftest initial-test
   (testing "a page that was told nothing searches for nothing and has chosen nothing"
     (is (= {:root  "/"
-            :local {:query "" :tag nil :preset nil :menu? false :palette? false :wide? false
-                    :command-key? false}}
+            :local {:query "" :tag nil :preset nil :menu? false :palette? false :command-key? false}}
            (state/initial {}))))
   (testing "it starts with where the top of its blog is"
     (is (= "/my-blog/" (:root (state/initial {:root "/my-blog/"})))))
-  (testing "it starts with what the reader chose before, and with what the page knows of its
-            window and its keyboard"
-    (is (= {:query "lisbon" :tag "travel" :preset "forest" :menu? false :palette? false :wide? true
-            :command-key? true}
-           (:local (state/initial {:query "lisbon" :tag "travel" :preset "forest" :wide? true
-                                   :command-key? true}))))))
+  (testing "it starts with what the reader chose before, and with what the page knows of its keyboard"
+    (is (= {:query "lisbon" :tag "travel" :preset "forest" :menu? false :palette? false :command-key? true}
+           (:local (state/initial {:query "lisbon" :tag "travel" :preset "forest" :command-key? true}))))))
 
 (deftest told-test
   (testing "what a page is told becomes its site and its page"
@@ -76,15 +72,6 @@
   (testing "the palette is opened and closed, by its button and by what it asks for itself"
     (is (true? (:palette? (local-after [:open-palette]))))
     (is (false? (:palette? (local-after [:open-palette] [:close-palette])))))
-  (testing "a window that becomes wide or narrow closes the menu"
-    (is (= {:wide? true :menu? false} (select-keys (local-after [:open-menu] [:wide true]) [:wide? :menu?])))
-    (is (= {:wide? false :menu? false} (select-keys (local-after [:wide true] [:open-menu] [:wide false])
-                                                    [:wide? :menu?]))))
-  (testing "what a sidebar says of itself opens and closes the menu in a narrow window"
-    (is (true? (:menu? (local-after [:sidebar true]))))
-    (is (false? (:menu? (local-after [:open-menu] [:sidebar false])))))
-  (testing "in a wide window the sidebar is always there, and says nothing of the menu"
-    (is (false? (:menu? (local-after [:wide true] [:sidebar true])))))
   (testing "a message with no meaning for the state changes nothing"
     (is (= (after [:search "x"]) (after [:search "x"] [:to-page 2] [:submit-search] [:unknown 1])))))
 
@@ -140,12 +127,12 @@
            (:asked (state/shown (after [:told {:site site :page home}] [:search "lisbon"] [:tag "travel"]))))))
   (testing "on any other page the address is left alone"
     (is (nil? (:asked (state/shown (after [:told {:site site :page post}] [:search "lisbon"]))))))
-  (testing "the view knows whether the palette is open and the window is wide"
+  (testing "the view knows whether the palette and the menu are open"
     (let [item (fn [& messages] (get-in (state/shown (apply after [:told {:site notebook-site :page post}] messages))
                                         [:view :item]))]
       (is (true? (:palette? (item [:open-palette]))))
-      (is (false? (:wide? (item))))
-      (is (true? (:wide? (item [:wide true]))))))
+      (is (true? (:menu? (item [:menu true]))))
+      (is (false? (:menu? (item))))))
   (testing "where a choice takes effect on every page, the address asks for it on every page"
     (is (= {:q "" :tag "travel"}
            (:asked (state/shown (after [:told {:site notebook-site :page post}] [:tag "travel"]))))))

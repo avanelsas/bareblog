@@ -7,10 +7,10 @@
    `preview` and `published` give the two maps there are.
 
    A blog that is read for its readers may say more. `:settings` are its settings, in place of
-   the file. `:read` is the set of folders that are read, of posts and of pages, where it is not all of
-   them.
-   `:as-published` is the set of posts that are taken as they were published last, from the
-   output directory, and not read. `:dates` gives the date of a post whose text gives none."
+   the file. `:read` is the set of folders that are read, of posts and of pages, where it is
+   not all of them. `:as-published` is the set of those that are taken as they were published
+   last, from the output directory, and not read. `:dates` gives the date of each post and
+   page, which is the moment it was first published."
   (:require [babashka.fs :as fs]
             [bareblog.address :as address]
             [bareblog.app.templates :as templates]
@@ -132,12 +132,12 @@
   (when-some [size (read-size (fs/path dir (text/file-beside source)))]
     [source size]))
 
-;; A post whose text gives no date has the day it was first published, which the published
-;; list keeps. A preview shows it too, so that a post has the same date wherever it is seen. A
+;; The date of a post or a page is the moment it was first published, which the published
+;; list keeps. A preview shows it too, so that a text has the same date wherever it is seen. A
 ;; preview also knows which pages are published, to say of the others that they are not.
 (defn- with-published
   "The `blog` with what a preview takes from the published list, each where it was given
-   none: the date of each post whose text gives none, and the folders of the published pages."
+   none: the date of each post and page, and the folders of the published pages."
   [{:keys [dir preview? dates published-pages] :as blog}]
   (if (and preview? (or (nil? dates) (nil? published-pages)))
     (let [published (read-published dir)]
@@ -147,14 +147,13 @@
     blog))
 
 (defn- read-text
-  "The post or the page of `blog` in `source`, with the size of each image beside it. A post
-   whose text gives no date has the one that the blog gives it."
-  [{:keys [dates]} {:keys [folder dir in] :as source}]
+  "The post or the page of `blog` in `source`, with the size of each image beside it, and with
+   the date that the blog gives it, which is the moment it was first published."
+  [{:keys [dates]} {:keys [folder dir in]}]
   (let [read  (text/from folder (reader/read-post (slurp (fs/file dir (layout/text-file in)))))
         sized (text/sized read (into {} (keep (partial read-sized dir)) (text/sources read)))]
     (cond-> sized
-      (and (not (standalone? source)) (nil? (:date sized)) (get dates folder))
-      (assoc :date (get dates folder)))))
+      (get dates folder) (assoc :date (get dates folder)))))
 
 (defn- named-well? [{:keys [folder]}]
   (text/folder? folder))
@@ -215,15 +214,13 @@
     (and preview? (not (contains? published-pages (:folder entry)))) (assoc :unpublished? true)))
 
 (defn- read-entry
-  "The entry of the post or the page of `blog` in `source`, with whether it is a page and what
-   is wrong with it."
-  [blog {:keys [folder draft? place] :as source}]
+  "The entry of the post or the page of `blog` in `source`, with whether it is a page."
+  [blog {:keys [folder draft?] :as source}]
   (let [read (read-text blog source)]
-    {:page?    (standalone? source)
-     :entry    (if (standalone? source)
-                 (unpublished blog (site/page-entry folder read))
-                 (site/entry folder read draft?))
-     :problems (map #(str place ": " %) (:problems read))}))
+    {:page? (standalone? source)
+     :entry (if (standalone? source)
+              (unpublished blog (site/page-entry folder read))
+              (site/entry folder read draft?))}))
 
 (defn- read?
   "True when `blog` reads `source`: it can be read, and is among the folders that the blog
@@ -232,8 +229,7 @@
   (and (usable? source) (or (nil? read) (contains? read folder))))
 
 (defn- read-entries
-  "The entry of each post and each page that `blog` reads among the directories `dirs`, with
-   what is wrong with it."
+  "The entry of each post and each page that `blog` reads among the directories `dirs`."
   [blog dirs]
   (map (partial read-entry blog) (filter (partial read? blog) dirs)))
 
@@ -244,12 +240,10 @@
     (filter (comp as-published :folder) (get (read-published dir) k))))
 
 (defn read-problems
-  "What is wrong with the posts and the pages that `blog` reads, as texts: with their text,
-   and with the tags of the posts."
+  "What is wrong with the posts that `blog` reads, as texts."
   [blog]
   (let [read (read-entries (with-published blog) (list-dirs blog))]
-    (concat (mapcat :problems read)
-            (output/problems {:posts (map :entry (remove :page? read))}))))
+    (output/problems {:posts (map :entry (remove :page? read))})))
 
 (defn read-site
   "What every page of `blog` loads, with what is wrong with the blog."
@@ -259,7 +253,7 @@
         read (read-entries blog dirs)
         site (-> (site/site (settings-of blog)
                             (concat (map :entry (remove :page? read)) (read-kept blog :posts))
-                            (concat (folder-problems dirs) (mapcat :problems read)))
+                            (folder-problems dirs))
                  (site/with-pages (concat (map :entry (filter :page? read)) (read-kept blog :pages))))]
     (site/with-problems site (output/problems site))))
 

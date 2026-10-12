@@ -9,7 +9,6 @@
     bareblog.example-test
     bareblog.feed-test
     bareblog.generate-test
-    bareblog.header-test
     bareblog.image-test
     bareblog.output-test
     bareblog.plan-test

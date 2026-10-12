@@ -1,8 +1,4 @@
----
-title: About
-order: 1
-summary: Who writes Bare notes, and with what.
----
+# About
 
 Bare notes is the example blog of BareBlog. It is here to show what a blog looks like, and to
 have one of everything that a blog can hold.

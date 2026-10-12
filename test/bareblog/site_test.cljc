@@ -28,14 +28,22 @@
   (testing "the latest date comes first"
     (is (= ["new" "old"] (folders [{:folder "old" :title "Old" :date "2025-01-01"}
                                   {:folder "new" :title "New" :date "2026-01-01"}]))))
-  (testing "a post with no date comes after the dated ones"
-    (is (= ["dated" "bare"] (folders [{:folder "bare" :title "A"}
-                                      {:folder "dated" :title "Z" :date "2020-01-01"}]))))
-  (testing "posts of one day, and posts with no date, are in the order of their titles"
-    (is (= ["a" "b" "c" "d"] (folders [{:folder "b" :title "B" :date "2026-01-01"}
+  (testing "a post with no date, which was never published, comes before the dated ones"
+    (is (= ["bare" "dated"] (folders [{:folder "dated" :title "A" :date "2020-01-01T09:00:00+01:00"}
+                                      {:folder "bare" :title "Z"}]))))
+  (testing "of two posts of one day, the one that was published later comes first"
+    (is (= ["evening" "morning"] (folders [{:folder "morning" :title "A" :date "2026-01-01T08:00:00+01:00"}
+                                           {:folder "evening" :title "Z" :date "2026-01-01T20:00:00+01:00"}]))))
+  (testing "posts of one moment, and posts with no date, are in the order of their titles"
+    (is (= ["c" "d" "a" "b"] (folders [{:folder "b" :title "B" :date "2026-01-01T08:00:00+01:00"}
                                        {:folder "d" :title "D"}
-                                       {:folder "a" :title "A" :date "2026-01-01"}
+                                       {:folder "a" :title "A" :date "2026-01-01T08:00:00+01:00"}
                                        {:folder "c" :title "C"}])))))
+
+(deftest day-test
+  (testing "the day of a date is its first ten characters, and no date has no day"
+    (is (= "2026-10-12" (site/day "2026-10-12T14:03:22+02:00")))
+    (is (nil? (site/day nil)))))
 
 (deftest site-test
   (testing "the site is the settings and the list"
@@ -96,16 +104,21 @@
     (is (= {:blog {} :posts []} (site/published {:blog {} :posts [] :problems ["First."]})))))
 
 (deftest pages-test
-  (testing "the entry of a page says enough to link to it, and nothing of a date or tags"
-    (is (= {:folder "about" :title "About" :order 1 :summary "Who."}
-           (site/page-entry "about" {:title "About" :order 1 :summary "Who." :date "2026-01-01" :tags ["x"]
-                                     :blocks []}))))
-  (testing "the pages are in the order of their numbers, and those with none follow by title"
-    (is (= ["projects" "about" "contact" "colophon"]
-           (map :folder (:pages (site/with-pages {} [{:folder "contact" :title "Contact"}
-                                                     {:folder "about" :title "About" :order 2}
-                                                     {:folder "colophon" :title "Zed"}
-                                                     {:folder "projects" :title "Projects" :order 1}]))))))
+  (testing "the entry of a page says enough to link to it, with the day it was first published"
+    (is (= {:folder "about" :title "About" :date "2026-01-01" :summary "Who."}
+           (site/page-entry "about" {:title "About" :summary "Who." :date "2026-01-01" :tags ["x"] :blocks []}))))
+  (testing "the pages are in the order they were first published, and those of one day by title"
+    (is (= ["contact" "about" "projects"]
+           (map :folder (:pages (site/with-pages {} [{:folder "projects" :title "Projects" :date "2026-03-01"}
+                                                     {:folder "about" :title "About" :date "2026-03-01"}
+                                                     {:folder "contact" :title "Contact" :date "2026-01-01"}]))))))
+  (testing "a page that was never published comes after those that were"
+    (is (= ["contact" "about"]
+           (map :folder (:pages (site/with-pages {} [{:folder "about" :title "About"}
+                                                     {:folder "contact" :title "Contact" :date "2026-01-01"}]))))))
+  (testing "the dates of a site are those of its posts and of its pages"
+    (is (= {"a" "2026-01-01" "about" "2026-02-01"}
+           (site/dates {:posts [{:folder "a" :date "2026-01-01"} {:folder "b"}]
+                        :pages [{:folder "about" :date "2026-02-01"}]}))))
   (testing "a site with no pages says nothing of them"
     (is (= {:blog {}} (site/with-pages {:blog {}} [])))))
-

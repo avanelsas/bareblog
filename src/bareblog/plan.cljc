@@ -2,10 +2,11 @@
   "What a publish does, as a value.
 
    A plan says what is read and what is kept: under `:read` the folders of the posts and the
-   pages that are read from disk, under `:as-published` those that are taken as they were published last, and under
-   `:dates` the date of each post whose text gives none. It says what goes: under `:removed`
-   the published posts that are taken out, which the author is asked about first, and under
-   `:move` the draft that becomes a post. And it says what is committed: the `:paths`, from the
+   pages that are read from disk, under `:as-published` those that are taken as they were
+   published last, and under `:dates` the date of each post and page, which is the moment it
+   was first published. It says what goes: under `:removed` the published posts that are taken
+   out, which the author is asked about first, and under `:move` the draft that becomes a
+   post. And it says what is committed: the `:paths`, from the
    top of the blog, and the `:message`. A plan that does nothing has a `:refuse`, the text that
    says why."
   (:require [bareblog.layout :as layout]
@@ -27,10 +28,10 @@
   (str (if page? layout/pages-dir layout/posts-dir) "/" folder))
 
 (defn- dates
-  "The date of each post: the one it was published with, and `today` for a post in `read` that
-   was not published before. The text of a post that gives a date goes before these."
-  [published read today]
-  (merge (zipmap read (repeat today)) (site/dates published)))
+  "The date of each post and page: the one it was published with, and `now` for one in `read`
+   that was not published before."
+  [published read now]
+  (merge (zipmap read (repeat now)) (site/dates published)))
 
 ;; Where a folder is says what it is: a post among the posts or the drafts, and a page among
 ;; the pages. A post goes before a page of the same name. The published list says what a
@@ -87,11 +88,13 @@
 (defn one
   "The plan for publishing the post or the page in `folder`, for the site `published` as it
    was published last, which is nil for a blog that never was. `where` says where the folder
-   is, with `:in-posts?`, `:in-drafts?` and `:in-pages?`. A new post gets `today` as its date."
-  [published folder where today]
+   is, with `:in-posts?`, `:in-drafts?` and `:in-pages?`. A new post gets `now` as its date."
+  [published folder where now]
   (let [posts  (folders published :posts)
         pages  (folders published :pages)
-        where  (assoc where :listed-post? (contains? posts folder) :listed-page? (contains? pages folder))
+        where  (assoc where
+                      :listed-post? (contains? posts folder)
+                      :listed-page? (contains? pages folder))
         page?  (page? where)
         what   (kind where)
         read   (if (= :remove what) #{} #{folder})]
@@ -99,7 +102,7 @@
       {:refuse why}
       (cond-> {:read         read
                :as-published (disj (into posts pages) folder)
-               :dates        (dates published (if page? #{} read) today)
+               :dates        (dates published read now)
                :paths        (conj (paths where folder) layout/output-dir)
                :message      (str (if (= :remove what) "Remove " "Publish ") folder)}
         (= :remove what)                                           (assoc :removed #{folder})
@@ -111,8 +114,8 @@
   "The plan for publishing the whole blog, for the site `published` as it was published last.
    `on-disk` holds the folders that there are, as a set under `:posts` and one under `:pages`,
    and `held-back` is the set of those whose edits the author keeps back. A post that was not
-   published before gets `today` as its date."
-  [published on-disk held-back today]
+   published before gets `now` as its date."
+  [published on-disk held-back now]
   (let [listed  {:posts (folders published :posts) :pages (folders published :pages)}
         there   (into (set (:posts on-disk)) (:pages on-disk))
         read    (set/difference there held-back)
@@ -124,7 +127,7 @@
                    :listed-page? (contains? (:pages listed) folder)})]
     (cond-> {:read         read
              :as-published (set held-back)
-             :dates        (dates published (set/difference read (set (:pages on-disk))) today)
+             :dates        (dates published read now)
              :paths        (into [layout/settings-file layout/output-dir]
                                  (mapcat (fn [folder] (paths (where folder) folder)))
                                  (sort (set/union read removed)))

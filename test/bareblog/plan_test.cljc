@@ -6,7 +6,7 @@
   {:blog  {:title "Bare notes"}
    :posts [{:folder "b" :title "Second" :date "2026-02-01"}
            {:folder "a" :title "First" :date "2025-01-01"}]
-   :pages [{:folder "about" :title "About"}]})
+   :pages [{:folder "about" :title "About" :date "2026-01-15"}]})
 
 (def today "2026-10-12")
 
@@ -44,7 +44,7 @@
   (testing "an edit reads its folder, takes the others as published, and keeps its date"
     (is (= {:read         #{"b"}
             :as-published #{"a" "about"}
-            :dates        {"b" "2026-02-01" "a" "2025-01-01"}
+            :dates        {"b" "2026-02-01" "a" "2025-01-01" "about" "2026-01-15"}
             :paths        ["posts/b" "docs"]
             :message      "Publish b"}
            (plan/one published "b" {:in-posts? true} today))))
@@ -62,15 +62,16 @@
   (testing "a name that is nowhere is refused, and nothing else is planned"
     (is (= [:refuse] (keys (plan/one published "zebra" {} today))))
     (is (re-find #"nothing named zebra" (:refuse (plan/one published "zebra" {} today)))))
-  (testing "a page is read from the pages, is not moved, and gets no date"
+  (testing "a page is read from the pages, is not moved, and gets today as the day it is first published"
     (is (= {:read #{"contact"} :as-published #{"a" "b" "about"} :paths ["pages/contact" "docs"]
-            :message "Publish contact" :dates {"b" "2026-02-01" "a" "2025-01-01"}}
+            :message "Publish contact"
+            :dates {"contact" today "b" "2026-02-01" "a" "2025-01-01" "about" "2026-01-15"}}
            (plan/one published "contact" {:in-pages? true} today)))
     (is (= ["pages/about" "docs"] (:paths (plan/one published "about" {:in-pages? true} today)))))
-  (testing "a published page whose folder is now among the posts is published as a post, with a
-            date, and the place it left is committed too"
+  (testing "a published page whose folder is now among the posts is published as a post, keeps
+            the day it was first published, and the place it left is committed too"
     (is (= {:read #{"about"} :paths ["posts/about" "pages/about" "docs"] :message "Publish about"
-            :dates {"about" today "b" "2026-02-01" "a" "2025-01-01"}}
+            :dates {"about" "2026-01-15" "b" "2026-02-01" "a" "2025-01-01"}}
            (select-keys (plan/one published "about" {:in-posts? true} today) [:read :paths :message :dates])))
     (is (not (contains? (plan/one published "about" {:in-posts? true} today) :removed))))
   (testing "a published post whose folder is now among the pages is published as a page"
@@ -90,7 +91,7 @@
   (testing "the whole blog reads every folder there is, and commits the settings too"
     (is (= {:read         #{"a" "b" "c" "about"}
             :as-published #{}
-            :dates        {"a" "2025-01-01" "b" "2026-02-01" "c" today}
+            :dates        {"a" "2025-01-01" "b" "2026-02-01" "c" today "about" "2026-01-15"}
             :paths        ["blog.edn" "docs" "posts/a" "pages/about" "posts/b" "posts/c"]
             :message      "Publish the whole blog"}
            (plan/all published {:posts #{"a" "b" "c"} :pages #{"about"}} #{} today))))
@@ -103,19 +104,20 @@
            (select-keys (plan/all published {:posts #{"b"} :pages #{}} #{} today) [:removed :read :paths]))))
   (testing "nothing is removed when everything that was published has its folder"
     (is (not (contains? (plan/all published {:posts #{"a" "b"} :pages #{"about"}} #{} today) :removed))))
-  (testing "a new page is read, committed from the pages, and gets no date"
+  (testing "a new page is read, committed from the pages, and gets today as the day it is first published"
     (let [planned (plan/all published {:posts #{"a" "b"} :pages #{"about" "contact"}} #{} today)]
       (is (contains? (:read planned) "contact"))
       (is (some #{"pages/contact"} (:paths planned)))
-      (is (not (contains? (:dates planned) "contact")))))
+      (is (= today (get-in planned [:dates "contact"])))))
   (testing "a published page whose folder is now among the posts is read as a post, and both
             places are committed"
     (let [planned (plan/all published {:posts #{"a" "b" "about"} :pages #{}} #{} today)]
       (is (= ["blog.edn" "docs" "posts/a" "posts/about" "pages/about" "posts/b"] (:paths planned)))
-      (is (= today (get-in planned [:dates "about"])))
+      (is (= "2026-01-15" (get-in planned [:dates "about"])))
       (is (not (contains? planned :removed)))))
-  (testing "a blog that was never published reads every folder, each post dated today"
-    (is (= {"a" today "b" today} (:dates (plan/all nil {:posts #{"a" "b"} :pages #{"about"}} #{} today))))))
+  (testing "a blog that was never published reads every folder, each dated today"
+    (is (= {"a" today "b" today "about" today}
+           (:dates (plan/all nil {:posts #{"a" "b"} :pages #{"about"}} #{} today))))))
 
 (deftest questions-test
   (testing "each question names the posts it is about, in the order of the alphabet"

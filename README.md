@@ -1,100 +1,242 @@
 # BareBlog
 
-**A blog publishing tool built on BareDOM components and the BareMirror runtime.**
+BareBlog is a small set of tools to help you publish a blog on Github Pages. Write a post as Markdown in a folder. One command shows your blog in the browser. Another publishes it to GitHub Pages as static pages.
 
-**Part of a set.** [BareDOM](https://github.com/avanelsas/baredom) is the web component library.
-[BareMirror](https://github.com/avanelsas/baredom/blob/main/docs/baremirror.md) ships inside it and
-brings a page to what an application wants to show. BareBlog uses both to publish a blog as static
-pages.
+BareBlog is built using [BareDOM](https://github.com/avanelsas/baredom) web components and the
+BareMirror runtime that ships with it.
 
-## State
+## What you need
 
-Nine of ten steps are built: the whole blog shows in the browser, read from its Markdown, with a
-home page, a page for each post and tag, and an archive. A reader can search, pick a tag and
-pick a theme. An open page follows the files as you save them. Both blog templates are there,
-and one line in `blog.edn` picks between them. The `bareblog` command makes a draft,
-shows the preview, and publishes: it writes the blog out as static pages with a feed, commits
-them and pushes. No blog was published to GitHub Pages with it yet.
+babashka, Java, Node 22 or later, Chrome and git.
 
-To see the example blog:
+## Set up, once
 
 ```
+git clone https://github.com/avanelsas/bareblog
+cd bareblog
 npm install
-npx shadow-cljs watch app
+npx shadow-cljs release app
+ln -s "$PWD/bin/bareblog" ~/bin/bareblog
+```
+
+The last line puts the `bareblog` command on your path; any directory on your path will do.
+
+## See what a post can hold
+
+BareBlog comes with an example blog. Look at it before you write your own:
+
+```
 cd example
-../bin/bareblog preview
-```
-
-`bin/bareblog` finds BareBlog from where it is, so a link to it on your path works from the
-directory of any blog.
-
-To make a blog of your own, put a link to `bin/bareblog` on your path, and in a new directory:
-
-```
-bareblog init "My blog"
-bareblog new "A first post"
 bareblog preview
 ```
 
-`init` says what to do next to publish it on GitHub Pages.
+Open the post **Every kind of block**. It has one of everything a post can hold: headings,
+strong, emphasised and struck text, inline code, links, footnotes, a quote, lists with and
+without numbers, a photo, an image in a line, code in JavaScript and in Clojure, a divider and
+a table. It also shows that HTML typed into a post is shown as code, not run.
 
-To publish, in a blog that is a git repository of its own:
+Its text is [`example/posts/every-kind/post.md`](./example/posts/every-kind/post.md). Read it
+beside the page to see how each of these is written.
+
+The example blog also has an About page, in `example/pages/`, and a draft, in `example/drafts/`.
+
+## A blog, step by step
+
+**1. Make a blog.**
 
 ```
-bareblog publish a-new-blog-post     one post: new, edited or removed
-bareblog publish --all               every post, as it is on disk
+mkdir my-blog && cd my-blog
+bareblog init "My blog"
 ```
 
-That needs `npx shadow-cljs release app` run once in BareBlog, Node 22, Chrome, and BareDOM
-checked out beside BareBlog.
+**2. Write a post.**
 
-## What it does
+```
+bareblog new "A first post"
+```
 
-You write a post as Markdown in a folder. One command shows the whole blog in your browser. Another
-publishes the post to GitHub Pages.
+This makes `drafts/a-first-post/post.md`. Write in it. Put photos beside it.
+
+**3. Look at it.**
+
+```
+bareblog preview
+```
+
+The whole blog opens in your browser, drafts included. Save a file and the page follows.
+
+**4. Set `:author` and `:address` in `blog.edn`.** Do this before you publish. Both lines are
+in the file already, as comments. Take the `;;` away and fill them in:
+
+```clojure
+ :author  "Your name"
+ :address "https://<you>.github.io/<repository>/"
+```
+
+Every link of a published page starts with the address. A blog on GitHub Pages lives under the
+name of its repository, so one that is published without its address has links that lead
+nowhere.
+
+**5. Put the blog on GitHub, once.** Make an empty repository there, then:
+
+```
+git remote add origin git@github.com:<you>/<repository>.git
+git add --all && git commit -m "A blog" && git push -u origin main
+```
+
+On GitHub, under Settings and Pages, serve the branch `main` from `/docs`.
+
+**6. Publish the post.**
+
+```
+bareblog publish a-first-post
+```
+
+The post moves from `drafts/` to `posts/`, the pages are written to `docs/`, and both are
+committed and pushed.
+
+## After that
+
+| You want to | Do this |
+|---|---|
+| Change a published post | Edit it, then `bareblog publish <folder>` |
+| Take a post offline | Move its folder back to `drafts/`, then `bareblog publish <folder>` |
+| Change the title, the template or the theme | Edit `blog.edn`, then `bareblog publish --all` |
+| Add a page that is no post, such as About | `bareblog new --page "About"`, write it, then `bareblog publish about` |
+
+Publishing one post reads only that post from disk. An unfinished edit in another post stays on
+your machine.
+
+## What a blog is
 
 ```
 my-blog/
-  drafts/                   on your disk only
+  blog.edn              the settings
+  drafts/               on your disk only
     a-new-idea/
       post.md
-  posts/
-    a-week-in-lisbon/
+  posts/                published
+    a-first-post/
       post.md
       harbour.jpg
+  pages/                pages that are no posts
+    about/
+      page.md
+  docs/                 the pages, written by bareblog
 ```
 
-- **A folder is a post.** Its name is the address of the post, and its photos sit beside the text.
-- **A draft stays local.** Publishing a post moves it out of `drafts/`.
-- **One command covers new, edited and removed posts.** Publish takes a folder name and works out
-  which of the three it is.
-- **The author writes content only.** A blog template decides the look, and a theme decides colour
-  and type.
+A folder is a post, and its name is the address of the post. You write content only: a blog
+template decides the look.
 
-## What you get
+## A post
 
-A set of static pages: a home page, a page per post, tag pages, an archive and a feed. Each page is
-drawn before any script runs. When the script arrives, search, the tag filter and the theme switch
-come alive.
+A post is only its text. There is no block of settings above it.
 
-Two blog templates to start:
+```
+# A week in Lisbon
 
-- **Journal**: one reading column, with the posts in numbered pages.
-- **Notebook**: a sidebar of posts by year, with search in a command palette.
+We arrived late on Sunday and walked straight down to the river.
 
-## How BareMirror is used
+![The harbour at dawn](harbour.jpg)
 
-One set of templates serves three moments.
+#travel #portugal #slow_trains
+```
 
-| Moment | What happens |
+BareBlog works out the rest:
+
+| What | Where it comes from |
 |---|---|
-| Generating | Each page is rendered once in a headless browser and saved. |
-| Preview | A saved Markdown file updates the open page in place. |
-| A reader's visit | The saved page is adopted, and the live parts run on it. |
+| The title | The first heading, when the post starts with one. Without it, the name of the folder |
+| The summary | The start of the first paragraph |
+| The tags | The last line, when it holds nothing but tags |
+| The date | The day you first publish the post |
 
-## Who it is for
+**Tags.** Write them on the last line, each with a `#` and with no space in it:
 
-ClojureScript developers. BareBlog assumes Java, Node and shadow-cljs.
+| You write | The tag is |
+|---|---|
+| `#travel` | travel |
+| `#two_words` | two words |
+| `#x-code` | x-code |
+
+An underscore stands for a space, so a tag of two words is written as `#two_words`. A dash
+stays a dash. A tag does not start with an underscore. The line of tags is not shown in the
+post. A `#word` anywhere else in the text is just text.
+
+A last line that holds nothing but words with a `#` is always read as tags. A post that ends
+with a line such as `#1` gets the tag "1", and does not show the line.
+
+**The date** cannot be written. A post that was never published has none. In the preview it
+shows without a date, at the top of the list, which is where it is once you publish it. Posts
+that are published on one day stand in the order they were published, the last one first.
+
+## A page
+
+A folder in `pages/` is a page of its own, such as About. It has a link at the top of every
+page of the blog, and is in none of the lists of posts.
+
+```
+# About
+
+Who writes this blog.
+```
+
+A page is only its text too, and its title is its first heading. The links stand in the order
+the pages were first published: the page you publish first comes first. Pages that are
+published together, as with `bareblog publish --all`, stand by title. A page is written
+where it is published from, so it has no draft. The preview marks it as not published until
+you publish it by its folder.
+
+## The settings
+
+`bareblog init` writes `blog.edn` with every setting in it. Those that have a value when you
+say nothing are written with that value, so the file shows what your blog does and what you
+can change. `:author` and `:address` are written as comments, since only you know them. **Set
+both before you publish.**
+
+```clojure
+{:title            "My blog"
+ :language         "en"
+ :template         :journal
+ :available-themes ["ocean"]
+ :per-page         10
+
+ ;; Set these two before you publish.
+
+ ;; Who writes the blog, in its feed. The title of the blog when left out.
+ ;; :author "Your name"
+
+ ;; Where the blog is published. Every link of a published page starts there.
+ ;; :address "https://<you>.github.io/<repository>/"
+ }
+```
+
+| Key | What it is | When left out |
+|---|---|---|
+| `:title` | The name of the blog | |
+| `:language` | The language of the pages | `"en"` |
+| `:template` | `:journal`, one reading column, or `:notebook`, a sidebar of posts and a command palette | `:journal` |
+| `:available-themes` | The themes a reader can pick from, by the name of a BareDOM theme preset. The first is the one a reader starts with | BareDOM's own look, and nothing to pick |
+| `:per-page` | How many posts a page of the home page shows | `10` |
+| `:author` | The author in the feed | The title |
+| `:address` | Where the blog is published, as a full URL | The top of the host, which is wrong for a blog on GitHub Pages under a repository |
+
+## What a reader gets
+
+Static pages: a home page, a page for each post and tag, an archive, your own pages and an Atom
+feed. Each page
+is drawn before any script runs. When the script arrives, a reader can search, pick a tag and
+pick a theme.
+
+## Working on BareBlog
+
+```
+bb test
+npx shadow-cljs watch app
+cd example && ../bin/bareblog preview
+```
+
+[`CLAUDE.md`](./CLAUDE.md) describes the code.
 
 ## License
 

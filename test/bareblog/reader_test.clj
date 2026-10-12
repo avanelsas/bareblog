@@ -138,15 +138,9 @@
     (is (= [{:kind :text :content ["Text."]}] (blocks "Text.")))))
 
 (deftest read-post-test
-  (testing "the fields of the header block are read"
-    (is (= {:date "2026-10-11" :tags ["travel" "portugal"]}
-           (:fields (reader/read-post "---\ndate: 2026-10-11\ntags: travel, portugal\n---\n\nText.")))))
   (testing "a heading of the first level that opens the text is the heading, and is not a block"
-    (is (= {:fields {} :problems [] :heading "A title" :blocks [{:kind :text :content ["Text."]}]}
+    (is (= {:heading "A title" :tags nil :blocks [{:kind :text :content ["Text."]}]}
            (reader/read-post "# A title\n\nText."))))
-  (testing "what is wrong with the header block is read too"
-    (is (= ["The date \"soon\" could not be read. Write a date as 2026-10-11."]
-           (:problems (reader/read-post "---\ndate: soon\n---\n\nText.")))))
   (testing "the heading is plain text"
     (is (= "A bold title" (:heading (reader/read-post "# A **bold** title")))))
   (testing "a text that opens with something else has no heading"
@@ -154,3 +148,54 @@
   (testing "a later heading of the first level stays a block"
     (is (= [{:kind :text :content ["Text."]} {:kind :heading :level 1 :content ["Again"]}]
            (blocks "Text.\n\n# Again")))))
+
+(deftest tags-test
+  (testing "a last paragraph of nothing but tags names the tags, and is no block"
+    (is (= {:tags ["travel" "two words" "x-code"] :blocks [{:kind :text :content ["Text."]}]}
+           (select-keys (reader/read-post "# T\n\nText.\n\n#travel #two_words #x-code\n") [:tags :blocks]))))
+  (testing "the footnotes may come after it, and are still the last block"
+    (let [read (reader/read-post "Text[^a].\n\n#travel\n\n[^a]: A note.")]
+      (is (= ["travel"] (:tags read)))
+      (is (= [:text :footnotes] (map :kind (:blocks read))))))
+  (testing "a tag in a sentence, and a paragraph of tags that is not the last, stay text"
+    (is (= {:tags nil :blocks [{:kind :text :content ["See #travel."]}]}
+           (select-keys (reader/read-post "See #travel.") [:tags :blocks])))
+    (is (= [{:kind :text :content ["#first"]} {:kind :text :content ["Then text."]}]
+           (blocks "#first\n\nThen text."))))
+  (testing "a last paragraph of tags with something marked in it stays text"
+    (is (nil? (:tags (reader/read-post "Text.\n\n#travel **#bold**")))))
+  (testing "underscores between tags that stand beside each other are no emphasis"
+    (is (= ["a b" "c d" "two words"] (:tags (reader/read-post "Text.\n\n#a_b #c_d #two__words")))))
+  (testing "a tag that starts with an underscore is emphasis to Markdown, and the line stays text"
+    (is (= {:tags nil :blocks [{:kind :text :content ["Text."]}
+                               {:kind :text :content ["#" {:kind :emphasis :content ["draft"]}]}]}
+           (select-keys (reader/read-post "Text.\n\n#_draft_") [:tags :blocks]))))
+  (testing "a block of fields between dashes is read as any text is, and names nothing"
+    (let [read (reader/read-post "---\ntitle: Old\n---\n\nText.")]
+      (is (nil? (:heading read)))
+      (is (= :divider (:kind (first (:blocks read)))))))
+  (testing "a text that is nothing but its tags has no blocks"
+    (is (= {:tags ["travel"] :blocks []} (select-keys (reader/read-post "#travel") [:tags :blocks])))))
+
+(deftest tags-of-a-paragraph-test
+  (testing "a paragraph of nothing but tags names them, in the order they are written"
+    (is (= ["travel" "portugal"] (reader/tags "#travel #portugal")))
+    (is (= ["travel"] (reader/tags "  #travel  "))))
+  (testing "an underscore is a space, and a dash is a dash"
+    (is (= ["two words" "x-code" "slow trains in spring"]
+           (reader/tags "#two_words #x-code #slow_trains_in_spring"))))
+  (testing "underscores that follow each other are one space, and one at the end is nothing"
+    (is (= ["two words" "a"] (reader/tags "#two__words #a_"))))
+  (testing "a tag may hold what is no letter, and keeps its capitals"
+    (is (= ["c++" "100%" "Café" "v1.2" "1"] (reader/tags "#c++ #100% #Café #v1.2 #1"))))
+  (testing "the tags may stand on more lines than one, and a tag that is named twice is one tag"
+    (is (= ["a" "b"] (reader/tags "#a\n#b #a"))))
+  (testing "a paragraph that holds anything else names no tags"
+    (is (nil? (reader/tags "See #travel for more.")))
+    (is (nil? (reader/tags "#travel and more")))
+    (is (nil? (reader/tags "#")))
+    (is (nil? (reader/tags "##x-code")))
+    (is (nil? (reader/tags ""))))
+  (testing "a tag does not start with an underscore"
+    (is (nil? (reader/tags "#_draft")))
+    (is (nil? (reader/tags "#a #_b")))))

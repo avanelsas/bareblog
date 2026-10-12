@@ -8,15 +8,24 @@
   (cond-> (assoc (select-keys post [:title :date :tags :summary]) :folder folder)
     draft? (assoc :draft? true)))
 
+;; The date of a post is the moment it was first published, on the clock of its author:
+;; `2026-10-12T14:03:22+02:00`. It is compared as text, which is the order of time for as long
+;; as that clock is not set back. A post that was never published has none. It goes first,
+;; which is where it is once it is published.
+(defn day
+  "The day of the date `date`, as `2026-10-12`, or nil when there is no date."
+  [date]
+  (some-> date (subs 0 10)))
+
 (defn- by-date
-  "Compares two entries: the later date first, then a post with no date, then by title."
+  "Compares two entries: a post with no date first, then the later date, then by title."
   [a b]
-  (compare [(nil? (:date a)) (:date b) (:title a) (:folder a)]
-           [(nil? (:date b)) (:date a) (:title b) (:folder b)]))
+  (compare [(some? (:date a)) (:date b) (:title a) (:folder a)]
+           [(some? (:date b)) (:date a) (:title b) (:folder b)]))
 
 (defn listed
-  "The `entries` in the order of the list: the latest date first, and a post with no date after
-   the dated ones."
+  "The `entries` in the order of the list: a post with no date first, and then the latest
+   date."
   [entries]
   (vec (sort by-date entries)))
 
@@ -50,9 +59,11 @@
   "en")
 
 (defn dates
-  "The date of each post in `site` that has one, by its folder."
+  "The date of each post and page in `site` that has one, by its folder."
   [site]
-  (into {} (keep (fn [{:keys [folder date]}] (when date [folder date]))) (:posts site)))
+  (into {}
+        (keep (fn [{:keys [folder date]}] (when date [folder date])))
+        (concat (:posts site) (:pages site))))
 
 (def default-per-page 10)
 
@@ -71,21 +82,22 @@
   "What the list of pages says of `page`, a page of the blog that is no post, in the folder
    `folder`: enough to link to it."
   [folder page]
-  (assoc (select-keys page [:title :order :summary]) :folder folder))
+  (assoc (select-keys page [:title :date :summary]) :folder folder))
 
-(defn- by-order
-  "Compares two entries of pages: the one with the lower order first, then a page with no
-   order, then by title."
+;; A page that was never published comes last, which is where it is once it is published.
+(defn- by-first-publish
+  "Compares two entries of pages: the one that was published first goes first, then a page
+   that was not published, then by title."
   [a b]
-  (compare [(nil? (:order a)) (:order a 0) (:title a) (:folder a)]
-           [(nil? (:order b)) (:order b 0) (:title b) (:folder b)]))
+  (compare [(nil? (:date a)) (or (:date a) "") (:title a) (:folder a)]
+           [(nil? (:date b)) (or (:date b) "") (:title b) (:folder b)]))
 
 (defn with-pages
   "The `site` with the entries `pages` of its pages that are no posts, in the order of their
    links. A site with none says nothing of pages."
   [site pages]
   (cond-> site
-    (seq pages) (assoc :pages (vec (sort by-order pages)))))
+    (seq pages) (assoc :pages (vec (sort by-first-publish pages)))))
 
 (defn newest-folder
   "The name of the folder of the newest post in `site`, or nil when it has no posts."

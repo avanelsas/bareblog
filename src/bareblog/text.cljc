@@ -40,12 +40,14 @@
       (str/replace #"^-+|-+$" "")))
 
 (defn- text-in
-  "The text of `x`, which is content of a block or a block that holds content."
+  "The text of `x`, which is content of a block or a block that holds content. A break of a
+   line is a space, so that the words on its two sides stay two words."
   [x]
   (cond
-    (string? x) x
-    (map? x)    (or (:text x) (apply str (map text-in (:content x))))
-    :else       ""))
+    (string? x)         x
+    (= :break (:kind x)) " "
+    (map? x)            (or (:text x) (apply str (map text-in (:content x))))
+    :else               ""))
 
 (def summary-length
   "How long the summary that is taken from the text of a post may be, in characters."
@@ -64,17 +66,14 @@
   (some->> blocks (filter (comp #{:text} :kind)) first text-in (shortened summary-length)))
 
 (defn from
-  "The post in the folder `folder`, from what the reader read of its text. Its title is the one
-   in its header block, or else the heading that opens it, or else the name of its folder. Its
-   summary is the one in its header block, or else the start of its first paragraph. It keeps
-   what is wrong with it under `:problems`, when something is."
-  [folder {:keys [fields problems heading blocks]}]
-  (let [summary (or (:summary fields) (first-paragraph blocks))]
-    (cond-> (assoc fields
-                   :title  (or (:title fields) heading folder)
-                   :blocks blocks)
-      summary        (assoc :summary summary)
-      (seq problems) (assoc :problems problems))))
+  "The post or the page in the folder `folder`, from what the reader read of its text. Its
+   title is the heading that opens it, or else the name of its folder. Its summary is the
+   start of its first paragraph. It keeps its tags when it has them."
+  [folder {:keys [heading tags blocks]}]
+  (let [summary (first-paragraph blocks)]
+    (cond-> {:title (or heading folder) :blocks blocks}
+      (seq tags) (assoc :tags tags)
+      summary    (assoc :summary summary))))
 
 (def file-pattern
   "What the name of a file beside a post looks like, as the text of a pattern."

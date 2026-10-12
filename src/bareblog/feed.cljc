@@ -6,11 +6,6 @@
   (:require [bareblog.address :as address]
             [clojure.string :as str]))
 
-(defn- moment
-  "The date `date` of a post as a moment, which a feed asks for."
-  [date]
-  (str (subs date 0 10) "T00:00:00Z"))
-
 (defn- entry
   "A post in the feed. `at` gives the full address of a page."
   [at {:keys [folder title date summary tags]}]
@@ -19,16 +14,16 @@
            [:title {} title]
            [:link {:href address}]
            [:id {} address]
-           [:updated {} (moment date)]
+           [:updated {} date]
            (when summary [:summary {} summary])]
           (for [tag-name tags] [:category {:term tag-name}]))))
 
 (def ^:private no-posts
-  "The moment that a feed with no dated post says it was changed."
+  "The moment that a feed with no posts says it was changed."
   "1970-01-01T00:00:00Z")
 
-;; A feed says when each entry was changed, so a post with no date is left out of it. A
-;; published post gets a date when it is published.
+;; A feed says when each entry was changed, which is the date of a post. A draft in a preview
+;; has none, and is left out.
 (defn tree
   "The feed of the blog in `site`, whose top is at `root`, as a tree: the posts that have a
    date, the newest first, each with its title, its address, its date, its summary and its
@@ -43,7 +38,7 @@
            [:id {} home]
            [:link {:href home}]
            [:link {:rel "self" :href (str origin (address/feed root))}]
-           [:updated {} (or (some-> (first dated) :date moment) no-posts)]
+           [:updated {} (or (:date (first dated)) no-posts)]
            [:author {} [:name {} (:author blog (:title blog))]]]
           (map (partial entry at) dated))))
 

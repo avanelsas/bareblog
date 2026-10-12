@@ -5,7 +5,7 @@
    `:site` and its own `:page` or a `:problem`, and
    under `:local` what is the page's own: what the reader chose, which is the text to search
    for, a tag and a theme preset, whether the menu and the palette are open, and what the page
-   knows of its window and its keyboard.
+   knows of its keyboard.
 
    A message goes through `step`, and `shown` says what the page then shows: a notice, the view
    of the document, what the address asks for, and the preset to keep. An event, and what the
@@ -17,15 +17,14 @@
 
 (defn initial
   "The state of a page that was told nothing yet, with where the top of its blog is, what the
-   reader chose before, and what the page knows of its window and its keyboard."
-  [{:keys [root query tag preset wide? command-key?]}]
+   reader chose before, and what the page knows of its keyboard."
+  [{:keys [root query tag preset command-key?]}]
   {:root  (or root address/top)
    :local {:query        (or query "")
            :tag          tag
            :preset       preset
            :menu?        false
            :palette?     false
-           :wide?        (boolean wide?)
            :command-key? (boolean command-key?)}})
 
 (defn template
@@ -83,26 +82,11 @@
 (defn- close-menu [local _]
   (menu local false))
 
-;; A sidebar says so whenever it opens or closes, also when the page opened it because the
-;; window is wide. That says nothing of the menu.
-(defn- sidebar
-  "What is local after a sidebar said that it is open or closed. In a narrow window the
-   sidebar is the menu. In a wide one it is always there, and the menu stays as it is."
-  [local open?]
-  (if (:wide? local)
-    local
-    (menu local open?)))
-
 (defn- open-palette [local _]
   (assoc local :palette? true))
 
 (defn- close-palette [local _]
   (assoc local :palette? false))
-
-(defn- wide
-  "What is local after the window became wide or narrow. A menu that was open is closed."
-  [local wide?]
-  (assoc local :wide? (boolean wide?) :menu? false))
 
 (def ^:private local-steps
   "What each meaning of a message does to what is local to the page."
@@ -112,12 +96,10 @@
    :clear         clear
    :preset        pick-preset
    :menu          menu
-   :sidebar       sidebar
    :open-menu     open-menu
    :close-menu    close-menu
    :open-palette  open-palette
-   :close-palette close-palette
-   :wide          wide})
+   :close-palette close-palette})
 
 (defn step
   "The state after `message`, which is a meaning and an optional argument. A message that

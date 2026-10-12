@@ -11,13 +11,22 @@
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]))
 
-(defn- save-address [address file]
-  (spit (fs/file file) address))
+(defn- save-address
+  "Saves each of `pages` as the address it is at, as a saver does: it makes the directory of a
+   file, and says each file as it is saved."
+  [pages saved!]
+  (doseq [{:keys [address file]} pages]
+    (fs/create-dirs (fs/parent file))
+    (spit (fs/file file) address)
+    (saved! file)))
 
-(defn- refuse-archive [address file]
-  (if (str/includes? address "archive")
-    (throw (ex-info "The page never finished." {}))
-    (save-address address file)))
+(defn- refuse-archive
+  "Saves `pages` up to the archive, and stops there as a saver that could not save it."
+  [pages saved!]
+  (doseq [{:keys [address] :as page} pages]
+    (when (str/includes? address "archive")
+      (throw (ex-info (str address ": Error: The page never finished.") {})))
+    (save-address [page] saved!)))
 
 (defn- files
   "The files in `dir`, each as its name from there."
@@ -76,6 +85,8 @@
           (is (str/starts-with? (slurp (fs/file docs "a-week-in-lisbon" "index.html")) "http://localhost")))
         (testing "a draft is not there"
           (is (not-any? #(str/starts-with? % "a-new-idea/") written)))
+        (testing "each page is said by the name of its file, in the order of the pages"
+          (is (= (map #(str "  " %) pages) (filter #(str/starts-with? % "  ") @said))))
         (testing "the author is told what is wrong with the blog, and the readers are not"
           (is (some #(re-find #"Bad Name" %) @said))
           (is (not (contains? (edn/read-string (slurp (fs/file docs "site.edn"))) :problems))))
@@ -92,8 +103,29 @@
                                           (source/published dir (source/read-settings dir)))
                       nil
                       (catch Exception problem problem))]
-        (testing "a page that cannot be saved stops the run, and the problem names the page"
-          (is (= "Could not save archive/index.html. The page never finished." (ex-message problem))))
+        (testing "a page that cannot be saved stops the run, and the problem names its file"
+          (is (= "Could not save the pages. archive/index.html: Error: The page never finished."
+                 (ex-message problem))))
         (testing "what was there before is still there, and nothing is left beside it"
           (is (= #{"stale.html"} (files (fs/path dir "docs"))))
           (is (not (fs/exists? (fs/path dir "docs.new")))))))))
+
+(deftest named-by-file-test
+  (let [targets [{:address "http://localhost:5000/b/" :name "index.html"}
+                 {:address "http://localhost:5000/b/archive/" :name "archive/index.html"}]]
+    (testing "what a saver says of an address is said of the file of that page"
+      (is (= "archive/index.html: Error: Never defined: x-foo"
+             (generate/named-by-file "http://localhost:5000/b/archive/: Error: Never defined: x-foo" targets)))
+      (is (= "index.html: Error: Timed out" (generate/named-by-file "http://localhost:5000/b/: Error: Timed out" targets))))
+    (testing "a text that names no page is left as it is"
+      (is (= "Chrome was not found." (generate/named-by-file "Chrome was not found." targets))))))
+
+(deftest saver-places-test
+  (testing "the saver is looked for where the environment says, then in the installed package, then beside"
+    (is (= ["/my/saver.mjs"
+            "/b/node_modules/@vanelsas/baredom/scripts/prerender.mjs"
+            "/b/../BareDom/scripts/prerender.mjs"]
+           (map str (generate/saver-places "/b" "/my/saver.mjs")))))
+  (testing "an environment that says nothing is no place"
+    (is (= 2 (count (generate/saver-places "/b" nil))))))
+
