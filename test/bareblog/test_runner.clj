@@ -19,6 +19,7 @@
     bareblog.serve-test
     bareblog.site-test
     bareblog.source-test
+    bareblog.start-test
     bareblog.watch-test
     bareblog.app.blocks-test
     bareblog.app.state-test

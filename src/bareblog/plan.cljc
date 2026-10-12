@@ -10,6 +10,7 @@
    says why."
   (:require [bareblog.layout :as layout]
             [bareblog.post :as post]
+            [bareblog.site :as site]
             [clojure.set :as set]
             [clojure.string :as str]))
 
@@ -21,16 +22,11 @@
 (defn- post-path [folder]
   (str layout/posts-dir "/" folder))
 
-(defn published-dates
-  "The date that each post in the published site `published` was published with."
-  [published]
-  (into {} (keep (fn [{:keys [folder date]}] (when date [folder date]))) (:posts published)))
-
 (defn- dates
   "The date of each post: the one it was published with, and `today` for a post in `read` that
    was not published before. The text of a post that gives a date goes before these."
   [published read today]
-  (merge (zipmap read (repeat today)) (published-dates published)))
+  (merge (zipmap read (repeat today)) (site/dates published)))
 
 (defn kind
   "What publishing a folder is, from where the folder is and whether the published list has

@@ -5,7 +5,11 @@
    `:site` and its own `:page` or a `:problem`, and
    under `:local` what is the page's own: what the reader chose, which is the text to search
    for, a tag and a theme preset, whether the menu and the palette are open, and what the page
-   knows of its window and its keyboard."
+   knows of its window and its keyboard.
+
+   A message goes through `step`, and `shown` says what the page then shows: a notice, the view
+   of the document, what the address asks for, and the preset to keep. An event, and what the
+   socket says, are both messages."
   (:require [bareblog.address :as address]
             [bareblog.app.templates :as templates]
             [bareblog.app.view :as view]

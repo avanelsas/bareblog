@@ -1,5 +1,5 @@
 (ns bareblog.git
-  "What a publish asks of git, in the directory of a blog.
+  "What a blog asks of git, in its directory: a repository, a commit and a push.
 
    The edge of the command. Every call names the directory, so that nothing is done in another
    repository."
@@ -29,6 +29,23 @@
   (let [said (git dir "rev-parse" "--show-toplevel")]
     (and (ok? said)
          (= (str (fs/canonicalize dir)) (str (fs/canonicalize (str/trim (:out said))))))))
+
+(defn inside?
+  "True when the directory `dir` is in a git repository, at its top or below it."
+  [dir]
+  (ok? (git dir "rev-parse" "--show-toplevel")))
+
+(def branch
+  "The branch that a new blog starts on. GitHub Pages serves it."
+  "main")
+
+(defn init!
+  "Makes the directory `dir` a git repository. Gives a `:problem` when git could not."
+  [dir]
+  (let [said (git dir "init" "--quiet" "--initial-branch" branch)]
+    (if (ok? said)
+      {}
+      {:problem (or (why (:err said)) "git could not make a repository.")})))
 
 (defn- known?
   "True when the path `path` in `dir` is there, or is one that git keeps."

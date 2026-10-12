@@ -12,6 +12,7 @@
             [bareblog.layout :as layout]
             [bareblog.plan :as plan]
             [bareblog.post :as post]
+            [bareblog.site :as site]
             [bareblog.source :as source]
             [clojure.string :as str]))
 
@@ -63,7 +64,7 @@
   "The published posts of the blog in `dir`, among `folders`, whose text on disk is not what
    was published as `published`."
   [dir published folders]
-  (let [disk (reading dir (:blog published) {:dates (plan/published-dates published)})
+  (let [disk (reading dir (:blog published) {:dates (site/dates published)})
         kept (assoc disk :as-published folders)]
     (into #{}
           (filter (fn [folder] (not= (source/read-shown-post disk folder) (source/read-shown-post kept folder))))

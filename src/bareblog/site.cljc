@@ -45,6 +45,15 @@
   [site]
   (dissoc site :problems))
 
+(def default-language
+  "The language of a blog that names none."
+  "en")
+
+(defn dates
+  "The date of each post in `site` that has one, by its folder."
+  [site]
+  (into {} (keep (fn [{:keys [folder date]}] (when date [folder date]))) (:posts site)))
+
 (def default-per-page 10)
 
 (defn per-page

@@ -8,6 +8,10 @@
             [clojure.test :refer [deftest is testing]]))
 
 (deftest asked-test
+  (testing "a new blog is asked for with its title"
+    (is (= {:command "init" :title "My blog"} (cli/asked ["init" "My blog"])))
+    (is (re-find #"in quotes" (:refuse (cli/asked ["init"]))))
+    (is (some? (:refuse (cli/asked ["init" "My" "blog"])))))
   (testing "a new post is asked for with its title"
     (is (= {:command "new" :title "A new blog post"} (cli/asked ["new" "A new blog post"]))))
   (testing "a title in more words than one, or none, is refused with how to give it"
@@ -38,29 +42,6 @@
     (is (= {:command "help"} (cli/asked ["help"]))))
   (testing "a command that there is not is refused, with its name"
     (is (= {:refuse "There is no command publish-everything."} (cli/asked ["publish-everything"])))))
-
-(deftest draft-test
-  (testing "a draft has a folder named for its title, and a post that starts with the title"
-    (is (= {:folder "a-new-blog-post" :text "# A new blog post\n\n"} (cli/draft "A new blog post")))
-    (is (= {:folder "cafe-lisboa-2026" :text "# Café Lisboa, 2026!\n\n"} (cli/draft " Café Lisboa, 2026! "))))
-  (testing "a title that gives no name for a folder is a problem"
-    (is (some? (:problem (cli/draft "!!!"))))
-    (is (some? (:problem (cli/draft "Tags"))))
-    (is (nil? (:folder (cli/draft "Archive"))))))
-
-(deftest new-draft-test
-  (example/with-copy {}
-    (fn [dir]
-      (let [made (cli/new-draft! dir "A third thought")]
-        (testing "the draft is a folder in the drafts of the blog, with its post"
-          (is (= (str (fs/path dir "drafts" "a-third-thought" "post.md")) (:file made)))
-          (is (= "# A third thought\n\n" (slurp (:file made)))))
-        (testing "a title of a post that is there already, as a draft or published, makes nothing"
-          (is (re-find #"already" (:problem (cli/new-draft! dir "A third thought"))))
-          (is (re-find #"already" (:problem (cli/new-draft! dir "A week in Lisbon"))))
-          (is (= "# A third thought\n\n" (slurp (:file made)))))
-        (testing "a title that gives no folder makes nothing"
-          (is (some? (:problem (cli/new-draft! dir "???")))))))))
 
 (def ^:private command
   "The command, as a blog author runs it."

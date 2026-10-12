@@ -11,8 +11,6 @@
 
 (def between " · ")
 
-(def default-language "en")
-
 (defn- rows
   "A list of rows, from each key and what the row is given, in order."
   [keyed]
@@ -335,7 +333,7 @@
                                   :template template}
         {:keys [key named node]} ((get mains (:kind what) nothing) told)]
     {:template (templates/name-of blog)
-     :language (:language blog default-language)
+     :language (:language blog site/default-language)
      :title    (document-title ((:title template) named) (:title blog))
      :item     (item told)
      :lists    (into {:main (rows [[key node]])}

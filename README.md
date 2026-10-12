@@ -28,6 +28,16 @@ cd example
 `bin/bareblog` finds BareBlog from where it is, so a link to it on your path works from the
 directory of any blog.
 
+To make a blog of your own, put a link to `bin/bareblog` on your path, and in a new directory:
+
+```
+bareblog init "My blog"
+bareblog new "A first post"
+bareblog preview
+```
+
+`init` says what to do next to publish it on GitHub Pages.
+
 To publish, in a blog that is a git repository of its own:
 
 ```

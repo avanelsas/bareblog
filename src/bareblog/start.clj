@@ -1,0 +1,138 @@
+(ns bareblog.start
+  "Starts a blog, and a post in one.
+
+   The edge of the command. What a new blog and a new draft hold is pure, and is at the top."
+  (:require [babashka.fs :as fs]
+            [bareblog.app.templates :as templates]
+            [bareblog.git :as git]
+            [bareblog.layout :as layout]
+            [bareblog.output :as output]
+            [bareblog.post :as post]
+            [bareblog.site :as site]
+            [bareblog.source :as source]
+            [clojure.string :as str]))
+
+;; What is made. Pure.
+
+(defn settings-text
+  "The text of the settings of a new blog with the title `title`: what a blog needs, as a blog
+   has it when it says nothing, and where its address goes."
+  [title]
+  (str/join "\n"
+            [(str "{:title    " (pr-str (str/trim title)))
+             (str " :language " (pr-str site/default-language))
+             (str " :template " (pr-str templates/default))
+             " :presets  [\"ocean\"]"
+             ""
+             " ;; Where the blog is published. Every link of a published page starts there."
+             (str " ;; :address " (pr-str output/example-address))
+             " }"
+             ""]))
+
+(def ignored
+  "What a blog keeps out of git: its drafts."
+  (str layout/drafts-dir "/"))
+
+(defn- ignores-drafts?
+  "True when the lines `text` of a file of what git keeps out name the drafts."
+  [text]
+  (boolean (re-find (re-pattern (str "(?m)^/?" layout/drafts-dir "/?\\s*$")) text)))
+
+(defn with-drafts-ignored
+  "The text `text` of a file of what git keeps out, with the drafts among it. A text that
+   names them already is left as it is."
+  [text]
+  (cond
+    (ignores-drafts? text)                               text
+    (or (str/blank? text) (str/ends-with? text "\n"))   (str text ignored "\n")
+    :else                                                (str text "\n" ignored "\n")))
+
+(def next-steps
+  "What an author does with a new blog, as text."
+  (str/join "\n"
+            (concat ["Next:"
+                     "  bareblog new \"A first post\"    write it, in drafts"
+                     "  bareblog preview                see the blog"
+                     ""]
+                    (output/publishing-steps git/branch))))
+
+(defn draft
+  "The draft for the title `title`: its `:folder` and the `:text` of its post. A title that
+   gives no name for a folder gives a `:problem`."
+  [title]
+  (let [folder (post/folder-for title)]
+    (if (post/folder? folder)
+      {:folder folder :text (str "# " (str/trim title) "\n\n")}
+      {:problem (str "The title " (pr-str title) " gives no name for a folder. " post/folder-rule)})))
+
+;; The making. Each function below reads or writes the disk.
+
+(defn- empty-dir? [dir]
+  (empty? (fs/list-dir dir)))
+
+;; A blog is a repository of its own. One is made only in a directory with nothing in it, so
+;; that a directory that holds other things never becomes a repository by a slip. A directory
+;; inside another repository gets none, and the author is told, since a repository inside
+;; another is seldom what is meant.
+(defn- repository!
+  "Sees to it that the directory `dir` can be a blog: it is a git repository, or is made one.
+   Gives what was done, as a text under `:said`, or a `:problem`."
+  [dir]
+  (cond
+    (git/top? dir)
+    {:said "It is a git repository already."}
+
+    (git/inside? dir)
+    {:said (str "It is inside another git repository, so none was made. A blog is a repository of its "
+                "own: move it out, or run git init here.")}
+
+    (not (empty-dir? dir))
+    {:problem (str dir " holds other things, and is no git repository. Make the blog in a new "
+                   "directory, or run git init here first.")}
+
+    :else
+    (let [{:keys [problem]} (git/init! dir)]
+      (if problem
+        {:problem problem}
+        {:said "It is a git repository now."}))))
+
+(defn- write-blog!
+  "Writes the settings of a blog with the title `title` in `dir`, its folders, and what git
+   keeps out."
+  [dir title]
+  (let [ignore (fs/file dir ".gitignore")]
+    (spit (fs/file dir layout/settings-file) (settings-text title))
+    (run! #(fs/create-dirs (fs/path dir %)) layout/post-dirs)
+    (spit ignore (with-drafts-ignored (if (fs/exists? ignore) (slurp ignore) "")))))
+
+(defn blog!
+  "Makes the directory `dir` a blog with the title `title`: a git repository, with its
+   settings, its folders, and the drafts kept out of git. Gives what it did about the
+   repository, under `:said`. Gives a `:problem`, and writes nothing, when the directory is a
+   blog already or cannot be a repository."
+  [dir title]
+  (if (source/blog? dir)
+    {:problem (str "There is a " layout/settings-file " in " dir " already.")}
+    (let [made (repository! dir)]
+      (when-not (:problem made)
+        (write-blog! dir title))
+      made)))
+
+(defn- write-draft!
+  "Writes the post `text` of a draft in `folder`, in the blog in the directory `dir`."
+  [dir folder text]
+  (let [file (fs/path dir layout/drafts-dir folder layout/post-file)]
+    (fs/create-dirs (fs/parent file))
+    (spit (fs/file file) text)
+    {:file (str file)}))
+
+(defn draft!
+  "Makes the draft for `title` in the blog in the directory `dir`. Gives the file of its post,
+   or a `:problem` when the title gives no folder or the folder is there already."
+  [dir title]
+  (let [{:keys [folder text problem]} (draft title)]
+    (if problem
+      {:problem problem}
+      (if-some [taken (source/find-post-dir (source/preview dir) folder)]
+        {:problem (str "There is a post " folder " already, in " taken ".")}
+        (write-draft! dir folder text)))))

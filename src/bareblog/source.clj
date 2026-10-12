@@ -112,6 +112,15 @@
   (when-some [size (read-size (fs/path dir (post/file-beside source)))]
     [source size]))
 
+;; A post whose text gives no date has the day it was first published, which the published
+;; list keeps. A preview shows it too, so that a post has the same date wherever it is seen.
+(defn- with-dates
+  "The `blog` with the date of each post whose text gives none. A blog that is read for its
+   author, and was given none, takes those of the published list."
+  [{:keys [dir preview? dates] :as blog}]
+  (cond-> blog
+    (and preview? (nil? dates)) (assoc :dates (site/dates (read-published dir)))))
+
 (defn- dated
   "The `post` in `folder` with the date that `blog` gives it, when its text gives none."
   [{:keys [dates]} folder post]
@@ -171,13 +180,14 @@
   "What is wrong with the posts that `blog` reads, as texts: with their text, and with their
    tags."
   [blog]
-  (let [read (read-entries blog (list-dirs blog))]
+  (let [read (read-entries (with-dates blog) (list-dirs blog))]
     (concat (mapcat :problems read) (output/problems {:posts (map :entry read)}))))
 
 (defn read-site
   "What every page of `blog` loads, with what is wrong with the blog."
   [blog]
-  (let [dirs (list-dirs blog)
+  (let [blog (with-dates blog)
+        dirs (list-dirs blog)
         read (read-entries blog dirs)
         site (site/site (settings-of blog)
                         (concat (map :entry read) (read-kept blog))
@@ -202,7 +212,7 @@
   (if (contains? as-published folder-name)
     (read-published-post dir folder-name)
     (when-some [post-dir (some->> folder-name (find-post-dir blog))]
-      (-> (read-post blog folder-name post-dir)
+      (-> (read-post (with-dates blog) folder-name post-dir)
           (post/placed (address/post root folder-name))
           (assoc :folder folder-name)))))
 

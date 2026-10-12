@@ -1,6 +1,19 @@
 (ns bareblog.reader
   "Reads the text of a post into blocks. A block and what it holds are data of BareBlog's own:
-   nothing in them says how a page shows them."
+   nothing in them says how a page shows them.
+
+   A block is a map with a `:kind`. A text block holds content: text, or a map with a `:kind`
+   and its own content. A quote, an item of a list and a footnote hold blocks.
+
+       {:kind :text :content [\"We took the \" {:kind :strong :content [\"tram 28\"]} \".\"]}
+
+   The kinds of block are a closed list: text, heading, photo, quote, list, code, divider, table
+   and footnotes, and plain, which is the text of a list item that has no paragraph around it.
+   A Markdown node with no kind becomes `:unknown`, as a block or inside one, and keeps its
+   type.
+
+   HTML that an author types outside a code fence is shown as code. A comment is the
+   exception: it is left out, since an author writes one so that it does not show."
   (:require [bareblog.header :as header]
             [nextjournal.markdown :as md]))
 

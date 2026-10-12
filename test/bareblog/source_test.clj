@@ -121,6 +121,18 @@
           (fs/create-dirs (fs/path dir "posts" "Bad Name"))
           (is (some #(re-find #"Bad Name" %) (:problems (source/read-site (assoc blog :read #{"hello-bareblog"})))))
           (is (empty? (source/read-post-problems (assoc blog :read #{"hello-bareblog"})))))
+        (testing "a preview shows a post with the date it was published with, when its text gives none"
+          (spit (fs/file dir "docs" "site.edn")
+                (pr-str {:blog {} :posts [{:folder "hello-bareblog" :date "2026-09-09"}
+                                          {:folder "a-week-in-lisbon" :date "1999-01-01"}]}))
+          (let [entry (fn [folder] (first (filter (comp #{folder} :folder)
+                                                  (:posts (source/read-site (source/preview dir))))))]
+            (is (= "2026-09-09" (:date (entry "hello-bareblog"))))
+            (is (= "2026-10-11" (:date (entry "a-week-in-lisbon"))))
+            (is (nil? (:date (entry "a-new-idea"))))
+            (is (= "2026-09-09"
+                   (get-in (source/read-page (source/preview dir) {:kind :post :folder "hello-bareblog"})
+                           [:post :date])))))
         (testing "a post whose text gives no date gets the one that the blog gives it, and no other"
           (let [dated (assoc blog :dates {"hello-bareblog" "2026-10-12" "a-week-in-lisbon" "1999-01-01"})
                 entry (fn [folder] (first (filter (comp #{folder} :folder) (:posts (source/read-site dated)))))]

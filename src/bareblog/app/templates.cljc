@@ -11,7 +11,11 @@
    The node of the document also says three things of the blog template. `:home` is what its
    home page shows, `:entries` or `:newest-post`. `:choice` is where what a reader chose takes
    effect, `:home` or `:everywhere`. `:search` is how a reader searches, with a `:field` or a
-   `:palette`."
+   `:palette`. The view, the state and the server read these, and none of them names a blog
+   template. The nodes of the pages are in `pages`, and every blog template uses them.
+
+   The view of a page is the same tree, filled in: an item for each node, and the keys and the
+   rows of each list. One function in `render` brings any node to its view."
   (:require [bareblog.app.journal :as journal]
             [bareblog.app.notebook :as notebook]
             [bareblog.site :as site]
