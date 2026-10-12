@@ -86,11 +86,6 @@ git remote add origin git@github.com:<you>/<repository>.git
 git add --all && git commit -m "A blog" && git push -u origin main
 ```
 
-On GitHub, under Settings and Pages, serve the branch `main` from `/docs`.
-
-GitHub does not link to the blog from the page of the repository by itself. To add the link,
-click the gear beside "About" on that page and tick "Use your GitHub Pages website".
-
 **6. Publish the post.**
 
 ```
@@ -99,6 +94,13 @@ bareblog publish a-first-post
 
 The post moves from `drafts/` to `posts/`, the pages are written to `docs/`, and both are
 committed and pushed.
+
+**7. Turn GitHub Pages on, once.** On GitHub, under Settings and Pages, serve the branch
+`main` from `/docs`. Do this after the first publish: before it there is no `docs/`, and the
+build that GitHub starts fails.
+
+GitHub does not link to the blog from the page of the repository by itself. To add the link,
+click the gear beside "About" on that page and tick "Use your GitHub Pages website".
 
 ## After that
 
