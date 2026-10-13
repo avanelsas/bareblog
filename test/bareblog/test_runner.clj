@@ -3,27 +3,28 @@
   (:require [clojure.test :as t]))
 
 (def namespaces
-  '[bareblog.address-test
-    bareblog.claude-test
-    bareblog.cli-test
+  '[bareblog.claude-test
     bareblog.example-test
-    bareblog.feed-test
-    bareblog.generate-test
-    bareblog.image-test
-    bareblog.output-test
-    bareblog.plan-test
-    bareblog.publish-test
-    bareblog.reader-test
-    bareblog.serve-test
-    bareblog.site-test
-    bareblog.source-test
-    bareblog.start-test
-    bareblog.text-test
-    bareblog.watch-test
+    bareblog.blog.address-test
+    bareblog.blog.shape-test
+    bareblog.blog.site-test
+    bareblog.blog.text-test
     bareblog.app.blocks-test
     bareblog.app.state-test
     bareblog.app.templates-test
-    bareblog.app.view-test])
+    bareblog.app.view-test
+    bareblog.written.feed-test
+    bareblog.written.output-test
+    bareblog.read.image-test
+    bareblog.read.reader-test
+    bareblog.read.source-test
+    bareblog.preview.serve-test
+    bareblog.preview.watch-test
+    bareblog.publish.generate-test
+    bareblog.publish.plan-test
+    bareblog.publish.run-test
+    bareblog.command.cli-test
+    bareblog.command.start-test])
 
 (defn run
   "Runs every test namespace. The process ends with 1 when a test fails."

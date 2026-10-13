@@ -1,7 +1,7 @@
 (ns bareblog.example-test
   "Holds the post of the example blog that shows every kind to the kinds there are."
   (:require [bareblog.app.blocks :as blocks]
-            [bareblog.reader :as reader]
+            [bareblog.read.reader :as reader]
             [clojure.test :refer [deftest is testing]]))
 
 (def ^:private post "example/posts/every-kind/post.md")

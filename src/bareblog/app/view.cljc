@@ -3,10 +3,11 @@
 
    The view of a page is what its blog template is given: for each node its `:item`, and for
    each of its lists the keys of the rows in `:order` and what each row is given in `:by-key`."
-  (:require [bareblog.address :as address]
-            [bareblog.app.templates :as templates]
-            [bareblog.text :as text]
-            [bareblog.site :as site]
+  (:require [bareblog.app.templates :as templates]
+            [bareblog.blog.address :as address]
+            [bareblog.blog.shape :as shape]
+            [bareblog.blog.site :as site]
+            [bareblog.blog.text :as text]
             [clojure.string :as str]))
 
 (def between " · ")
@@ -146,8 +147,8 @@
 (defn- entries-home
   "The home page as a list of entries: those the reader chose to see, where the home page
    shows a choice, or else the page of all of them that the address names."
-  [{:keys [site page local template]}]
-  (if (and (templates/chooses-on? template :home) (filtering? local))
+  [{:keys [site page local shape]}]
+  (if (and (shape/chooses-on? shape :home) (filtering? local))
     (filtered-home site local)
     (paged-home site (:number page))))
 
@@ -159,9 +160,9 @@
 (defn- home
   "The page of the home page that the address names, or the page that is not there when the
    home page has no such page."
-  [{:keys [site page template] :as told}]
-  (if (<= 1 (:number page) (templates/home-pages template site))
-    ((homes (:home template)) told)
+  [{:keys [site page shape] :as told}]
+  (if (<= 1 (:number page) (shape/home-pages shape site))
+    ((homes (:home shape)) told)
     (not-found site)))
 
 (defn- tag [{:keys [site page]}]
@@ -260,8 +261,8 @@
 
 (defn- chosen-tag
   "The tag that the reader chose, on a page that shows a choice."
-  [{:keys [page local template]}]
-  (when (templates/chooses-on? template (:kind page))
+  [{:keys [page local shape]}]
+  (when (shape/chooses-on? shape (:kind page))
     (:tag local)))
 
 (defn- post-row
@@ -342,7 +343,7 @@
 (defn- item
   "What the document is given of the blog and of what is local to the page. A blog template
    with a palette is given the posts as its commands."
-  [{:keys [site local template] :as told}]
+  [{:keys [site local shape] :as told}]
   (let [{:keys [blog root]} site]
     (cond-> (merge nothing-local
                    (select-keys local (keys nothing-local))
@@ -352,7 +353,7 @@
                     :blog-title (:title blog)
                     :home       root
                     :archive    (address/archive root)})
-      (= :palette (:search template)) (assoc :commands (commands site)))))
+      (= :palette (:search shape)) (assoc :commands (commands site)))))
 
 (defn page
   "What the page that `told` describes shows of the blog in `site`, whose top is at `root`,
@@ -367,9 +368,9 @@
                                   :page     what
                                   :text     shown
                                   :local    local
-                                  :template template}
+                                  :shape    (shape/of-blog blog)}
         {:keys [key named node]} ((get mains (:kind what) nothing) told)]
-    {:template (templates/name-of blog)
+    {:template (shape/template-name blog)
      :language (:language blog site/default-language)
      :title    (document-title ((:title template) named) (:title blog))
      :item     (item told)

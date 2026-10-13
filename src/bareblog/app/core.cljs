@@ -4,13 +4,13 @@
    The edge of the app. The state is in one atom. A message goes through `state/step`, and
    `state/shown` says what the page then shows. This namespace brings the document, the address
    and the browser's storage to that, and turns events and what the socket says into messages."
-  (:require [bareblog.address :as address]
-            [bareblog.app.pages :as pages]
+  (:require [bareblog.app.pages :as pages]
             [bareblog.app.render :as render]
             [bareblog.app.state :as state]
             [bareblog.app.templates :as templates]
-            [bareblog.site :as site]
-            [bareblog.wire :as wire]
+            [bareblog.blog.address :as address]
+            [bareblog.blog.site :as site]
+            [bareblog.blog.wire :as wire]
             [baredom.exports.x-badge :as x-badge]
             [baredom.exports.x-code :as x-code]
             [baredom.exports.x-command-palette :as x-command-palette]
@@ -254,7 +254,7 @@
 (defn- open-palette-by-key!
   "Opens the palette for its key, where the blog template has one."
   [^js event]
-  (when (and (palette-key? event) (= :palette (:search (state/template @page-state))))
+  (when (and (palette-key? event) (= :palette (:search (state/blog-shape @page-state))))
     (.preventDefault event)
     (dispatch! [:open-palette])))
 

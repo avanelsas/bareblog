@@ -8,22 +8,19 @@
    shows the rows that the view gives under that name. A node may have `:props`: by part, the
    properties that the renderer sets, each with what gives its value.
 
-   The node of the document also says three things of the blog template. `:home` is what its
-   home page shows, `:entries` or `:newest-post`. `:choice` is where what a reader chose takes
-   effect, `:home` or `:everywhere`. `:search` is how a reader searches, with a `:field` or a
-   `:palette`. The view, the state and the server read these, and none of them names a blog
-   template. The nodes of the pages are in `pages`, and every blog template uses them.
+   What a blog template says of a blog apart from its nodes is its shape, in
+   `bareblog.blog.shape`, under the same name. The nodes of the pages are in `pages`, and every
+   blog template uses them.
 
    The view of a page is the same tree, filled in: an item for each node, and the keys and the
    rows of each list. One function in `render` brings any node to its view."
   (:require [bareblog.app.journal :as journal]
             [bareblog.app.notebook :as notebook]
-            [bareblog.site :as site]
+            [bareblog.blog.shape :as shape]
             [clojure.string :as str]))
 
-(def default :journal)
-
 (def by-name
+  "The node of the document of each blog template, by the name a blog gives in its settings."
   {:journal  journal/template
    :notebook notebook/template})
 
@@ -33,35 +30,10 @@
   (or (by-name template-name)
       (throw (ex-info "No blog template has this name." {:template template-name}))))
 
-(defn name-of
-  "The name of the blog template that the settings `blog` name, or of the default one when
-   they name none."
-  [blog]
-  (:template blog default))
-
 (defn of-blog
   "The blog template of the blog with the settings `blog`."
   [blog]
-  (named (name-of blog)))
-
-(def ^:private shows-choice
-  "The kinds of page that show what a reader chose, for each place that a blog template names."
-  {:home       #{:home}
-   :everywhere some?})
-
-(defn chooses-on?
-  "True when a page of the kind `kind` shows what a reader chose of the posts, in the blog
-   template `template`."
-  [template kind]
-  (boolean ((shows-choice (:choice template)) kind)))
-
-(defn home-pages
-  "How many pages the home page of the blog in `site` has in the blog template `template`: as
-   many as its entries fill, or one where it shows a post."
-  [template site]
-  (if (= :entries (:home template))
-    (site/page-count site)
-    1))
+  (named (shape/template-name blog)))
 
 (defn list-names
   "The names of the lists that the view gives the document of the blog template `template`."

@@ -243,7 +243,21 @@ npx shadow-cljs watch app
 cd example && ../bin/bareblog preview
 ```
 
-[`CLAUDE.md`](./CLAUDE.md) describes the code.
+The code is in `src/bareblog/`, with a folder for each thing BareBlog does. A folder uses the
+ones above it in this list, and none below it:
+
+| Folder | What is in it |
+|---|---|
+| `blog/` | What a blog is: a post, the list of posts, the address of each page. The command and the browser app share this folder and nothing else |
+| `app/` | The app that runs in the browser: the two blog templates, the view and the rendering, on BareMirror |
+| `written/` | What a blog is made of once it is written out: its pages, its files and its feed |
+| `read/` | From a directory to data: Markdown to blocks, and a blog from its folders |
+| `preview/` | The local server, and what tells an open page that a file changed |
+| `publish/` | From data to pages on GitHub: the plan of a publish, the saved pages, git |
+| `command/` | The `bareblog` command, and what `init` and `new` make |
+
+The tests are in `test/bareblog/`, in the same folders. [`CLAUDE.md`](./CLAUDE.md) lists every
+file with what it is, and the rules the code keeps.
 
 ## License
 

@@ -10,10 +10,10 @@
    A message goes through `step`, and `shown` says what the page then shows: a notice, the view
    of the document, what the address asks for, and the preset to keep. An event, and what the
    socket says, are both messages."
-  (:require [bareblog.address :as address]
-            [bareblog.app.templates :as templates]
-            [bareblog.app.view :as view]
-            [bareblog.site :as site]))
+  (:require [bareblog.app.view :as view]
+            [bareblog.blog.address :as address]
+            [bareblog.blog.shape :as shape]
+            [bareblog.blog.site :as site]))
 
 (defn initial
   "The state of a page that was told nothing yet, with where the top of its blog is, what the
@@ -27,10 +27,10 @@
            :palette?     false
            :command-key? (boolean command-key?)}})
 
-(defn template
-  "The blog template of the blog that the page of `state` was told of."
+(defn blog-shape
+  "The shape of the blog that the page of `state` was told of."
   [state]
-  (templates/of-blog (get-in state [:site :blog])))
+  (shape/of-blog (get-in state [:site :blog])))
 
 (defn- kind
   "The kind of the page of `state`, or nil when it was told nothing yet."
@@ -41,7 +41,7 @@
   "True when the page of `state` shows what the reader chose of the posts, where the blog
    template says that a choice takes effect."
   [state]
-  (templates/chooses-on? (template state) (kind state)))
+  (shape/chooses-on? (blog-shape state) (kind state)))
 
 (defn- told [state {:keys [site page problem]}]
   (if problem
@@ -114,7 +114,7 @@
   "True when the page of `state` is a home page that lists entries, with the tags to choose
    from above them."
   [state]
-  (and (= :home (kind state)) (= :entries (:home (template state)))))
+  (and (= :home (kind state)) (= :entries (:home (blog-shape state)))))
 
 ;; A link to a tag leads to the page of the tag. Where the entries of the home page stand
 ;; under the tags to choose from, a click on the tag of an entry does what a click on one of

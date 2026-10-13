@@ -13,9 +13,6 @@
    presets of the theme select, once in the navbar and once in the menu."
   {:key        "journal"
    :title      pages/title
-   :home       :entries
-   :choice     :home
-   :search     :field
    :split      (template/split
                 :journal
                 [:x-theme {:preset :preset}

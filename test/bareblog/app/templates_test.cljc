@@ -3,6 +3,7 @@
             [bareblog.app.pages :as pages]
             [bareblog.app.templates :as templates]
             [bareblog.app.view :as view]
+            [bareblog.blog.shape :as shape]
             [baremirror.alpha.template :as template]
             [clojure.test :refer [deftest is testing]]))
 
@@ -36,8 +37,8 @@
   (set (keep :data-x-part (filter map? (tree-seq coll? seq fixed)))))
 
 (deftest named-test
-  (testing "the default blog template has a name"
-    (is (some? (templates/named templates/default))))
+  (testing "there is a blog template for every shape, and a shape for every blog template"
+    (is (= (set (keys shape/by-name)) (set (keys templates/by-name)))))
   (testing "a name with no blog template is refused, with the name"
     (is (= {:template :poster}
            (ex-data (try (templates/named :poster) (catch #?(:clj Exception :cljs :default) e e)))))))
@@ -46,11 +47,6 @@
   (doseq [[template-name blog-template] templates/by-name]
     (testing (str template-name " has a key that is text")
       (is (string? (:key blog-template))))
-    (testing (str template-name " says what its home page shows, where a choice takes effect and
-                  how a reader searches")
-      (is (contains? #{:entries :newest-post} (:home blog-template)))
-      (is (contains? #{:home :everywhere} (:choice blog-template)))
-      (is (contains? #{:field :palette} (:search blog-template))))
     (doseq [{:keys [split fixed-of lists]} (templates/nodes blog-template)]
       (testing (str template-name ": a node has a split template or a function that gives a fixed one")
         (is (or (template/split? split) (fn? fixed-of))))
@@ -357,16 +353,9 @@
                        (templates/events (templates/named template-name)))))))))
 
 (deftest facts-test
-  (testing "a blog template says on which kinds of page a choice of the reader shows"
-    (is (templates/chooses-on? (templates/named :journal) :home))
-    (is (not (templates/chooses-on? (templates/named :journal) :post)))
-    (is (templates/chooses-on? (templates/named :notebook) :post))
-    (is (not (templates/chooses-on? (templates/named :notebook) nil))))
   (testing "the lists of a document are named once, also when two parts show the same rows"
     (is (= #{:main :presets :pages} (templates/list-names (templates/named :journal))))
     (is (= #{:main :presets :pages :tags :posts} (templates/list-names (templates/named :notebook)))))
   (testing "the blog template of a blog is the one its settings name, or the default"
     (is (= (templates/named :notebook) (templates/of-blog {:template :notebook})))
-    (is (= (templates/named templates/default) (templates/of-blog {})))
-    (is (= [:notebook templates/default]
-           [(templates/name-of {:template :notebook}) (templates/name-of {})]))))
+    (is (= (templates/named shape/default-template) (templates/of-blog {})))))

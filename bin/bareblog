@@ -15,6 +15,6 @@
 (deps/add-deps (select-keys (edn/read-string (slurp (fs/file home "bb.edn"))) [:deps]))
 (classpath/add-classpath (str (fs/path home "src")))
 
-(require '[bareblog.cli :as cli])
+(require '[bareblog.command.cli :as cli])
 
 (System/exit (cli/main home *command-line-args*))

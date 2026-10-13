@@ -53,9 +53,6 @@
    and the tags of the sidebar, and the presets of the theme select."
   {:key        "notebook"
    :title      pages/title
-   :home       :newest-post
-   :choice     :everywhere
-   :search     :palette
    :split      (template/split
                 :notebook
                 [:x-theme {:preset :preset}
