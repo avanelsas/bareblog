@@ -46,23 +46,47 @@
              " }"
              ""]))
 
-(def ignored
-  "What a blog keeps out of git: its drafts."
+;; A blog keeps its drafts out of git, since a draft is on the disk of its author only. It
+;; also keeps out the files that a Mac leaves in a folder, which a publish would commit with
+;; the folder of a post.
+(def ^:private drafts-line
   (str layout/drafts-dir "/"))
 
-(defn- ignores-drafts?
-  "True when the lines `text` of a file of what git keeps out name the drafts."
-  [text]
-  (boolean (re-find (re-pattern (str "(?m)^/?" layout/drafts-dir "/?\\s*$")) text)))
+(def ignored
+  "What a blog keeps out of git, as the lines of the file that says so."
+  [drafts-line ".DS_Store" "._*"])
 
-(defn with-drafts-ignored
-  "The text `text` of a file of what git keeps out, with the drafts among it. A text that
-   names them already is left as it is."
+;; The drafts are one directory at the top, so a slash before the name or none after it keeps
+;; out the same. A file of a Mac may be in any folder, and a slash before its name would keep
+;; it out at the top only, which is not the same.
+(def ^:private also-written
+  "The other ways to write a line of `ignored` that keep out the same."
+  {drafts-line #{layout/drafts-dir (str "/" layout/drafts-dir) (str "/" drafts-line)}
+   ".DS_Store" #{"**/.DS_Store"}
+   "._*"       #{"**/._*"}})
+
+(defn- missing
+  "The lines of `ignored` that the lines `lines` of a file of what git keeps out do not have,
+   in any way they are written."
+  [lines]
+  (let [there (into #{} (map str/trim) lines)]
+    (remove (fn [line] (some there (conj (also-written line) line))) ignored)))
+
+(defn- line-end
+  "What ends a line in the text `text`: what it uses already, or else a new line."
   [text]
-  (cond
-    (ignores-drafts? text)                               text
-    (or (str/blank? text) (str/ends-with? text "\n"))   (str text ignored "\n")
-    :else                                                (str text "\n" ignored "\n")))
+  (if (str/includes? text "\r\n") "\r\n" "\n"))
+
+(defn with-ignored
+  "The text `text` of a file of what git keeps out, with each line of `ignored` that it does
+   not have yet after what is there. A text that has them all is left as it is."
+  [text]
+  (let [end   (line-end text)
+        lines (missing (str/split-lines text))
+        apart (if (or (str/blank? text) (str/ends-with? text "\n")) "" end)]
+    (if (empty? lines)
+      text
+      (str text apart (str/join end lines) end))))
 
 (def next-steps
   "What an author does with a new blog, as text."
@@ -120,11 +144,11 @@
   (let [ignore (fs/file dir ".gitignore")]
     (spit (fs/file dir layout/settings-file) (settings-text title))
     (run! #(fs/create-dirs (fs/path dir %)) layout/written-dirs)
-    (spit ignore (with-drafts-ignored (if (fs/exists? ignore) (slurp ignore) "")))))
+    (spit ignore (with-ignored (if (fs/exists? ignore) (slurp ignore) "")))))
 
 (defn blog!
   "Makes the directory `dir` a blog with the title `title`: a git repository, with its
-   settings, its folders, and the drafts kept out of git. Gives what it did about the
+   settings, its folders, and what a blog keeps out of git. Gives what it did about the
    repository, under `:said`. Gives a `:problem`, and writes nothing, when the directory is a
    blog already or cannot be a repository."
   [dir title]

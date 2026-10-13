@@ -119,6 +119,7 @@ your machine.
 ```
 my-blog/
   blog.edn              the settings
+  .gitignore            what git leaves alone: the drafts, and the files a Mac adds
   drafts/               on your disk only
     a-new-idea/
       post.md

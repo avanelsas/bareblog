@@ -48,16 +48,29 @@
       (finally
         (fs/delete-tree dir)))))
 
+(def all-ignored "drafts/\n.DS_Store\n._*\n")
+
 (deftest ignored-test
-  (testing "the drafts are added to what git keeps out, on a line of their own"
-    (is (= "drafts/\n" (start/with-drafts-ignored "")))
-    (is (= ".DS_Store\ndrafts/\n" (start/with-drafts-ignored ".DS_Store\n")))
-    (is (= ".DS_Store\ndrafts/\n" (start/with-drafts-ignored ".DS_Store"))))
-  (testing "a text that names them already, in any of the ways git reads, is left as it is"
-    (doseq [text ["drafts/\n" ".DS_Store\r\n/drafts/\r\n" "drafts\nnode_modules/\n"]]
-      (is (= text (start/with-drafts-ignored text)))))
-  (testing "a line that only holds the word is not that"
-    (is (= "old-drafts/\ndrafts/\n" (start/with-drafts-ignored "old-drafts/\n")))))
+  (testing "a new blog keeps its drafts and the files of a Mac out of git, each on its own line"
+    (is (= all-ignored (start/with-ignored ""))))
+  (testing "what is missing comes after what is there, also when that ends without a new line"
+    (is (= ".DS_Store\ndrafts/\n._*\n" (start/with-ignored ".DS_Store\n")))
+    (is (= (str "node_modules/\n" all-ignored) (start/with-ignored "node_modules/"))))
+  (testing "a text that has them all, in any way that keeps out the same, is left as it is"
+    (doseq [text [all-ignored
+                  "._*\n.DS_Store\n/drafts/\n"
+                  "drafts\n**/.DS_Store\n**/._*\nnode_modules/\n"
+                  "  /drafts  \n.DS_Store\n._*"]]
+      (is (= text (start/with-ignored text)))))
+  (testing "a file of a Mac that is kept out at the top only is not kept out of a folder"
+    (is (= "drafts/\n/.DS_Store\n._*\n.DS_Store\n"
+           (start/with-ignored "drafts/\n/.DS_Store\n._*\n"))))
+  (testing "a line that only holds the word, or that takes it back, is not that"
+    (is (= (str "old-drafts/\n" all-ignored) (start/with-ignored "old-drafts/\n")))
+    (is (= (str "!.DS_Store\n" all-ignored) (start/with-ignored "!.DS_Store\n"))))
+  (testing "a text keeps the ends of its lines"
+    (is (= "node_modules/\r\ndrafts/\r\n.DS_Store\r\n._*\r\n"
+           (start/with-ignored "node_modules/\r\n")))))
 
 (deftest next-steps-test
   (testing "an author is told how to write and see a post, and how to publish on GitHub Pages"
@@ -88,12 +101,12 @@
   (with-empty-dir
     (fn [dir]
       (let [made (start/blog! dir "My blog")]
-        (testing "a new blog has its settings, its folders, and a repository that keeps the drafts out"
+        (testing "a new blog has its settings, its folders, and a repository with what it keeps out"
           (is (nil? (:problem made)))
           (is (source/blog? dir))
           (is (= "My blog" (:title (source/read-settings dir))))
           (is (every? #(fs/directory? (fs/path dir %)) ["posts" "drafts" "pages"]))
-          (is (= "drafts/\n" (slurp (fs/file dir ".gitignore"))))
+          (is (= all-ignored (slurp (fs/file dir ".gitignore"))))
           (is (git/top? dir))
           (is (= "It is a git repository now." (:said made))))
         (testing "a directory that is a blog already is left as it is"
@@ -115,7 +128,7 @@
         (spit (fs/file dir ".gitignore") ".DS_Store\n")
         (is (= "It is a git repository already." (:said (start/blog! dir "My blog"))))
         (is (source/blog? dir))
-        (is (= ".DS_Store\ndrafts/\n" (slurp (fs/file dir ".gitignore")))))))
+        (is (= ".DS_Store\ndrafts/\n._*\n" (slurp (fs/file dir ".gitignore")))))))
   (testing "a directory inside another repository gets none of its own, and the author is told"
     (with-empty-dir
       (fn [dir]
