@@ -21,6 +21,7 @@
     bareblog.preview.serve-test
     bareblog.preview.watch-test
     bareblog.publish.generate-test
+    bareblog.publish.git-test
     bareblog.publish.plan-test
     bareblog.publish.run-test
     bareblog.command.cli-test

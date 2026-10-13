@@ -1,6 +1,6 @@
 (ns bareblog.example
-  "A copy of the example blog to change in a test: its settings, its posts, its drafts and
-   its pages."
+  "A directory to change in a test: one with nothing in it, or a copy of the example blog,
+   with its settings, its posts, its drafts and its pages."
   (:require [babashka.fs :as fs]
             [clojure.edn :as edn]))
 
@@ -25,3 +25,12 @@
       (check (str target))
       (finally
         (fs/delete-tree target)))))
+
+(defn with-empty-dir
+  "What `check` gives for a directory with nothing in it. It is gone afterwards."
+  [check]
+  (let [dir (str (fs/create-temp-dir))]
+    (try
+      (check dir)
+      (finally
+        (fs/delete-tree dir)))))

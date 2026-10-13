@@ -39,14 +39,13 @@
 
 ;; The directory is one outside every repository, or a blog in it would be inside another.
 (defn- with-empty-dir
-  "What `check` gives for a directory with nothing in it, which is gone afterwards."
+  "What `check` gives for a directory with nothing in it, which must be outside every git
+   repository for these tests to say anything."
   [check]
-  (let [dir (str (fs/create-temp-dir))]
-    (try
+  (example/with-empty-dir
+    (fn [dir]
       (is (not (git/inside? dir)) "The tests need a temporary directory outside every repository.")
-      (check dir)
-      (finally
-        (fs/delete-tree dir)))))
+      (check dir))))
 
 (def all-ignored "drafts/\n.DS_Store\n._*\n")
 

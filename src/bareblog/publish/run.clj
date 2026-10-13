@@ -69,13 +69,22 @@
   (fs/create-dirs (fs/parent to))
   (fs/move from to))
 
+;; A file of the pages that git keeps out is left out of the commit, and a page that shows it
+;; is published without it. Nothing else would tell the author.
+(defn- tell-ignored!
+  "Tells the author of the files among the pages of the blog in `dir` that git keeps out."
+  [{:keys [say]} dir]
+  (when-some [ignored (seq (git/list-ignored-files dir [layout/output-dir]))]
+    (say (plan/ignored-notice ignored))))
+
 (defn- write-pages!
-  "Generates `blog`, and says how many pages it has. Throws when a post that is read has
-   something wrong with it."
-  [{:keys [say] :as how} blog]
+  "Generates `blog`, says how many pages it has, and tells what of them git keeps out. Throws
+   when a post that is read has something wrong with it."
+  [{:keys [say] :as how} {:keys [dir] :as blog}]
   (when-some [problems (seq (source/read-problems blog))]
     (throw (ex-info (str/join "\n" problems) {})))
-  (say (str (count (generate/generate! how blog)) " pages.")))
+  (say (str (count (generate/generate! how blog)) " pages."))
+  (tell-ignored! how dir))
 
 ;; A draft is moved to the posts before it is read, since that is where a published post is.
 ;; When nothing comes of the publish, whatever the reason, it is moved back.
@@ -105,23 +114,32 @@
       (:problem pushed) {:outcome :not-pushed :message message :why (:problem pushed)}
       :else             {:outcome :published :message message})))
 
+;; A commit of a path that git keeps out is refused by git. That is found before a page is
+;; written, so that a publish that cannot end does not start.
+(defn- find-refusal
+  "Why the plan `plan` cannot be carried out for the blog in `dir`, or nil."
+  [dir {:keys [refuse paths]}]
+  (or refuse
+      (some-> (seq (git/list-ignored dir paths)) plan/ignored-refusal)))
+
 (defn- carry-out!
   "Does what the plan `plan` says for the blog in `dir` with the settings `settings`. Gives
    what came of it."
-  [{:keys [say ask] :as how} dir settings {:keys [removed refuse] :as plan}]
-  (cond
-    refuse
-    {:outcome :refused :why refuse}
+  [{:keys [say ask] :as how} dir settings {:keys [removed] :as plan}]
+  (let [why (find-refusal dir plan)]
+    (cond
+      why
+      {:outcome :refused :why why}
 
-    (and (seq removed) (not (ask (plan/removal-question removed))))
-    {:outcome :declined}
+      (and (seq removed) (not (ask (plan/removal-question removed))))
+      {:outcome :declined}
 
-    :else
-    (do
-      (when-not (:address settings)
-        (say "The settings name no :address, so the blog is written for the top of its host."))
-      (or (written! how dir settings plan)
-          (committed! dir plan)))))
+      :else
+      (do
+        (when-not (:address settings)
+          (say "The settings name no :address, so the blog is written for the top of its host."))
+        (or (written! how dir settings plan)
+            (committed! dir plan))))))
 
 (defn- publish-one!
   [{:keys [say] :as how} dir {:keys [folder now]}]

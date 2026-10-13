@@ -123,3 +123,17 @@
   (testing "each question names the posts it is about, in the order of the alphabet"
     (is (= "Remove from the published blog: a, b?" (plan/removal-question #{"b" "a"})))
     (is (re-find #"edits that are not published: a, b\." (plan/edits-question #{"b" "a"})))))
+
+(deftest ignored-test
+  (let [docs  {:path "docs" :pattern "docs/" :source ".gitignore"}
+        photo {:path "docs/a/harbour.jpg" :pattern "*.jpg" :source ".git/info/exclude"}]
+    (testing "a refusal names each path that git keeps out, with the line and the file that do"
+      (is (= (str "Git keeps out: docs, by the line docs/ in .gitignore. A publish commits all of "
+                  "this, so nothing was written. Change what keeps it out, and publish again.")
+             (plan/ignored-refusal [docs])))
+      (is (re-find #"keeps out: docs, by .*\. docs/a/harbour\.jpg, by the line \*\.jpg in \.git/info/exclude\."
+                   (plan/ignored-refusal [photo docs]))))
+    (testing "a notice names each file that is left out of what is published"
+      (is (= (str "Git keeps out, and so leaves out of what is published: docs/a/harbour.jpg, by the "
+                  "line *.jpg in .git/info/exclude.")
+             (plan/ignored-notice [photo]))))))

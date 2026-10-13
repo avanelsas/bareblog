@@ -150,3 +150,25 @@
   [edited]
   (str "These published posts have edits that are not published: " (names edited)
        ". Publish the edits too?"))
+
+;; What the author is told of what git keeps out. The edge tells, with these words.
+
+(defn- described
+  "What says which path git keeps out, and which line of which file does so."
+  [{:keys [path pattern source]}]
+  (str path ", by the line " pattern " in " source))
+
+(defn- all-described [ignored]
+  (str/join ". " (map described (sort-by :path ignored))))
+
+(defn ignored-refusal
+  "Why a publish that commits the paths in `ignored` cannot be, when git keeps them out."
+  [ignored]
+  (str "Git keeps out: " (all-described ignored) ". A publish commits all of this, so nothing "
+       "was written. Change what keeps it out, and publish again."))
+
+(defn ignored-notice
+  "What the author is told of the files in `ignored`, which are below what a publish commits
+   and are left out of it by git."
+  [ignored]
+  (str "Git keeps out, and so leaves out of what is published: " (all-described ignored) "."))

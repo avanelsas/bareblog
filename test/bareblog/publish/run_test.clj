@@ -70,6 +70,18 @@
                                 (assoc request :now now))]
     (assoc came :said @said :asked @asked)))
 
+(defn- with-ignored
+  "What `check` gives while the blog in `dir` keeps the lines `lines` out of git as well. Its
+   file of what git keeps out is as it was afterwards."
+  [dir lines check]
+  (let [file (fs/file dir ".gitignore")
+        was  (slurp file)]
+    (try
+      (spit file (str was lines))
+      (check)
+      (finally
+        (spit file was)))))
+
 (defn- site [dir]
   (edn/read-string (slurp (fs/file dir "docs" "site.edn"))))
 
@@ -271,11 +283,40 @@
           (is (= "Why web components" (:title (listed dir "why-web-components"))))
           (is (= "M posts/why-web-components/post.md" (sh dir "status" "--porcelain"))))))))
 
+(deftest ignored-file-test
+  (with-repo
+    (fn [{:keys [dir] :as repo}]
+      (publish! repo {:all? true} true)
+      (testing "a file that a post shows and git keeps out is said, and one it does not show is not"
+        (with-ignored dir "*.svg\n*~\n"
+          (fn []
+            (let [post (fs/file dir "posts" "hello-bareblog" "post.md")]
+              (spit post (str (slurp post) "\n\n![A mark](mark.svg)\n"))
+              (spit (fs/file dir "posts" "hello-bareblog" "mark.svg") "<svg/>")
+              (spit (fs/file dir "posts" "hello-bareblog" "post.md~") "what an editor left")
+              (let [{:keys [outcome said]} (publish! repo {:folder "hello-bareblog"} true)]
+                (is (= :published outcome))
+                (is (= [(str "Git keeps out, and so leaves out of what is published: "
+                             "docs/hello-bareblog/mark.svg, by the line *.svg in .gitignore.")]
+                       (filter #(re-find #"leaves out" %) said)))
+                (is (not (fs/exists? (fs/path dir "docs" "hello-bareblog" "post.md~"))))))))))))
+
 (deftest refusals-test
   (with-repo
     (fn [{:keys [dir app] :as repo}]
       (publish! repo {:all? true} true)
       (let [before (head dir)]
+        (testing "a publish of what git keeps out is refused before a page is written"
+          (with-ignored dir "docs/\nposts/a-new-idea/\n"
+            (fn []
+              (let [pages                 (fs/last-modified-time (fs/path dir "docs" "index.html"))
+                    {:keys [outcome why]} (publish! repo {:folder "a-new-idea"} true)]
+                (is (= :refused outcome))
+                (is (re-find #"Git keeps out: docs, by the line docs/ in \.gitignore\. posts/a-new-idea, by" why))
+                (is (fs/exists? (fs/path dir "drafts" "a-new-idea" "post.md")))
+                (is (= pages (fs/last-modified-time (fs/path dir "docs" "index.html"))))
+                (is (= "" (sh dir "status" "--porcelain" "--" "docs")))
+                (is (= before (head dir)))))))
         (testing "a name that is nowhere is refused"
           (let [{:keys [outcome why]} (publish! repo {:folder "zebra"} true)]
             (is (= :refused outcome))
