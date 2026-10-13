@@ -4,6 +4,7 @@
             [bareblog.app.templates :as templates]
             [bareblog.app.view :as view]
             [bareblog.blog.shape :as shape]
+            [bareblog.blog.wire :as wire]
             [baremirror.alpha.template :as template]
             [clojure.test :refer [deftest is testing]]))
 
@@ -300,6 +301,26 @@
            (home-links (pages/navbar pages/search-field)))))
   (testing "the links of the navbar, which a menu holds too, have none to the home page"
     (is (empty? (home-links (pages/links "menu-pages"))))))
+
+(defn- feed-links
+  "The elements of the document of `template-name` that lead to the feed of a blog at `root`,
+   each as its fixed attributes."
+  [template-name root]
+  (let [split   (:split (templates/named template-name))
+        item    (:item (view/page root (site-of template-name) (:archive pages) {}))
+        leading (into #{}
+                      (keep (fn [[part-name write]]
+                              (when (= (str root wire/feed) (get-in write [:attrs :href])) part-name)))
+                      (template/writes split item))]
+    (for [[_tag attrs] (elements (:fixed split))
+          :when        (contains? leading (:data-x-part attrs))]
+      (dissoc attrs :data-x-part))))
+
+(deftest feed-link-test
+  (doseq [template-name (keys templates/by-name)]
+    (testing (str template-name ": the navbar and the menu each lead to the feed, under the top of the blog")
+      (is (= [{:class "nav-link" :type wire/feed-type} {:class "nav-link" :type wire/feed-type}]
+             (feed-links template-name "/my-blog/"))))))
 
 (def ^:private shell-elements
   "The custom elements of the document of each blog template, on a page that shows nothing."

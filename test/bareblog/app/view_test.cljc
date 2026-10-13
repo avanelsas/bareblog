@@ -31,8 +31,11 @@
       (is (= "en" (:language page)))
       (is (= "nl" (:language (view/page "/" (assoc-in site [:blog :language] "nl") {:page {:kind :archive}} {})))))
     (testing "the document is given the preset, the name of the blog and the addresses of its links"
-      (is (= {:preset "ocean" :presets 2 :query "" :blog-title "Bare notes" :home "/" :archive "/archive/"}
-             (select-keys (:item page) [:preset :presets :query :blog-title :home :archive]))))
+      (is (= {:preset "ocean" :presets 2 :query "" :blog-title "Bare notes" :home "/" :archive "/archive/"
+              :feed "/feed.xml"}
+             (select-keys (:item page) [:preset :presets :query :blog-title :home :archive :feed]))))
+    (testing "a blog under a path has its feed under that path"
+      (is (= "/my-blog/feed.xml" (get-in (view/page "/my-blog/" site {:page {:kind :archive}} {}) [:item :feed]))))
     (testing "nothing is open until the page is told otherwise"
       (is (= {:menu? false :palette? false :command-key? false}
              (select-keys (:item page) [:menu? :palette? :command-key?]))))

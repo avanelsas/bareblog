@@ -234,9 +234,9 @@ both before you publish.**
 ## What a reader gets
 
 Static pages: a home page, a page for each post and tag, an archive, your own pages and an Atom
-feed. Each page
-is drawn before any script runs. When the script arrives, a reader can search, pick a tag and
-pick a theme.
+feed, which every page links to as "Feed" and which a feed reader takes like an RSS feed. Each
+page is drawn before any script runs. When the script arrives, a reader can search, pick a tag
+and pick a theme.
 
 ## Working on BareBlog
 

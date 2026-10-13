@@ -3,11 +3,13 @@
 
    The view gives facts. What is hidden, and which words stand where, is decided here."
   (:require [bareblog.app.blocks :as blocks]
+            [bareblog.blog.wire :as wire]
             [baremirror.alpha.template :as template]))
 
 (def words
   "Every word that a blog template puts in a page that is not from the blog."
   {:archive     "Archive"
+   :feed        "Feed"
    :draft       "Draft"
    :unpublished "Not published"
    :page-numbers "Pages"
@@ -200,12 +202,13 @@
   ((get titles (:kind named) (constantly (:not-found words))) named))
 
 (defn links
-  "The links that every page has: to the archive, and to each page of the author that is no
-   post. `part-name` names the part that holds the last of these. The name of the blog leads
-   to the home page, so no link does."
+  "The links that every page has: to the archive, to each page of the author that is no
+   post, and to the feed. `part-name` names the part that holds the pages of the author. The
+   name of the blog leads to the home page, so no link does."
   [part-name]
   [[:a {:class "nav-link" :href :archive} (:archive words)]
-   [:span {:class "page-links" :data-x-part part-name}]])
+   [:span {:class "page-links" :data-x-part part-name}]
+   [:a {:class "nav-link" :href :feed :type wire/feed-type} (:feed words)]])
 
 (def search-field
   "The field that a reader searches with."

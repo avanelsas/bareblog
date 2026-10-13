@@ -352,7 +352,8 @@
                     :tag        (chosen-tag told)
                     :blog-title (:title blog)
                     :home       root
-                    :archive    (address/archive root)})
+                    :archive    (address/archive root)
+                    :feed       (address/feed root)})
       (= :palette (:search shape)) (assoc :commands (commands site)))))
 
 (defn page

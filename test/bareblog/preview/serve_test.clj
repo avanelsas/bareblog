@@ -2,6 +2,7 @@
   (:require [babashka.fs :as fs]
             [bareblog.blog.address :as address]
             [bareblog.blog.text :as text]
+            [bareblog.blog.wire :as wire]
             [bareblog.example :as example]
             [bareblog.preview.serve :as serve]
             [bareblog.read.source :as source]
@@ -108,7 +109,8 @@
       (let [page (serve/document (slurp "resources/public/index.html") {:root "/my-blog/"})]
         (is (str/includes? page "data-root=\"/my-blog/\""))
         (is (str/includes? page "src=\"/my-blog/js/app.js\""))
-        (is (str/includes? page "href=\"/my-blog/feed.xml\""))
+        (is (str/includes? page (str "<link rel=\"alternate\" type=\"" wire/feed-type "\" href=\"/my-blog/"
+                                     wire/feed "\">")))
         (is (not (re-find #"(href|src)=\"/(?!my-blog/)" page)))))))
 
 (deftest every-page-is-served-test
