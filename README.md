@@ -205,7 +205,7 @@ both before you publish.**
 {:title            "My blog"
  :language         "en"
  :template         :journal
- :available-themes ["ocean"]
+ :available-themes ["ocean" "default" "forest" "sunset" "neo-brutalist" "aurora" "mono-ai" "warm-mineral"]
  :per-page         10
 
  ;; Set these two before you publish.
@@ -223,7 +223,7 @@ both before you publish.**
 | `:title` | The name of the blog | |
 | `:language` | The language of the pages | `"en"` |
 | `:template` | `:journal`, one reading column, or `:notebook`, a sidebar of posts and a command palette | `:journal` |
-| `:available-themes` | The themes a reader can pick from, by the name of a BareDOM theme preset. The first is the one a reader starts with | BareDOM's own look, and nothing to pick |
+| `:available-themes` | The themes a reader can pick from, by the name of a BareDOM theme preset. The first is the one a reader starts with. A new blog has all of them: take out the ones you do not want | BareDOM's own look, and nothing to pick |
 | `:per-page` | How many posts a page of the home page shows | `10` |
 | `:author` | The author in the feed | The title |
 | `:address` | Where the blog is published, as a full URL | The top of the host, which is wrong for a blog on GitHub Pages under a repository |

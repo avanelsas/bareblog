@@ -14,6 +14,12 @@
 
 ;; What is made. Pure.
 
+;; BareDOM names its theme presets in ClojureScript, which the command cannot load, so the
+;; names are said here again. The first is the one that a reader starts with.
+(def themes
+  "The themes that a reader of a new blog can pick from: every theme preset of BareDOM."
+  ["ocean" "default" "forest" "sunset" "neo-brutalist" "aurora" "mono-ai" "warm-mineral"])
+
 (def ^:private example-author
   "What the author of a blog looks like in its settings, to show an author."
   "Your name")
@@ -27,7 +33,7 @@
             [(str "{:title            " (pr-str (str/trim title)))
              (str " :language         " (pr-str site/default-language))
              (str " :template         " (pr-str templates/default))
-             " :available-themes [\"ocean\"]"
+             (str " :available-themes " (pr-str themes))
              (str " :per-page         " (pr-str site/default-per-page))
              ""
              " ;; Set these two before you publish."

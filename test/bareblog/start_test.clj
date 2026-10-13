@@ -67,9 +67,14 @@
 
 (deftest settings-text-test
   (testing "the settings of a new blog are settings: its title, and what else a blog needs"
-    (is (= {:title "My \"first\" blog" :language "en" :template :journal :available-themes ["ocean"]
+    (is (= {:title "My \"first\" blog" :language "en" :template :journal :available-themes start/themes
             :per-page 10}
            (edn/read-string (start/settings-text " My \"first\" blog ")))))
+  (testing "a new blog has every theme of BareDOM, each once, and starts with ocean"
+    (is (= "ocean" (first start/themes)))
+    (is (= #{"default" "ocean" "forest" "sunset" "neo-brutalist" "aurora" "mono-ai" "warm-mineral"}
+           (set start/themes)))
+    (is (apply distinct? start/themes)))
   (testing "every setting that a blog has a value for when it says nothing is written with that value"
     (is (= [site/default-language templates/default site/default-per-page]
            ((juxt :language :template :per-page) (edn/read-string (start/settings-text "My blog"))))))
