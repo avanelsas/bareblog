@@ -213,14 +213,26 @@
   (cond-> entry
     (and preview? (not (contains? published-pages (:folder entry)))) (assoc :unpublished? true)))
 
+;; A text that shows or links to a file beside it that is not there has a page with a hole
+;; in it. The author is told, as of the other things that are wrong with a blog.
+(defn- list-missing
+  "What is wrong with the files of the text `read` in `source`, as texts: each file that it
+   shows or links to and that is not beside it."
+  [read {:keys [dir place]}]
+  (for [file-name (sort (text/files read))
+        :when     (not (fs/regular-file? (fs/path dir file-name)))]
+    (str place " names " file-name ", and there is no such file beside it.")))
+
 (defn- read-entry
-  "The entry of the post or the page of `blog` in `source`, with whether it is a page."
+  "The entry of the post or the page of `blog` in `source`, with whether it is a page, and
+   what is wrong with it."
   [blog {:keys [folder draft?] :as source}]
   (let [read (read-text blog source)]
-    {:page? (standalone? source)
-     :entry (if (standalone? source)
-              (unpublished blog (site/page-entry folder read))
-              (site/entry folder read draft?))}))
+    {:page?    (standalone? source)
+     :entry    (if (standalone? source)
+                 (unpublished blog (site/page-entry folder read))
+                 (site/entry folder read draft?))
+     :problems (list-missing read source)}))
 
 (defn- read?
   "True when `blog` reads `source`: it can be read, and is among the folders that the blog
@@ -229,7 +241,8 @@
   (and (usable? source) (or (nil? read) (contains? read folder))))
 
 (defn- read-entries
-  "The entry of each post and each page that `blog` reads among the directories `dirs`."
+  "The entry of each post and each page that `blog` reads among the directories `dirs`, with
+   what is wrong with it."
   [blog dirs]
   (map (partial read-entry blog) (filter (partial read? blog) dirs)))
 
@@ -240,10 +253,12 @@
     (filter (comp as-published :folder) (get (read-published dir) k))))
 
 (defn read-problems
-  "What is wrong with the posts that `blog` reads, as texts."
+  "What is wrong with the posts and the pages that `blog` reads, as texts: with the files
+   they name, and with the tags of the posts."
   [blog]
   (let [read (read-entries (with-published blog) (list-dirs blog))]
-    (output/problems {:posts (map :entry (remove :page? read))})))
+    (concat (mapcat :problems read)
+            (output/problems {:posts (map :entry (remove :page? read))}))))
 
 (defn read-site
   "What every page of `blog` loads, with what is wrong with the blog."
@@ -253,7 +268,7 @@
         read (read-entries blog dirs)
         site (-> (site/site (settings-of blog)
                             (concat (map :entry (remove :page? read)) (read-kept blog :posts))
-                            (folder-problems dirs))
+                            (concat (folder-problems dirs) (mapcat :problems read)))
                  (site/with-pages (concat (map :entry (filter :page? read)) (read-kept blog :pages))))]
     (site/with-problems site (output/problems site))))
 
@@ -265,6 +280,14 @@
   (if (contains? as-published folder)
     (fs/path dir layout/output-dir folder)
     (find-dir blog folder)))
+
+;; The preview sends a file and the generator copies it by this one answer, so that what an
+;; author sees of a file in the preview is what is published of it.
+(defn files-of
+  "The names of the files beside `shown`, a text of `blog` as a page shows it, that it shows
+   or links to, as a set. These are published with it, and no other."
+  [{:keys [root]} shown]
+  (text/files shown (address/post root (:folder shown))))
 
 (defn- shown
   "The text of `blog` in `source` as a page shows it: with the name of its folder, and with

@@ -304,11 +304,19 @@
                                                                       (.-status response) " for "
                                                                       (.-url response) ".")))))
 
+;; A host lets a browser keep a file for a while, and a page that was published since is then
+;; shown with the data of the blog before it: what the publish added goes from the page again.
+;; So the browser is told to ask the host each time whether the data it keeps is still the
+;; data. A host that has nothing new answers with no more than that.
+(def ^:private asked-anew
+  "How data is fetched: what the browser keeps is used only when the host says it still holds."
+  #js {:cache "no-cache"})
+
 (defn- fetch-data
-  "A promise of the data at `address`. With `missing`, that is what an address with no file
-   gives."
+  "A promise of the data at `address`, as the host has it now. With `missing`, that is what
+   an address with no file gives."
   [address missing]
-  (.then (js/fetch address) (partial response-data missing)))
+  (.then (js/fetch address asked-anew) (partial response-data missing)))
 
 (defn- missing?
   "True when the document says that it is the page for an address with no page."

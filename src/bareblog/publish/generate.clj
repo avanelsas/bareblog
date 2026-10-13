@@ -12,7 +12,6 @@
   (:require [babashka.fs :as fs]
             [babashka.process :as process]
             [bareblog.blog.address :as address]
-            [bareblog.blog.text :as text]
             [bareblog.blog.wire :as wire]
             [bareblog.blog.layout :as layout]
             [bareblog.preview.serve :as serve]
@@ -140,8 +139,9 @@
 
 (defn- save-pages!
   "Saves the pages `pages` of `blog`, which is served at `origin`, into `out`, says each as it
-   is saved, and writes the data of each beside it. Gives the name of the file of each page."
-  [{:keys [save say]} blog site origin out pages]
+   is saved, and writes the data of each beside it, which `told` gives by the page. Gives the
+   name of the file of each page."
+  [{:keys [save say]} blog origin out pages told]
   (let [targets (targets blog origin out pages)
         names   (into {} (map (juxt :file :name)) targets)]
     (try
@@ -152,7 +152,7 @@
                         problem))))
     (doseq [{:keys [page data-name]} targets
             :when data-name]
-      (write-text! out data-name (pr-str (source/read-page blog page site))))
+      (write-text! out data-name (pr-str (told page))))
     (mapv :name targets)))
 
 (defn- copy-app!
@@ -165,33 +165,37 @@
     (fs/create-dirs (fs/parent (fs/path out file)))
     (fs/copy path (fs/path out file) {:replace-existing true})))
 
-;; What a file beside a post is, is one rule, and the server has the same. A file that a page
-;; could not name is not copied, so that none takes the place of a page or of its data.
+;; What is published of the files beside a text is what the text shows or links to, by the
+;; one rule of what such a file is. A file that it does not name is not copied, and neither
+;; is one that a page could not name, so that none takes the place of a page or of its data.
 (defn- copy-media!
-  "Copies the files beside each post and each page in `site`, of `blog`, into `out`."
-  [blog out {:keys [posts pages]}]
-  (doseq [{:keys [folder]} (concat posts pages)
-          path             (fs/list-dir (source/find-media-dir blog folder))
-          :when            (and (fs/regular-file? path)
-                                (not (contains? layout/text-files (fs/file-name path)))
-                                (text/file-name? (fs/file-name path)))]
+  "Copies the files that each of the texts `texts` of `blog` shows or links to, from beside
+   it into `out`. Each text is as a page shows it."
+  [blog out texts]
+  (doseq [{:keys [folder] :as shown} texts
+          :let                       [from (source/find-media-dir blog folder)]
+          file-name                  (sort (source/files-of blog shown))
+          :when                      (fs/regular-file? (fs/path from file-name))]
     (fs/create-dirs (fs/path out folder))
-    (fs/copy path (fs/path out folder (fs/file-name path)) {:replace-existing true})))
+    (fs/copy (fs/path from file-name) (fs/path out folder file-name) {:replace-existing true})))
 
 (defn- write-blog!
   "Writes the whole of `blog` into the directory `out`, and gives the file of each page. Its
    pages are saved from a server that runs for as long as this takes."
   [{:keys [say app] :as how} {:keys [root] :as blog} out]
   (let [site   (source/read-site blog)
-        server (http/run-server (partial serve/handler {:blog blog :app app}) {:port 0 :legacy-return-value? false})
+        server (http/run-server (partial serve/handler {:blog blog :app app})
+                                {:port 0 :legacy-return-value? false})
         origin (str "http://localhost:" (http/server-port server))]
     (try
       (run! say (:problems site))
-      (let [files (save-pages! how blog site origin out (output/pages site))]
+      (let [pages (output/pages site)
+            told  (into {} (map (juxt identity #(source/read-page blog % site))) pages)
+            files (save-pages! how blog origin out pages told)]
         (doseq [[file text] (output/texts root site)]
           (write-text! out file text))
         (copy-app! app out)
-        (copy-media! blog out site)
+        (copy-media! blog out (distinct (keep :text (vals told))))
         files)
       (finally
         @(http/server-stop! server)))))

@@ -57,7 +57,9 @@ bareblog init "My blog"
 bareblog new "A first post"
 ```
 
-This makes `drafts/a-first-post/post.md`. Write in it. Put photos beside it.
+This makes `drafts/a-first-post/post.md`. Write in it. Put photos beside it. A file beside a
+post is published when the post shows it or links to it, and stays on your disk when it does
+not. The preview tells you when a post names a file that is not there.
 
 **3. Look at it.**
 

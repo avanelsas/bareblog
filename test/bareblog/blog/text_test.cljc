@@ -122,6 +122,21 @@
              (select-keys (first (:blocks (text/sized post {"./harbour.jpg" {:width 300 :height 200}})))
                           [:width :height]))))))
 
+(deftest files-test
+  (testing "the files beside a post that it shows or links to, by their names"
+    (is (= #{"harbour.jpg" "map.png" "notes.txt" "my photo.jpg"} (text/files with-images))))
+  (testing "they are the same once the post is placed, for the address it is placed under"
+    (is (= (text/files with-images)
+           (text/files (text/placed with-images "/my-blog/a-post/") "/my-blog/a-post/"))))
+  (testing "what a file is asked for, and a place in it, are no part of its name"
+    (is (= #{"notes.txt"}
+           (text/files {:blocks [{:kind :link :href "./notes.txt?x=1#top" :content ["notes"]}]}))))
+  (testing "a placed post that names a file under another address shows none of its own"
+    (is (= #{} (text/files {:blocks [{:kind :link :href "/other-post/a.jpg" :content ["a"]}
+                                     {:kind :photo :src "https://example.com/far.jpg"}
+                                     {:kind :text :content ["Text."]}]}
+                           "/a-post/")))))
+
 (deftest sized-test
   (let [sized (text/sized with-images {"harbour.jpg" {:width 300 :height 200}
                                        "map.png"     {:width 64 :height 64}})]

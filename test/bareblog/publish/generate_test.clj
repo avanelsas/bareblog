@@ -57,6 +57,11 @@
 (deftest generate-test
   (with-blog "https://avanelsas.github.io/my-blog/"
     (fn [dir app]
+      (spit (fs/file dir "posts" "a-week-in-lisbon" "post.md~") "what an editor left")
+      (spit (fs/file dir "posts" "a-week-in-lisbon" "notes.txt") "notes")
+      (spit (fs/file dir "posts" "a-week-in-lisbon" "post.md")
+            (str (slurp (fs/file dir "posts" "a-week-in-lisbon" "post.md"))
+                 "\n\nSee [the notes](notes.txt) and [what is not there](gone.txt).\n"))
       (let [said    (atom [])
             pages   (generate/generate! {:save save-address :say (partial swap! said conj) :app app}
                                         (source/published dir (source/read-settings dir)))
@@ -78,8 +83,12 @@
           (is (= "the styles" (slurp (fs/file docs "app.css"))))
           (is (= "the script" (slurp (fs/file docs "js" "app.js"))))
           (is (str/starts-with? (slurp (fs/file docs "index.html")) "http://localhost")))
-        (testing "a file beside a post is there, and none that a page could not name"
+        (testing "a file beside a post that it shows or links to is there, and no other"
           (is (contains? written "a-week-in-lisbon/harbour.svg"))
+          (is (contains? written "a-week-in-lisbon/notes.txt"))
+          (is (not (contains? written "a-week-in-lisbon/post.md~")))
+          (is (not (contains? written "a-week-in-lisbon/gone.txt"))))
+        (testing "none is there that a page could not name"
           (is (not (contains? written "a-week-in-lisbon/.DS_Store")))
           (is (not (contains? written "a-week-in-lisbon/post.md")))
           (is (str/starts-with? (slurp (fs/file docs "a-week-in-lisbon" "index.html")) "http://localhost")))

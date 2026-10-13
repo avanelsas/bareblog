@@ -14,7 +14,8 @@
             [bareblog.written.feed :as feed]
             [clojure.string :as str]
             [org.httpkit.server :as http])
-  (:import [java.util.regex Matcher]))
+  (:import [java.security MessageDigest]
+           [java.util.regex Matcher]))
 
 (defn app-dir
   "The directory of the files of the app, for BareBlog in the directory `home`."
@@ -132,13 +133,29 @@
   [root path]
   (str root (subs path 1)))
 
+;; A host lets a browser keep a file for a while. A page that was published since would then
+;; run the script from before it. So the page names each file of the app with what the file
+;; holds, as a version: a file that changed has another address, and one that did not is kept.
+(defn- versioned
+  "The page `html` with the version of each file that it names and `versions` has, by the
+   name of the file from the top."
+  [html versions]
+  (str/replace html
+               #"(href|src)=\"/([^\"]+)\""
+               (fn [[named attribute file]]
+                 (if-some [version (versions file)]
+                   (str attribute "=\"/" file "?v=" version "\"")
+                   named))))
+
 ;; The page of the app names its files from the top of a host. They are named from the top of
 ;; the blog here, and the document is told where that is.
 (defn document
-  "The page of the app, `html`, for a blog at `root`. With `missing?` it is the page for an
-   address with no page, and says so."
-  [html root missing?]
+  "The page of the app, `html`, as it is sent: for a blog at `:root`, with the version of
+   each of its files in `:versions`. With `:missing?` it is the page for an address with no
+   page, and says so."
+  [html {:keys [root missing? versions]}]
   (-> html
+      (versioned (or versions {}))
       (str/replace #"(href|src)=\"/" (str "$1=\"" (Matcher/quoteReplacement root)))
       (str/replace "<html " (str "<html " wire/root-attribute "=\"" root "\" "
                                  (when missing? (str wire/missing-attribute " "))))))
@@ -262,18 +279,40 @@
     (live/socket (partial read-told blog) request page)
     not-found))
 
+;; A file beside a text is sent when the text shows or links to it, which is when it is
+;; published. One that it does not name is not found here either.
 (defn- serve-media [{:keys [blog]} {:keys [folder file]} _request]
-  (if-some [dir (source/find-dir blog folder)]
-    (serve-file (fs/path dir file))
-    not-found))
+  (let [shown (without-throwing #(source/read-shown-text blog folder))]
+    (if (and (:folder shown) (contains? (source/files-of blog shown) file))
+      (serve-file (fs/path (source/find-media-dir blog folder) file))
+      not-found)))
 
 (defn- serve-static [{:keys [app]} {:keys [file]} _request]
   (serve-file (fs/path app file)))
 
+(defn- read-version
+  "The version of the file at `path`: the start of a digest of what it holds."
+  [path]
+  (let [digest (.digest (MessageDigest/getInstance "SHA-256") (fs/read-all-bytes path))]
+    (subs (format "%064x" (BigInteger. 1 digest)) 0 12)))
+
+;; The versions are read for each page that is sent, which takes a millisecond or two. A
+;; preview then names a script that was built again by what it holds now.
+(defn- read-versions
+  "The version of each file of the app in the directory `app` but its page, by the name of
+   the file from there, with a slash between its parts."
+  [app]
+  (into {}
+        (for [path  (fs/glob app "**")
+              :let  [file (fs/unixify (fs/relativize app path))]
+              :when (and (fs/regular-file? path) (not= wire/index file))]
+          [file (read-version path)])))
+
 (defn- read-document
   "The response that sends the page of the app, for what is served."
   [{:keys [app blog]} missing?]
-  (fresh "html" (document (slurp (fs/file app wire/index)) (:root blog) missing?)))
+  (fresh "html" (document (slurp (fs/file app wire/index))
+                          {:root (:root blog) :missing? missing? :versions (read-versions app)})))
 
 (defn- serve-page [served _found _request]
   (read-document served false))

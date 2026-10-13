@@ -70,6 +70,18 @@
         (is (= 2 (count problems)))
         (is (re-find #"Bad Name" (first problems)))
         (is (re-find #"a/b" (second problems)))))
+    (testing "a file that a text shows or links to and that is not beside it is what is wrong too"
+      (example/with-copy {}
+        (fn [dir]
+          (spit (fs/file dir "posts" "hello-bareblog" "post.md")
+                "# Hello\n\n![A photo](gone.jpg) and [notes](notes.txt), [elsewhere](https://example.com/a.pdf).\n")
+          (spit (fs/file dir "posts" "hello-bareblog" "notes.txt") "notes")
+          (let [missing "posts/hello-bareblog names gone.jpg, and there is no such file beside it."]
+            (is (= [missing] (:problems (source/read-site (source/preview dir)))))
+            (is (= [missing] (source/read-problems (assoc (source/preview dir) :read #{"hello-bareblog"}))))))))
+    (testing "the files of a text as a page shows it are those it shows or links to"
+      (is (= #{"harbour.svg"}
+             (source/files-of blog (source/read-shown-text blog "a-week-in-lisbon")))))
     (testing "a blog that is served without its drafts has none in its list, and no page for one"
       (let [published (assoc blog :preview? false)]
         (is (some :draft? (:posts (source/read-site blog))))

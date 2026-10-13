@@ -95,13 +95,17 @@
   (let [html "<html lang=\"en\" data-loading>\n<link href=\"/app.css\">\n<script src=\"/js/app.js\"></script>"]
     (testing "the page of the app names its files from the top of the blog, and says where that is"
       (is (= "<html data-root=\"/my-blog/\" lang=\"en\" data-loading>\n<link href=\"/my-blog/app.css\">\n<script src=\"/my-blog/js/app.js\"></script>"
-             (serve/document html "/my-blog/" false))))
+             (serve/document html {:root "/my-blog/"}))))
     (testing "at the top of a host it is as it was, but for where the top is"
-      (is (= (str/replace html "<html " "<html data-root=\"/\" ") (serve/document html "/" false))))
+      (is (= (str/replace html "<html " "<html data-root=\"/\" ") (serve/document html {:root "/"}))))
+    (testing "a file of the app is named with its version, and what has none is named as it was"
+      (is (= (str "<html data-root=\"/my-blog/\" lang=\"en\" data-loading>\n<link href=\"/my-blog/app.css\">\n"
+                  "<script src=\"/my-blog/js/app.js?v=abc\"></script>")
+             (serve/document html {:root "/my-blog/" :versions {"js/app.js" "abc" "blog.css" "def"}}))))
     (testing "the page for an address with no page says that it is that"
-      (is (str/starts-with? (serve/document html "/" true) "<html data-root=\"/\" data-not-found lang")))
+      (is (str/starts-with? (serve/document html {:root "/" :missing? true}) "<html data-root=\"/\" data-not-found lang")))
     (testing "the page of the app itself is one that this can be done to"
-      (let [page (serve/document (slurp "resources/public/index.html") "/my-blog/" false)]
+      (let [page (serve/document (slurp "resources/public/index.html") {:root "/my-blog/"})]
         (is (str/includes? page "data-root=\"/my-blog/\""))
         (is (str/includes? page "src=\"/my-blog/js/app.js\""))
         (is (str/includes? page "href=\"/my-blog/feed.xml\""))
@@ -156,9 +160,25 @@
         (testing "a file of the app is sent from that directory"
           (is (= "the styles" (slurp (:body (served (source/preview dir) "/app.css")))))
           (is (= "the script" (slurp (:body (served under "/my-blog/js/app.js"))))))
-        (testing "the page of the app is the one in that directory, for the top of the blog"
-          (is (= "<html data-root=\"/my-blog/\" lang=\"en\"><link href=\"/my-blog/app.css\">"
-                 (:body (served under "/my-blog/archive/")))))
+        (testing "the page of the app is the one in that directory, for the top of the blog, and
+                  names each file with a version that is the same until the file changes"
+          (let [page    (:body (served under "/my-blog/archive/"))
+                version (second (re-find #"app\.css\?v=([0-9a-f]{12})\"" page))]
+            (is (some? version))
+            (is (= (str "<html data-root=\"/my-blog/\" lang=\"en\"><link href=\"/my-blog/app.css?v=" version "\">")
+                   page))
+            (is (= page (:body (served under "/my-blog/archive/"))))
+            (spit (fs/file (fs/parent app) "app.css") "other styles")
+            (is (not= page (:body (served under "/my-blog/archive/"))))
+            (spit (fs/file (fs/parent app) "app.css") "the styles")))
+        (testing "a file in a folder of the app has a version too, under its name from the top"
+          (spit (fs/file (fs/parent app) "index.html") "<html lang=\"en\"><script src=\"/js/app.js\">")
+          (is (re-find #"src=\"/my-blog/js/app\.js\?v=[0-9a-f]{12}\"" (:body (served under "/my-blog/archive/"))))
+          (spit (fs/file (fs/parent app) "index.html") "<html lang=\"en\"><link href=\"/app.css\">"))
+        (testing "a file is sent whatever version it is asked for with"
+          (is (= "the styles"
+                 (slurp (:body (serve/handler {:blog under :app (fs/parent app)}
+                                              {:uri "/my-blog/app.css" :query-string "v=abc"}))))))
         (testing "a file that is not in it is not found"
           (is (= 404 (:status (served (source/preview dir) "/other.css")))))))))
 
@@ -166,3 +186,19 @@
   (testing "the files of the app are in BareBlog, wherever that is"
     (is (= "/somewhere/bareblog/resources/public" (str (serve/app-dir "/somewhere/bareblog"))))
     (is (fs/regular-file? (fs/path (serve/app-dir ".") "index.html")))))
+
+;; The preview sends of the files beside a text what a publish copies of them.
+(deftest media-test
+  (example/with-copy {}
+    (fn [dir]
+      (let [blog   (source/preview dir)
+            served (fn [path] (serve/handler {:blog blog :app "resources/public"} {:uri path}))]
+        (spit (fs/file dir "posts" "a-week-in-lisbon" "post.md~") "what an editor left")
+        (spit (fs/file dir "posts" "a-week-in-lisbon" "unused.svg") "<svg/>")
+        (testing "a file that the text shows is sent"
+          (is (= 200 (:status (served "/a-week-in-lisbon/harbour.svg")))))
+        (testing "a file beside the text that it does not name is not found, as when it is published"
+          (is (= 404 (:status (served "/a-week-in-lisbon/unused.svg"))))
+          (is (= 404 (:status (served "/a-week-in-lisbon/post.md~")))))
+        (testing "a file of a folder that is not there is not found"
+          (is (= 404 (:status (served "/no-such-post/harbour.svg")))))))))

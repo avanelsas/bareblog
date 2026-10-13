@@ -114,12 +114,35 @@
   [x]
   (and (map? x) (contains? x :src)))
 
+(def ^:private names-a-file
+  "The keys under which a thing in a post holds an address."
+  [:src :href])
+
+(defn- addresses
+  "Every address that a thing in `post` holds under one of the keys `ks`."
+  [post ks]
+  (sequence (comp (filter map?) (mapcat (apply juxt ks)) (filter string?))
+            (tree-seq coll? seq (:blocks post))))
+
 (defn sources
-  "The addresses in `post` that name a file beside it, as a set."
+  "The addresses in `post` of the files beside it that it shows, as they are written and as a
+   set."
   [post]
-  (into #{}
-        (comp (filter shows-file?) (map :src) (filter file-beside))
-        (tree-seq coll? seq (:blocks post))))
+  (into #{} (filter file-beside) (addresses post [:src])))
+
+;; What is published of the files beside a text is what the text shows or links to. A file
+;; that it does not name, as a backup that an editor left, stays where it is. A text that was
+;; published is only there as it was placed, so its files are found in that one too.
+(defn files
+  "The names of the files beside `post` that it shows or links to, as a set. With `at`, the
+   post is one that was placed under that address."
+  ([post]
+   (files post ""))
+  ([post at]
+   (into #{}
+         (comp (filter #(str/starts-with? % at))
+               (keep #(file-beside (subs % (count at)))))
+         (addresses post names-a-file))))
 
 (defn- with-size [sizes x]
   (if (shows-file? x)
@@ -131,10 +154,6 @@
    them under its address."
   [post sizes]
   (update post :blocks (partial walk/postwalk (partial with-size sizes))))
-
-(def ^:private names-a-file
-  "The keys under which a thing in a post holds an address."
-  [:src :href])
 
 (defn- placed-at
   "The address under `k` in `x` as the address of the file it names under `at`, when it names
