@@ -84,3 +84,23 @@
   (doseq [path (concat (fs/glob "src" "**.{clj,cljc,cljs}") (fs/glob "test" "**.{clj,cljc}"))
           [_ required alias] (re-seq #"\[(bareblog\.[\w.-]+) :as ([\w-]+)\]" (slurp (str path)))]
     (is (= (last (str/split required #"\.")) alias) (str path))))
+
+;; The tests, the app and the saver each take BareDOM from a file of their own. They are the
+;; same release.
+(def ^:private version-places
+  "Where BareDOM's version is named, and what finds it there."
+  {"bb.edn"          #"com\.github\.avanelsas/baredom \{:mvn/version \"([^\"]+)\"\}"
+   "shadow-cljs.edn" #"\[com\.github\.avanelsas/baredom \"([^\"]+)\"\]"
+   "package.json"    #"\"@vanelsas/baredom\": \"([^\"]+)\""})
+
+(defn- read-versions
+  "BareDOM's version in each place that names it, by the name of the file."
+  []
+  (into {} (map (fn [[file pattern]] [file (second (re-find pattern (slurp file)))])) version-places))
+
+(deftest every-place-names-the-same-release-of-baredom
+  (let [versions (read-versions)]
+    (is (every? some? (vals versions)) (str "A place names no version: " versions))
+    (is (= 1 (count (set (vals versions)))) (str "The places name different versions: " versions))
+    (is (every? #(re-matches #"\d+\.\d+\.\d+" (str %)) (vals versions))
+        (str "A place names a range, not one version: " versions))))
