@@ -1,6 +1,7 @@
 (ns bareblog.preview.serve-test
   (:require [babashka.fs :as fs]
             [bareblog.blog.address :as address]
+            [bareblog.blog.site :as site]
             [bareblog.blog.text :as text]
             [bareblog.blog.wire :as wire]
             [bareblog.example :as example]
@@ -204,3 +205,49 @@
           (is (= 404 (:status (served "/a-week-in-lisbon/post.md~")))))
         (testing "a file of a folder that is not there is not found"
           (is (= 404 (:status (served "/no-such-post/harbour.svg")))))))))
+
+;; A publish serves its blog as it read it once, and every page that is saved asks for the
+;; site and for its own data. Each test changes the files after the blog was read, so that
+;; what is held and what is read again differ.
+(defn- held
+  "What the handler sends for the file `file` of `blog`, served with `kept` put over what is
+   served: a site under `:site`, or data of pages under `:told`."
+  [blog kept file]
+  (:body (serve/handler (merge {:blog blog :app "resources/public"} kept) {:uri (str (:root blog) file)})))
+
+(deftest kept-site-test
+  (example/with-copy {}
+    (fn [dir]
+      (let [dates  {"hello-bareblog" "2026-02-01T09:00:00+01:00" "why-web-components" "2026-01-01T09:00:00+01:00"}
+            blog   (assoc (source/published dir (source/read-settings dir)) :dates dates)
+            kept   {:site (source/read-site blog)}
+            titles (fn [kept] (map :title (:posts (edn/read-string (held blog kept "site.edn")))))]
+        (spit (fs/file dir "posts" "hello-bareblog" "post.md") "# Written since\n\nText.\n")
+        (testing "the site that is held is sent, as its readers load it, and the files are not read"
+          (is (= (site/published (:site kept)) (edn/read-string (held blog kept "site.edn"))))
+          (is (some #{"Hello bareblog"} (titles kept)))
+          (is (not-any? #{"Written since"} (titles kept))))
+        (testing "the feed is made of it too, and of the files without it"
+          (is (str/includes? (held blog kept "feed.xml") "Hello bareblog"))
+          (is (not (str/includes? (held blog kept "feed.xml") "Written since")))
+          (is (str/includes? (held blog {} "feed.xml") "Written since")))
+        (testing "without one, the files are read for each request"
+          (is (some #{"Written since"} (titles {}))))))))
+
+(deftest kept-site-of-a-page-test
+  (example/with-copy {:template :notebook}
+    (fn [dir]
+      (let [blog  (source/published dir (source/read-settings dir))
+            dates (zipmap ["a-week-in-lisbon" "every-kind" "hello-bareblog" "why-web-components"]
+                          (map #(str "2026-01-0" % "T09:00:00+01:00") [1 2 3 4]))
+            older (assoc blog :dates (assoc dates "hello-bareblog" "2026-02-01T09:00:00+01:00"))
+            newer (assoc blog :dates (assoc dates "why-web-components" "2026-03-01T09:00:00+01:00"))
+            shown (fn [served-blog kept] (get-in (edn/read-string (held served-blog kept "page.edn")) [:text :folder]))]
+        (testing "a home page that shows the newest post finds it in the site that is held"
+          (is (= "hello-bareblog" (shown newer {:site (source/read-site older)})))
+          (is (= "why-web-components" (shown newer {}))))
+        (testing "the data of a page that is held is sent as it is"
+          (is (= {:page {:kind :home :number 1} :text {:folder "kept"}}
+                 (edn/read-string (held blog {:told {{:kind :home :number 1} {:page {:kind :home :number 1}
+                                                                             :text {:folder "kept"}}}}
+                                        "page.edn")))))))))

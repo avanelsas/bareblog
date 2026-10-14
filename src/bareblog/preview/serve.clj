@@ -2,8 +2,10 @@
   "A local server for one blog: the app, and each post as data.
 
    What is served is a map: under `:blog` how the blog is read, as `bareblog.read.source` reads
-   it, and under `:app` the directory of the files of the app. A blog that is read for its
-   author has its pages told of every change, and of what is wrong with it."
+   it, and under `:app` the directory of the files of the app. A blog that does not change
+   while it is served may be served as it was read: its site under `:site`, and the data of
+   its pages by the page under `:told`. Neither is then read again. A blog that is read for its author has its pages told of every change, and of
+   what is wrong with it."
   (:require [babashka.fs :as fs]
             [bareblog.blog.address :as address]
             [bareblog.blog.site :as site]
@@ -253,25 +255,34 @@
           (map (fn [page] [page (site/told site (or (read-shown blog page site) (gone page)))]))
           pages)))
 
-(defn- read-loaded
-  "The site of `blog` as a page fetches it: for its author with what is wrong with it, and for
-   its readers without. It does not throw."
-  [{:keys [preview?] :as blog}]
-  (cond-> (without-throwing #(source/read-site blog))
+;; A publish serves a blog to save its pages, and every page that is saved asks for the site
+;; and for its own data. The blog does not change while that goes on, so what was read is
+;; kept. A preview reads both for each page, since its files change.
+(defn- read-served-site
+  "The site of what `served` says is served: the one it holds, or else the one read now. It
+   does not throw."
+  [{:keys [blog site]}]
+  (or site (without-throwing #(source/read-site blog))))
+
+(defn- loaded
+  "The site `site` as a page fetches it: with what is wrong with it for an author, when
+   `preview?`, and without for its readers."
+  [preview? site]
+  (cond-> site
     (not preview?) site/published))
 
-(defn- serve-site [{:keys [blog]} _found _request]
-  (fresh "edn" (pr-str (read-loaded blog))))
+(defn- serve-site [{:keys [blog] :as served} _found _request]
+  (fresh "edn" (pr-str (loaded (:preview? blog) (read-served-site served)))))
 
-(defn- serve-feed [{{:keys [root] :as blog} :blog} _found _request]
-  (let [site (without-throwing #(source/read-site blog))]
+(defn- serve-feed [{{:keys [root]} :blog :as served} _found _request]
+  (let [site (read-served-site served)]
     (if (:problem site)
       not-found
       (fresh "xml" (feed/atom-feed root site)))))
 
-(defn- serve-data [{:keys [blog]} {:keys [page]} _request]
-  (if-some [told (read-shown blog page nil)]
-    (fresh "edn" (pr-str told))
+(defn- serve-data [{:keys [blog site told]} {:keys [page]} _request]
+  (if-some [data (or (get told page) (read-shown blog page site))]
+    (fresh "edn" (pr-str data))
     not-found))
 
 (defn- serve-changes [{:keys [blog]} {:keys [page]} request]

@@ -184,14 +184,14 @@
    pages are saved from a server that runs for as long as this takes."
   [{:keys [say app] :as how} {:keys [root] :as blog} out]
   (let [site   (source/read-site blog)
-        server (http/run-server (partial serve/handler {:blog blog :app app})
+        pages  (output/pages site)
+        told   (into {} (map (juxt identity #(source/read-page blog % site))) pages)
+        server (http/run-server (partial serve/handler {:blog blog :app app :site site :told told})
                                 {:port 0 :legacy-return-value? false})
         origin (str "http://localhost:" (http/server-port server))]
     (try
       (run! say (:problems site))
-      (let [pages (output/pages site)
-            told  (into {} (map (juxt identity #(source/read-page blog % site))) pages)
-            files (save-pages! how blog origin out pages told)]
+      (let [files (save-pages! how blog origin out pages told)]
         (doseq [[file text] (output/texts root site)]
           (write-text! out file text))
         (copy-app! app out)
