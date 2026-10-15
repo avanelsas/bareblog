@@ -16,6 +16,7 @@
             [baredom.exports.x-command-palette :as x-command-palette]
             [baredom.exports.x-container :as x-container]
             [baredom.exports.x-drawer :as x-drawer]
+            [baredom.exports.x-gaussian-blur :as x-gaussian-blur]
             [baredom.exports.x-image :as x-image]
             [baredom.exports.x-navbar :as x-navbar]
             [baredom.exports.x-pagination :as x-pagination]
@@ -37,6 +38,7 @@
    "x-command-palette" x-command-palette/init
    "x-container"    x-container/init
    "x-drawer"       x-drawer/init
+   "x-gaussian-blur" x-gaussian-blur/init
    "x-image"        x-image/init
    "x-navbar"       x-navbar/init
    "x-pagination"   x-pagination/init
