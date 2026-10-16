@@ -192,3 +192,25 @@
             (is (= ["about"] (map :folder (:pages site))))
             (is (some #(re-find #"pages/hello-bareblog is left out" %) (:problems site)))
             (is (= :post (get-in (source/read-page blog {:kind :post :folder "hello-bareblog"}) [:page :kind])))))))))
+
+;; A folder is made before its text is saved, and the rest of the blog is read meanwhile.
+(deftest folder-without-text-test
+  (example/with-copy {}
+    (fn [dir]
+      (let [blog   (source/preview dir)
+            before (source/read-site blog)]
+        (fs/create-dirs (fs/path dir "posts" "new-idea"))
+        (fs/create-dirs (fs/path dir "drafts" "half-thought"))
+        (fs/create-dirs (fs/path dir "posts" "about"))
+        (let [site (source/read-site blog)]
+          (testing "the rest of the blog is read as it was"
+            (is (= (map :folder (:posts before)) (map :folder (:posts site)))))
+          (testing "the author is told of each folder that has no text"
+            (is (some #{"posts/new-idea is left out. It has no post.md."} (:problems site)))
+            (is (some #{"drafts/half-thought is left out. It has no post.md."} (:problems site))))
+          (testing "it is no post, and does not hide the page of its name"
+            (is (not-any? #{"new-idea"} (:posts (source/list-folders blog))))
+            (is (= ["about"] (map :folder (:pages site))))
+            (is (= :standalone (get-in (source/read-page blog {:kind :post :folder "about"}) [:page :kind]))))
+          (testing "its page is that of a folder that is not there"
+            (is (nil? (source/read-page blog {:kind :post :folder "new-idea"})))))))))

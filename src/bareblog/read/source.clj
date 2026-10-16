@@ -62,11 +62,11 @@
 
 (defn- find-source
   "Where the folder `folder` of `blog` is: its directory under `:dir`, and the directory that
-   it is in under `:in`. Nil when there is none."
+   it is in under `:in`. Nil when there is none, or when it holds no text."
   [{:keys [dir] :as blog} folder]
   (first (for [in    (read-dirs blog)
                :let  [path (fs/path dir in folder)]
-               :when (fs/directory? path)]
+               :when (fs/regular-file? (fs/path path (layout/text-file in)))]
            {:folder folder :dir path :in in})))
 
 (defn find-dir
@@ -159,11 +159,11 @@
   (text/folder? folder))
 
 ;; A post and a page of the same name would have the same address. The post is the one that
-;; is shown, and the author is told.
+;; is shown, and the author is told. A folder of the posts with no text is no post.
 (defn- with-shadows
   "The directories `dirs`, each page with the name of a post marked as shadowed."
   [dirs]
-  (let [posts (into #{} (comp (remove standalone?) (map :folder)) dirs)]
+  (let [posts (into #{} (comp (remove standalone?) (filter :text?) (map :folder)) dirs)]
     (map (fn [source]
            (cond-> source
              (and (standalone? source) (contains? posts (:folder source))) (assoc :shadowed? true)))
@@ -171,19 +171,20 @@
 
 (defn- list-dirs
   "Every directory in the directories that `blog` reads, with its name, its place from the top
-   of the blog, the directory that it is in, whether it is a draft, and whether it is a page
-   with the name of a post."
+   of the blog, the directory that it is in, whether it is a draft, whether its text is there,
+   and whether it is a page with the name of a post."
   [{:keys [dir] :as blog}]
   (with-shadows
     (for [in    (read-dirs blog)
           path  (when (fs/directory? (fs/path dir in)) (sort (fs/list-dir (fs/path dir in))))
           :when (fs/directory? path)]
       {:folder (fs/file-name path) :dir path :in in :place (str in "/" (fs/file-name path))
-       :draft? (= in layout/drafts-dir)})))
+       :draft? (= in layout/drafts-dir)
+       :text?  (fs/regular-file? (fs/path path (layout/text-file in)))})))
 
 (def ^:private usable?
   "True when a directory can be read as a post or a page."
-  (every-pred named-well? (complement :shadowed?)))
+  (every-pred named-well? :text? (complement :shadowed?)))
 
 (defn list-folders
   "The folders of `blog` that can be read, as a set under `:posts` and one under `:pages`."
@@ -200,10 +201,14 @@
 (defn- shadowed-problem [{:keys [place folder]}]
   (str place " is left out. There is a post " folder " too, and both would have the same address."))
 
+(defn- textless-problem [{:keys [place in]}]
+  (str place " is left out. It has no " (layout/text-file in) "."))
+
 (defn- folder-problems
   "What is wrong with the directories `dirs` themselves, as texts."
   [dirs]
   (concat (map refused (remove named-well? dirs))
+          (map textless-problem (filter (every-pred named-well? (complement :text?)) dirs))
           (map shadowed-problem (filter :shadowed? dirs))))
 
 (defn- unpublished

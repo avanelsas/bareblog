@@ -335,10 +335,11 @@
             (is (fs/exists? (fs/path dir "drafts" "bad-tag" "post.md")))
             (is (not (fs/exists? (fs/path dir "posts" "bad-tag"))))
             (is (not-any? #{"bad-tag"} (folders dir)))))
-        (testing "a draft that cannot be read at all is moved back too"
+        (testing "a draft with no text is no post, and is not moved"
           (fs/create-dirs (fs/path dir "drafts" "no-text"))
-          (let [{:keys [outcome]} (publish! repo {:folder "no-text"} true)]
-            (is (= :failed outcome))
+          (let [{:keys [outcome why]} (publish! repo {:folder "no-text"} true)]
+            (is (= :refused outcome))
+            (is (re-find #"its page\.md or post\.md is in it" why))
             (is (fs/directory? (fs/path dir "drafts" "no-text")))
             (is (not (fs/exists? (fs/path dir "posts" "no-text"))))))
         (testing "a directory that is no repository of its own is refused, and nothing is written"

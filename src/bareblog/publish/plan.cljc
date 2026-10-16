@@ -83,7 +83,8 @@
 
     (= :unknown what)
     (str "There is nothing named " folder " in " (str/join ", " layout/written-dirs)
-         ", and nothing of that name was published.")))
+         ", and nothing of that name was published. A folder counts when its "
+         (str/join " or " (sort layout/text-files)) " is in it.")))
 
 (defn one
   "The plan for publishing the post or the page in `folder`, for the site `published` as it

@@ -38,12 +38,14 @@
 (defn- draft-dir [dir folder]
   (fs/path dir layout/drafts-dir folder))
 
+;; A folder without its text is no post, as it is when the blog is read.
 (defn- find-where
   "Where the folder `folder` is in the blog in the directory `dir`."
   [dir folder]
-  {:in-posts?  (fs/directory? (post-dir dir folder))
-   :in-drafts? (fs/directory? (draft-dir dir folder))
-   :in-pages?  (fs/directory? (fs/path dir layout/pages-dir folder))})
+  (let [there? (fn [in] (fs/regular-file? (fs/path dir in folder (layout/text-file in))))]
+    {:in-posts?  (there? layout/posts-dir)
+     :in-drafts? (there? layout/drafts-dir)
+     :in-pages?  (there? layout/pages-dir)}))
 
 (defn- reading
   "How the blog in the directory `dir` is read for the plan `plan`, with the settings
