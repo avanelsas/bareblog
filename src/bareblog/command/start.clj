@@ -43,6 +43,11 @@
              ""
              " ;; Where the blog is published. Every link of a published page starts there."
              (str " ;; :address " (pr-str output/example-address))
+             ""
+             " ;; The picture that a chat shows with a link to a page that has none of its own: a"
+             " ;; PNG, JPEG or GIF beside this file. A square one of 400x400 is shown small beside"
+             " ;; the text, a wide one of 1200x630 beneath it."
+             " ;; :link-preview \"link-preview.jpg\""
              " }"
              ""]))
 

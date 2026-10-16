@@ -367,6 +367,30 @@
           (is (re-find #"could not push" (last said)))
           (is (re-find #"git push" (last said))))))))
 
+(deftest link-preview-test
+  (with-repo
+    (fn [{:keys [dir] :as repo}]
+      (let [settings (fs/file dir "blog.edn")]
+        (spit settings (pr-str (assoc (edn/read-string (slurp settings)) :link-preview "link-preview.gif")))
+        (example/write-gif! dir "link-preview.gif" 400 400))
+      (testing "the whole blog publishes the link preview at its top, and commits it beside the settings"
+        (is (= :published (:outcome (publish! repo {:all? true} true))))
+        (is (fs/regular-file? (fs/path dir "docs" "link-preview.gif")))
+        (is (every? (:paths (committed dir)) ["blog.edn" "link-preview.gif" "docs/link-preview.gif"]))
+        (is (clean? dir)))
+      (testing "the site that every page loads names it, with its size"
+        (is (= {:src "link-preview.gif" :width 400 :height 400} (:link-picture (site dir)))))
+      (example/write-gif! dir "link-preview.gif" 800 400)
+      (testing "one post keeps the link preview as it was published, and the author is told of the new one"
+        (let [{:keys [outcome said]} (publish! repo {:folder "hello-bareblog"} true)]
+          (is (= :unchanged outcome))
+          (is (some #{"link-preview.gif is not as it was published. Publish it with: bareblog publish --all"} said))
+          (is (= 400 (:width (:link-picture (site dir)))))))
+      (testing "the whole blog publishes the new one"
+        (is (= :published (:outcome (publish! repo {:all? true} true))))
+        (is (= 800 (:width (:link-picture (site dir)))))
+        (is (clean? dir))))))
+
 (deftest commit-fails-test
   (with-repo
     (fn [{:keys [dir] :as repo}]

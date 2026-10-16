@@ -3,7 +3,8 @@
 
    The view of a page is what its blog template is given: for each node its `:item`, and for
    each of its lists the keys of the rows in `:order` and what each row is given in `:by-key`."
-  (:require [bareblog.app.templates :as templates]
+  (:require [bareblog.app.card :as card]
+            [bareblog.app.templates :as templates]
             [bareblog.blog.address :as address]
             [bareblog.blog.shape :as shape]
             [bareblog.blog.site :as site]
@@ -360,7 +361,7 @@
   "What the page that `told` describes shows of the blog in `site`, whose top is at `root`,
    for what is local to the page in `local`: what the reader chose, a `:query`, a `:tag` and a
    `:preset`, whether the menu and the palette are open, and what the page knows of its
-   keyboard. The result names the blog template, the language and the title of the
+   keyboard. The result names the blog template, the language, the title and the card of the
    document, and holds what the template is given: an item, the page, and each other list that
    the template asks for."
   [root {:keys [blog] :as site} {shown :text what :page} local]
@@ -374,6 +375,7 @@
     {:template (shape/template-name blog)
      :language (:language blog site/default-language)
      :title    (document-title ((:title template) named) (:title blog))
+     :card     (when-not (= :not-found (:kind named)) (card/card told))
      :item     (item told)
      :lists    (into {:main (rows [[key node]])}
                      (map (juxt identity (partial list-rows told)))

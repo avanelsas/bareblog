@@ -6,6 +6,16 @@
 
 (def dir "example")
 
+(defn- little-end [n]
+  [(bit-and n 0xff) (bit-shift-right n 8)])
+
+(defn write-gif!
+  "Writes the start of a GIF of `width` by `height` pixels, which is all that is read of its
+   size, as the file `file-name` in the directory `target`."
+  [target file-name width height]
+  (fs/write-bytes (fs/path target file-name)
+                  (byte-array (map unchecked-byte (concat (map int "GIF89a") (little-end width) (little-end height))))))
+
 (defn- copy-to!
   "Copies what an author wrote of the example blog into the directory `target`, with
    `settings` put over its settings."

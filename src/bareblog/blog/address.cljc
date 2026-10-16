@@ -36,6 +36,12 @@
      :host   host
      :root   (if path (with-slash path) top)}))
 
+(defn picture?
+  "True when the address `source` names a PNG, a JPEG or a GIF, the pictures that a site which
+   shows a link can show."
+  [source]
+  (boolean (and (string? source) (re-find #"(?i)\.(png|jpe?g|gif)$" source))))
+
 (defn encoded
   "The text `text` as one name of an address."
   [text]

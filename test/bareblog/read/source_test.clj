@@ -193,6 +193,51 @@
             (is (some #(re-find #"pages/hello-bareblog is left out" %) (:problems site)))
             (is (= :post (get-in (source/read-page blog {:kind :post :folder "hello-bareblog"}) [:page :kind])))))))))
 
+(deftest link-preview-test
+  (let [read-with (fn [link-preview prepare!]
+                    (example/with-copy {:link-preview link-preview}
+                      (fn [dir]
+                        (prepare! dir)
+                        (let [site (source/read-site (source/preview dir))]
+                          {:link-picture (:link-picture site)
+                           :problems     (filter #(str/includes? % ":link-preview") (:problems site))}))))
+        beside    (fn [file-name] (fn [dir] (example/write-gif! dir file-name 400 400)))
+        nothing   (fn [_dir])]
+    (testing "a link preview beside the settings is read as the link picture, with its size, and nothing is wrong"
+      (is (= {:link-picture {:src "link-preview.gif" :width 400 :height 400} :problems []}
+             (update (read-with "link-preview.gif" (beside "link-preview.gif")) :problems vec))))
+    (testing "a picture that is not there is named, and the blog has none"
+      (let [{:keys [link-picture problems]} (read-with "link-preview.jpg" nothing)]
+        (is (nil? link-picture))
+        (is (= ["blog.edn names \"link-preview.jpg\" as its :link-preview, and there is no such file beside blog.edn."]
+               problems))))
+    (testing "a file that is no PNG, JPEG or GIF, or not beside the settings, is named too"
+      (is (re-find #"which is no name of a PNG, JPEG or GIF beside blog.edn"
+                   (first (:problems (read-with "link-preview.svg" (beside "link-preview.svg"))))))
+      (is (re-find #"which is no name of a PNG, JPEG or GIF beside blog.edn"
+                   (first (:problems (read-with "pages/about/x.gif" nothing))))))
+    (testing "a blog that names no picture is told nothing of it"
+      (is (= {:link-picture nil :problems []} (update (read-with nil nothing) :problems vec))))))
+
+(deftest changed-link-preview-test
+  (example/with-copy {}
+    (fn [dir]
+      (let [settings {:link-preview "link-preview.gif"}
+            changed  #(source/find-changed-link-preview dir settings)]
+        (testing "a link preview with nothing published of it yet is changed"
+          (example/write-gif! dir "link-preview.gif" 400 400)
+          (is (= "link-preview.gif" (changed))))
+        (testing "one that is as it was published is not"
+          (fs/create-dirs (fs/path dir "docs"))
+          (example/write-gif! (fs/path dir "docs") "link-preview.gif" 400 400)
+          (is (nil? (changed))))
+        (testing "one that differs from what was published is"
+          (example/write-gif! dir "link-preview.gif" 800 400)
+          (is (= "link-preview.gif" (changed))))
+        (testing "settings that name none, or a picture that is not there, have no changed one"
+          (is (nil? (source/find-changed-link-preview dir {})))
+          (is (nil? (source/find-changed-link-preview dir {:link-preview "gone.gif"}))))))))
+
 ;; A folder is made before its text is saved, and the rest of the blog is read meanwhile.
 (deftest folder-without-text-test
   (example/with-copy {}

@@ -233,7 +233,15 @@
 (deftest not-found-test
   (testing "a page of no known kind is not found, and links home"
     (is (= ["not-found" {:item {:home "/"}}] (shown {:page {:kind :not-found}})))
-    (is (= "Not found · Bare notes" (:title (view/page "/" site {:page {:kind :not-found}} {}))))))
+    (is (= "Not found · Bare notes" (:title (view/page "/" site {:page {:kind :not-found}} {})))))
+  (testing "a page that is not there has no card, and one that is has"
+    (is (nil? (:card (view/page "/" site {:page {:kind :not-found}} {}))))
+    (is (nil? (:card (view/page "/" site {:page {:kind :post :folder "gone"}} {}))))
+    (is (= {:title "Bare notes" :kind :website :site-name "Bare notes"}
+           (:card (view/page "/" site {:page {:kind :home :number 1}} {}))))
+    (is (= {:title "Third" :kind :article}
+           (select-keys (:card (view/page "/" site {:page {:kind :post :folder "c"} :text {:folder "c" :title "Third"}} {}))
+                        [:title :kind])))))
 
 (def notebook (assoc-in site [:blog :template] :notebook))
 

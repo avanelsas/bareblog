@@ -9,8 +9,9 @@
    A blog that is read for its readers may say more. `:settings` are its settings, in place of
    the file. `:read` is the set of folders that are read, of posts and of pages, where it is
    not all of them. `:as-published` is the set of those that are taken as they were published
-   last, from the output directory, and not read. `:dates` gives the date of each post and
-   page, which is the moment it was first published."
+   last, from the output directory, and not read. `:settings-as-published?` says that its
+   settings are those that were published, with their link preview. `:dates` gives the date of
+   each post and page, which is the moment it was first published."
   (:require [babashka.fs :as fs]
             [bareblog.blog.address :as address]
             [bareblog.blog.shape :as shape]
@@ -228,6 +229,50 @@
         :when     (not (fs/regular-file? (fs/path dir file-name)))]
     (str place " names " file-name ", and there is no such file beside it.")))
 
+;; The link preview is a picture beside the settings, which name it under `:link-preview`. What
+;; is read of it is the link picture: its name and its size. A blog whose settings are taken as
+;; they were published takes its link preview from where it was published too.
+(defn link-preview-dir
+  "The directory that holds the link preview of `blog`."
+  [{:keys [dir settings-as-published?]}]
+  (if settings-as-published? (fs/path dir layout/output-dir) (fs/path dir)))
+
+(defn- find-link-preview-file
+  "The file of the link preview that the settings `settings` name, in the directory `in`, or
+   nil."
+  [in {:keys [link-preview]}]
+  (when (text/link-preview-name? link-preview)
+    (let [path (fs/path in link-preview)]
+      (when (fs/regular-file? path)
+        path))))
+
+(defn- read-link-picture
+  "The link picture of `blog` with the settings `settings`: the name of its link preview under
+   `:src`, with its size when it has one. Nil when it has none."
+  [blog settings]
+  (when-some [path (find-link-preview-file (link-preview-dir blog) settings)]
+    (merge {:src (:link-preview settings)} (read-size path))))
+
+(defn find-changed-link-preview
+  "The name of the link preview that the settings `settings` of the blog in `dir` name, when
+   the picture beside them is not the one that was published, or nil."
+  [dir settings]
+  (when-some [written (find-link-preview-file dir settings)]
+    (let [published (find-link-preview-file (fs/path dir layout/output-dir) settings)]
+      (when-not (and published (java.util.Arrays/equals (fs/read-all-bytes written) (fs/read-all-bytes published)))
+        (:link-preview settings)))))
+
+(defn- link-preview-problem
+  "What is wrong with the link preview that `settings` name, when `link-picture` is what was
+   read of it, as a text, or nil."
+  [{:keys [link-preview]} link-picture]
+  (when (and (some? link-preview) (nil? link-picture))
+    (str layout/settings-file " names " (pr-str link-preview) " as its :link-preview, "
+         (if (text/link-preview-name? link-preview)
+           "and there is no such file beside "
+           "which is no name of a PNG, JPEG or GIF beside ")
+         layout/settings-file ".")))
+
 (defn- read-entry
   "The entry of the post or the page of `blog` in `source`, with whether it is a page, and
    what is wrong with it."
@@ -268,14 +313,18 @@
 (defn read-site
   "What every page of `blog` loads, with what is wrong with the blog."
   [blog]
-  (let [blog (with-published blog)
-        dirs (list-dirs blog)
-        read (read-entries blog dirs)
-        site (-> (site/site (settings-of blog)
-                            (concat (map :entry (remove :page? read)) (read-kept blog :posts))
-                            (concat (folder-problems dirs) (mapcat :problems read)))
-                 (site/with-pages (concat (map :entry (filter :page? read)) (read-kept blog :pages))))]
-    (site/with-problems site (output/problems site))))
+  (let [blog         (with-published blog)
+        settings     (settings-of blog)
+        dirs         (list-dirs blog)
+        read         (read-entries blog dirs)
+        link-picture (read-link-picture blog settings)
+        site         (-> (site/site settings
+                                    (concat (map :entry (remove :page? read)) (read-kept blog :posts))
+                                    (concat (folder-problems dirs) (mapcat :problems read)
+                                            (some-> (link-preview-problem settings link-picture) vector)))
+                         (site/with-pages (concat (map :entry (filter :page? read)) (read-kept blog :pages))))]
+    (cond-> (site/with-problems site (output/problems site))
+      link-picture (assoc :link-picture link-picture))))
 
 ;; What is taken as it was published has its files from where they were published. The
 ;; output directory is still there while new pages are written beside it.

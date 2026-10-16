@@ -109,14 +109,22 @@
         (= :remove what)                                           (assoc :removed #{folder})
         (and (= :new what) (not page?) (not (:in-posts? where))) (assoc :move folder)))))
 
+;; A link preview that is not there is a problem of the blog, and git commits nothing for a
+;; path with nothing under it.
+(defn- settings-paths
+  "The paths of the settings `settings`: their file, and the link preview they name."
+  [{:keys [link-preview]}]
+  (cond-> [layout/settings-file]
+    (text/link-preview-name? link-preview) (conj link-preview)))
+
 ;; An edit that the author keeps back stays out of the pages and out of the commit: the post
 ;; is taken as it was published, and its folder is not among the paths.
 (defn all
-  "The plan for publishing the whole blog, for the site `published` as it was published last.
-   `on-disk` holds the folders that there are, as a set under `:posts` and one under `:pages`,
-   and `held-back` is the set of those whose edits the author keeps back. A post that was not
-   published before gets `now` as its date."
-  [published on-disk held-back now]
+  "The plan for publishing the whole blog with the settings `settings`, for the site
+   `published` as it was published last. `on-disk` holds the folders that there are, as a set
+   under `:posts` and one under `:pages`, and `held-back` is the set of those whose edits the
+   author keeps back. A post that was not published before gets `now` as its date."
+  [published settings on-disk held-back now]
   (let [listed  {:posts (folders published :posts) :pages (folders published :pages)}
         there   (into (set (:posts on-disk)) (:pages on-disk))
         read    (set/difference there held-back)
@@ -129,7 +137,7 @@
     (cond-> {:read         read
              :as-published (set held-back)
              :dates        (dates published read now)
-             :paths        (into [layout/settings-file layout/output-dir]
+             :paths        (into (conj (settings-paths settings) layout/output-dir)
                                  (mapcat (fn [folder] (paths (where folder) folder)))
                                  (sort (set/union read removed)))
              :message      "Publish the whole blog"}

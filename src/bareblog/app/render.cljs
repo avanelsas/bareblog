@@ -1,8 +1,10 @@
 (ns bareblog.app.render
   "Brings the document to a page view."
-  (:require [bareblog.app.templates :as templates]
+  (:require [bareblog.app.card :as card]
+            [bareblog.app.templates :as templates]
             [baremirror.alpha.parts :as parts]
-            [baremirror.alpha.places :as places]))
+            [baremirror.alpha.places :as places]
+            [clojure.string :as str]))
 
 (def ^:private maker
   "A function that makes a node of a fixed template, by copying one. One is kept for each
@@ -80,6 +82,46 @@
     (when (not= language (.-lang root))
       (set! (.-lang root) language))))
 
+(def ^:private card-mark
+  "The attribute that marks a tag of the head as one of the card of the page, by its name."
+  "data-card")
+
+;; Open Graph names its tags by a property, and the card of Twitter by a name.
+(defn- name-attribute [tag-name]
+  (if (str/starts-with? tag-name "og:") "property" "name"))
+
+(defn- make-card-tag!
+  "A new tag of the card in the head of `document`, named `tag-name`."
+  [^js document tag-name]
+  (let [tag (.createElement document "meta")]
+    (.setAttribute tag card-mark tag-name)
+    (.setAttribute tag (name-attribute tag-name) tag-name)
+    (.append (.-head document) tag)
+    tag))
+
+(defn- named-tag [^js tag]
+  [(.getAttribute tag card-mark) tag])
+
+(defn- card-tags
+  "The tags of the card in the head of `document`, by their name."
+  [^js document]
+  (into {} (map named-tag) (array-seq (.querySelectorAll (.-head document) (str "meta[" card-mark "]")))))
+
+;; A page that the author edits is shown again in the same document, so a tag that its card
+;; had and has not now goes.
+(defn- set-card!
+  "Makes the tags of the card in the head of `document` the tags `tags`, where they differ."
+  [^js document tags]
+  (let [shown  (card-tags document)
+        wanted (into #{} (map first) tags)]
+    (doseq [[tag-name ^js tag] shown
+            :when (not (contains? wanted tag-name))]
+      (.remove tag))
+    (doseq [[tag-name content] tags
+            :let [^js tag (or (shown tag-name) (make-card-tag! document tag-name))]]
+      (when (not= content (.getAttribute tag "content"))
+        (.setAttribute tag "content" content)))))
+
 (def ^:private notice-id "bareblog-notice")
 
 (defn- make-notice!
@@ -101,12 +143,13 @@
 
 (defn render!
   "Brings `document` to the page view `view`."
-  [^js document {:keys [language title] :as view}]
+  [^js document {:keys [language title card] :as view}]
   (let [{:keys [key] :as template} (templates/named (:template view))
         nodes                      (places/sync! {:document {:parent (.-body document)}}
                                                  {:document [key]}
                                                  (fn [_k] (make! template view)))]
     (set-language! document language)
     (set-title! document title)
+    (set-card! document (some-> card card/tags))
     (bring! (nodes key) template view)
     nil))

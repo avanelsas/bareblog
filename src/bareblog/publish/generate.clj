@@ -179,6 +179,13 @@
     (fs/create-dirs (fs/path out folder))
     (fs/copy (fs/path from file-name) (fs/path out folder file-name) {:replace-existing true})))
 
+(defn- copy-link-preview!
+  "Copies the link preview of `blog`, whose link picture is `link-picture`, into the top of
+   `out`."
+  [blog out {:keys [src] :as link-picture}]
+  (when link-picture
+    (fs/copy (fs/path (source/link-preview-dir blog) src) (fs/path out src) {:replace-existing true})))
+
 (defn- write-blog!
   "Writes the whole of `blog` into the directory `out`, and gives the file of each page. Its
    pages are saved from a server that runs for as long as this takes."
@@ -196,6 +203,7 @@
           (write-text! out file text))
         (copy-app! app out)
         (copy-media! blog out (distinct (keep :text (vals told))))
+        (copy-link-preview! blog out (:link-picture site))
         files)
       (finally
         @(http/server-stop! server)))))
