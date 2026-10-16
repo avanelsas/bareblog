@@ -372,6 +372,6 @@
    the app in the directory `app`, and says where."
   [app dir port]
   (let [blog (source/preview dir)]
-    (http/run-server (partial handler {:blog blog :app app}) {:port port})
+    (http/run-server (partial handler {:blog blog :app app}) {:ip "127.0.0.1" :port port})
     (live/watch! dir (partial read-told blog))
     (announce! blog port)))

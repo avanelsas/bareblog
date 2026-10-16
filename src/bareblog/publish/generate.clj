@@ -187,7 +187,7 @@
         pages  (output/pages site)
         told   (into {} (map (juxt identity #(source/read-page blog % site))) pages)
         server (http/run-server (partial serve/handler {:blog blog :app app :site site :told told})
-                                {:port 0 :legacy-return-value? false})
+                                {:ip "127.0.0.1" :port 0 :legacy-return-value? false})
         origin (str "http://localhost:" (http/server-port server))]
     (try
       (run! say (:problems site))
