@@ -417,3 +417,25 @@ body {
   padding-left: calc(var(--x-space-xl, 1.5rem) * 1.5);
   padding-right: calc(var(--x-space-xl, 1.5rem) * 1.5);
 }
+
+/* A live block: the frame that runs the code, above the code, in one panel. */
+
+.live {
+  overflow: hidden;
+  border: var(--x-border-width, 1px) solid var(--x-color-border, #d0d7de);
+  border-radius: var(--x-radius-md, 8px);
+}
+
+.live-frame {
+  display: block;
+  width: 100%;
+  height: 120px;
+  border: 0;
+}
+
+.live x-code {
+  --x-code-radius: 0;
+  --x-code-border: transparent;
+  display: block;
+  border-top: var(--x-border-width, 1px) solid var(--x-color-border, #d0d7de);
+}

@@ -96,6 +96,22 @@
   (testing "a comment on lines of its own is nothing, also over more lines"
     (is (= [{:kind :text :content ["Before."]} {:kind :text :content ["After."]}]
            (blocks "Before.\n\n<!-- a note\n     to myself -->\n\nAfter."))))
+  (testing "a fence of HTML marked live is a live block with its text"
+    (is (= [{:kind :live :text "<x-icon></x-icon>\n"}]
+           (blocks "```html live\n<x-icon></x-icon>\n```"))))
+  (testing "a live fence gives the height that it names in pixels"
+    (is (= [{:kind :live :text "<x-icon></x-icon>\n" :height 300}]
+           (blocks "```html live height=300\n<x-icon></x-icon>\n```")))
+    (is (= 300 (:height (first (blocks "```html height=300px live\nx\n```"))))))
+  (testing "a height that is no whole number of pixels is left out"
+    (is (= [nil nil nil]
+           (map (comp :height first blocks)
+                ["```html live height=tall\nx\n```"
+                 "```html live height=0\nx\n```"
+                 "```html live height=12.5\nx\n```"]))))
+  (testing "a live fence of another language stays code"
+    (is (= [{:kind :code :language "js" :text "run()\n"}]
+           (blocks "```js live\nrun()\n```"))))
   (testing "HTML on lines of its own is code in the language html"
     (is (= [{:kind :code :language "html" :text "<details>\n  <summary>More</summary>\n</details>"}]
            (blocks "<details>\n  <summary>More</summary>\n</details>")))))

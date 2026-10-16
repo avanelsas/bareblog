@@ -1,5 +1,6 @@
 (ns bareblog.app.blocks-test
   (:require [bareblog.app.blocks :as blocks]
+            [bareblog.app.live :as live]
             [baremirror.alpha.template :as template]
             [clojure.test :refer [deftest is testing]]))
 
@@ -35,6 +36,7 @@
                                  {:kind :list :items [{:blocks [{:kind :plain :content ["below"]}]}]}]}
                        {:blocks [{:kind :text :content ["two"]}]}]}
    :code      {:kind :code :language "js" :text "const a = 1;\n"}
+   :live      {:kind :live :text "<x-icon name=\"star\"></x-icon>\n"}
    :divider   {:kind :divider}
    :table     {:kind :table
                :head [{:content ["Name"] :align :left} {:content ["Size"] :align :right}]
@@ -93,6 +95,27 @@
            (blocks/template (:code examples)))))
   (testing "code with no language names none"
     (is (= [:x-code {:show-copy true} "plain"] (blocks/template {:kind :code :text "plain"})))))
+
+(deftest live-test
+  (let [code "<x-icon name=\"star\"></x-icon>\n"]
+    (testing "a live block is a panel of a frame that shows the document of its code, above the
+              code"
+      (is (= [:div {:class "live"}
+              [:iframe {:class   "live-frame"
+                        :title   "A live example"
+                        :sandbox "allow-scripts"
+                        :srcdoc  (live/document code nil)}]
+              [:x-code {:language "html" :show-copy true} code]]
+             (blocks/template (:live examples)))))
+    (testing "a live block with a height gives its frame that height, and a document that keeps it"
+      (is (= [:div {:class "live"}
+              [:iframe {:class   "live-frame"
+                        :title   "A live example"
+                        :sandbox "allow-scripts"
+                        :style   "height:300px"
+                        :srcdoc  (live/document code 300)}]
+              [:x-code {:language "html" :show-copy true} code]]
+             (blocks/template (assoc (:live examples) :height 300)))))))
 
 (deftest divider-test
   (is (= [:hr] (blocks/template (:divider examples)))))

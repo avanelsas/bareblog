@@ -85,13 +85,14 @@
           [_ required alias] (re-seq #"\[(bareblog\.[\w.-]+) :as ([\w-]+)\]" (slurp (str path)))]
     (is (= (last (str/split required #"\.")) alias) (str path))))
 
-;; The tests, the app and the saver each take BareDOM from a file of their own. They are the
-;; same release.
+;; The tests, the app, the saver and a live frame each take BareDOM from a place of their own.
+;; They are the same release.
 (def ^:private version-places
   "Where BareDOM's version is named, and what finds it there."
-  {"bb.edn"          #"com\.github\.avanelsas/baredom \{:mvn/version \"([^\"]+)\"\}"
-   "shadow-cljs.edn" #"\[com\.github\.avanelsas/baredom \"([^\"]+)\"\]"
-   "package.json"    #"\"@vanelsas/baredom\": \"([^\"]+)\""})
+  {"bb.edn"                     #"com\.github\.avanelsas/baredom \{:mvn/version \"([^\"]+)\"\}"
+   "shadow-cljs.edn"            #"\[com\.github\.avanelsas/baredom \"([^\"]+)\"\]"
+   "package.json"               #"\"@vanelsas/baredom\": \"([^\"]+)\""
+   "src/bareblog/app/live.cljc" #"@vanelsas/baredom@([^/]+)/dist/"})
 
 (defn- read-versions
   "BareDOM's version in each place that names it, by the name of the file."

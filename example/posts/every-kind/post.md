@@ -64,6 +64,13 @@ and on lines of its own like this:
   Hidden text.
 </details>
 
+HTML in a fence marked `live` runs too, in a frame of its own, above its code:
+
+```html live
+<x-badge text="New" variant="success"></x-badge>
+<x-badge text="Draft" variant="warning"></x-badge>
+```
+
 A post names its tags on its last line, as this one does. An underscore is a space.
 
 #bareblog #reference #every_kind

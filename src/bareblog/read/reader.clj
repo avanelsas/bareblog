@@ -7,13 +7,19 @@
 
        {:kind :text :content [\"We took the \" {:kind :strong :content [\"tram 28\"]} \".\"]}
 
-   The kinds of block are a closed list: text, heading, photo, quote, list, code, divider, table
-   and footnotes, and plain, which is the text of a list item that has no paragraph around it.
+   The kinds of block are a closed list: text, heading, photo, quote, list, code, live, divider,
+   table and footnotes, and plain, which is the text of a list item that has no paragraph
+   around it.
    A Markdown node with no kind becomes `:unknown`, as a block or inside one, and keeps its
    type.
 
    HTML that an author types outside a code fence is shown as code. A comment is the
    exception: it is left out, since an author writes one so that it does not show.
+
+   A fence of HTML marked `live` is a live block. It keeps the height in pixels that the fence
+   names as `height=300` or `height=300px`.
+
+       {:kind :live :text \"<x-icon></x-icon>\" :height 300}
 
    A text says two things of itself that are no blocks. A heading of the first level that
    opens it is its title. A last paragraph of nothing but tags, as `#travel #x-code`, names
@@ -144,9 +150,27 @@
          :numbered? true
          :start     (get-in node [:attrs :start] 1)))
 
+(defn- fence-words
+  "The words that follow the language on the first line of the fence `node`."
+  [node]
+  (rest (str/split (str/trim (str (:info node))) #"\s+")))
+
+(defn- height
+  "The height in pixels that the words of a fence name, as `height=300`, or nil."
+  [words]
+  (some #(some-> (re-matches #"height=([1-9]\d{0,3})(px)?" %) second parse-long) words))
+
+(defn- live [node words]
+  (let [pixels (height words)]
+    (cond-> {:kind :live :text (plain node)}
+      pixels (assoc :height pixels))))
+
 (defn- code [node]
-  (cond-> {:kind :code :text (plain node)}
-    (:language node) (assoc :language (:language node))))
+  (let [words (fence-words node)]
+    (if (and (= "html" (:language node)) (some #{"live"} words))
+      (live node words)
+      (cond-> {:kind :code :text (plain node)}
+        (:language node) (assoc :language (:language node))))))
 
 (defn- html-block
   "HTML that was typed outside a code fence, as the code it is. A comment is nothing."

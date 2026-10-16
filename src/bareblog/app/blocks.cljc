@@ -1,5 +1,6 @@
 (ns bareblog.app.blocks
-  "The fixed template of each kind of block, and of each kind of thing a block holds.")
+  "The fixed template of each kind of block, and of each kind of thing a block holds."
+  (:require [bareblog.app.live :as live]))
 
 (declare child)
 
@@ -104,6 +105,17 @@
 (defn- code [{:keys [language text]}]
   (element :x-code {:language language :show-copy true} [text]))
 
+(defn- live [{:keys [text height]}]
+  [:div {:class "live"}
+   (element :iframe
+            {:class   "live-frame"
+             :title   "A live example"
+             :sandbox "allow-scripts"
+             :style   (when height (str "height:" height "px"))
+             :srcdoc  (live/document text height)}
+            [])
+   [:x-code {:language "html" :show-copy true} text]])
+
 (defn- divider [_]
   [:hr])
 
@@ -140,6 +152,7 @@
    :quote     quote-block
    :list      list-block
    :code      code
+   :live      live
    :divider   divider
    :table     table
    :footnotes footnotes

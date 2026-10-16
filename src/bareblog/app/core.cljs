@@ -4,7 +4,8 @@
    The edge of the app. The state is in one atom. A message goes through `state/step`, and
    `state/shown` says what the page then shows. This namespace brings the document, the address
    and the browser's storage to that, and turns events and what the socket says into messages."
-  (:require [bareblog.app.pages :as pages]
+  (:require [bareblog.app.live :as live]
+            [bareblog.app.pages :as pages]
             [bareblog.app.render :as render]
             [bareblog.app.state :as state]
             [bareblog.app.templates :as templates]
@@ -269,10 +270,42 @@
                      "change"
                      (fn [_event] (dispatch! [:close-menu]))))
 
+;; A live frame runs in a document of its own, which tells the page its height in a message.
+;; The height is written here and not by `render`: a block is a fixed template, with no hole
+;; for it. A frame of a saved page may tell its height before the page listens, so the page
+;; asks each frame again once it does.
+
+(defn- live-frames
+  "The live frames in the page."
+  []
+  (array-seq (.querySelectorAll js/document "iframe.live-frame")))
+
+(defn- live-frame
+  "The live frame whose window is `source`, or nil."
+  [source]
+  (letfn [(sent-by? [^js frame] (identical? source (.-contentWindow frame)))]
+    (first (filter sent-by? (live-frames)))))
+
+(defn- fit-live-frame!
+  "Gives the live frame that sent `event` the height that it tells."
+  [^js event]
+  (let [told (some-> (.-data event) (unchecked-get live/height-key))]
+    (when (number? told)
+      (when-some [^js frame (live-frame (.-source event))]
+        (set! (.. frame -style -height) (str (live/fit told) "px"))))))
+
+(defn- ask-height!
+  "Asks the live frame `frame` to tell its height."
+  [^js frame]
+  (.postMessage (.-contentWindow frame) live/height-request "*"))
+
 (defn- listen-to-window!
-  "Listens for the key that opens the palette, and for the window becoming wide or narrow."
+  "Listens for the key that opens the palette, for the window becoming wide or narrow, and for
+   the height that a live frame tells, and asks each live frame for it."
   []
   (.addEventListener js/document "keydown" #(open-palette-by-key! %))
+  (.addEventListener js/window "message" #(fit-live-frame! %))
+  (run! ask-height! (live-frames))
   (close-menu-with-window!))
 
 (defonce ^{:private true :doc "True once the events of the document are turned into messages."}

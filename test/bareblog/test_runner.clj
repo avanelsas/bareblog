@@ -10,6 +10,7 @@
     bareblog.blog.site-test
     bareblog.blog.text-test
     bareblog.app.blocks-test
+    bareblog.app.live-test
     bareblog.app.state-test
     bareblog.app.templates-test
     bareblog.app.view-test
