@@ -27,7 +27,7 @@
 
 (def ^:private fixed-style
   "How a live frame with a height of its own fills that height."
-  "body{min-height:100vh;}")
+  "html,body{height:100%;}")
 
 ;; A module script runs once the body is parsed, so it finds every element that the HTML of
 ;; the author makes.
