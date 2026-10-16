@@ -27,11 +27,17 @@
   (when address
     (assoc (select-keys picture [:width :height]) :at address)))
 
+(defn- own-picture
+  "The picture `picture` of a text, at its full address, or nil when it is outside the blog."
+  [root blog-address picture]
+  (with-address picture (full root blog-address (:src picture))))
+
 (defn- card-picture
-  "The picture of a card: the first of the text `shown`, or else the link picture of the blog."
+  "The picture of a card: the first of the text `shown` that is in the blog, or else the link
+   picture of the blog."
   [root blog-address link-picture shown]
-  (or (when-some [own (first (filter shows-picture? (tree-seq coll? seq (:blocks shown))))]
-        (with-address own (full root blog-address (:src own))))
+  (or (some (partial own-picture root blog-address)
+            (filter shows-picture? (tree-seq coll? seq (:blocks shown))))
       (when link-picture
         (with-address link-picture (published blog-address (:src link-picture))))))
 
@@ -58,13 +64,38 @@
   (or (not (and width height))
       (>= (/ width height) 1.5)))
 
+;; Open Graph names its tags by a property, and the card of Twitter by a name.
+(defn- tag
+  "The tag of the head named `tag-name`, with `content`: its `:attribute`, the one that names
+   it, its `:name` and its `:content`."
+  [[tag-name content]]
+  {:attribute (if (str/starts-with? tag-name "og:") "property" "name")
+   :name      tag-name
+   :content   content})
+
 (defn tags
-  "The tags of Open Graph that spell out `card`, in order, each its name and its content."
+  "The tags of Open Graph that spell out `card`, in order."
   [{:keys [title kind site-name url description picture]}]
-  (let [{:keys [at width height]} picture]
-    (-> (cond-> [["og:title" title] ["og:type" (name kind)] ["og:site_name" site-name]]
-          url                (conj ["og:url" url])
-          description        (conj ["og:description" description])
-          at                 (conj ["og:image" at])
-          (and width height) (conj ["og:image:width" (str width)] ["og:image:height" (str height)]))
-        (conj ["twitter:card" (if (and picture (wide? picture)) "summary_large_image" "summary")]))))
+  (let [{:keys [at width height]} picture
+        twitter-card              (if (and picture (wide? picture)) "summary_large_image" "summary")]
+    (mapv tag
+          (cond-> [["og:title" title] ["og:type" (name kind)] ["og:site_name" site-name]]
+            url                (conj ["og:url" url])
+            description        (conj ["og:description" description])
+            at                 (conj ["og:image" at])
+            (and width height) (conj ["og:image:width" (str width)] ["og:image:height" (str height)])
+            :always            (conj ["twitter:card" twitter-card])))))
+
+(defn- shown?
+  "True when `shown`, each name with its content, has the tag `tag` as it is."
+  [shown tag]
+  (= (:content tag) (get shown (:name tag))))
+
+(defn changes
+  "What brings the tags `shown`, each name with its content, to the tags `wanted`: under
+   `:gone` the names of those that go, and under `:written` each tag that is new or has new
+   content."
+  [shown wanted]
+  (let [names (into #{} (map :name) wanted)]
+    {:gone    (remove names (keys shown))
+     :written (remove (partial shown? shown) wanted)}))

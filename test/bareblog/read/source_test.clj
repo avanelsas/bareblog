@@ -194,13 +194,15 @@
             (is (= :post (get-in (source/read-page blog {:kind :post :folder "hello-bareblog"}) [:page :kind])))))))))
 
 (deftest link-preview-test
-  (let [read-with (fn [link-preview prepare!]
-                    (example/with-copy {:link-preview link-preview}
-                      (fn [dir]
-                        (prepare! dir)
-                        (let [site (source/read-site (source/preview dir))]
-                          {:link-picture (:link-picture site)
-                           :problems     (filter #(str/includes? % ":link-preview") (:problems site))}))))
+  (let [read-with (fn read-with
+                    ([link-preview prepare!] (read-with link-preview prepare! {}))
+                    ([link-preview prepare! more]
+                     (example/with-copy {:link-preview link-preview}
+                       (fn [dir]
+                         (prepare! dir)
+                         (let [site (source/read-site (merge (source/preview dir) more))]
+                           {:link-picture (:link-picture site)
+                            :problems     (filter #(str/includes? % ":link-preview") (:problems site))})))))
         beside    (fn [file-name] (fn [dir] (example/write-gif! dir file-name 400 400)))
         nothing   (fn [_dir])]
     (testing "a link preview beside the settings is read as the link picture, with its size, and nothing is wrong"
@@ -216,6 +218,9 @@
                    (first (:problems (read-with "link-preview.svg" (beside "link-preview.svg"))))))
       (is (re-find #"which is no name of a PNG, JPEG or GIF beside blog.edn"
                    (first (:problems (read-with "pages/about/x.gif" nothing))))))
+    (testing "a link preview taken as it was published is named where it was looked for"
+      (is (= ["blog.edn names \"link-preview.gif\" as its :link-preview, and there is no such file in docs, where it was published."]
+             (:problems (read-with "link-preview.gif" (beside "link-preview.gif") {:link-preview-in "docs"})))))
     (testing "a blog that names no picture is told nothing of it"
       (is (= {:link-picture nil :problems []} (update (read-with nil nothing) :problems vec))))))
 

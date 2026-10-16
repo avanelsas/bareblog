@@ -4,11 +4,12 @@
    A plan says what is read and what is kept: under `:read` the folders of the posts and the
    pages that are read from disk, under `:as-published` those that are taken as they were
    published last, and under `:dates` the date of each post and page, which is the moment it
-   was first published. It says what goes: under `:removed` the published posts that are taken
-   out, which the author is asked about first, and under `:move` the draft that becomes a
-   post. And it says what is committed: the `:paths`, from the
-   top of the blog, and the `:message`. A plan that does nothing has a `:refuse`, the text that
-   says why."
+   was first published. Under `:link-preview-in` it names the directory, from the top of the
+   blog, that the link preview is taken from, where that is not the top. It says what goes:
+   under `:removed` the published posts that are taken out, which the author is asked about
+   first, and under `:move` the draft that becomes a post. And it says what is committed: the
+   `:paths`, from the top of the blog, and the `:message`. A plan that does nothing has a
+   `:refuse`, the text that says why."
   (:require [bareblog.blog.site :as site]
             [bareblog.blog.text :as text]
             [bareblog.blog.layout :as layout]
@@ -87,10 +88,10 @@
          (str/join " or " (sort layout/text-files)) " is in it.")))
 
 (defn one
-  "The plan for publishing the post or the page in `folder`, for the site `published` as it
-   was published last, which is nil for a blog that never was. `where` says where the folder
-   is, with `:in-posts?`, `:in-drafts?` and `:in-pages?`. A new post gets `now` as its date."
-  [published folder where now]
+  "The plan for publishing the post or the page in `:folder`, for the site `:published` as it
+   was published last, which is nil for a blog that never was. `:where` says where the folder
+   is, with `:in-posts?`, `:in-drafts?` and `:in-pages?`. A new post gets `:now` as its date."
+  [{:keys [published folder where now]}]
   (let [posts  (folders published :posts)
         pages  (folders published :pages)
         where  (assoc where
@@ -106,6 +107,7 @@
                :dates        (dates published read now)
                :paths        (conj (paths where folder) layout/output-dir)
                :message      (str (if (= :remove what) "Remove " "Publish ") folder)}
+        published                                                  (assoc :link-preview-in layout/output-dir)
         (= :remove what)                                           (assoc :removed #{folder})
         (and (= :new what) (not page?) (not (:in-posts? where))) (assoc :move folder)))))
 
@@ -120,11 +122,11 @@
 ;; An edit that the author keeps back stays out of the pages and out of the commit: the post
 ;; is taken as it was published, and its folder is not among the paths.
 (defn all
-  "The plan for publishing the whole blog with the settings `settings`, for the site
-   `published` as it was published last. `on-disk` holds the folders that there are, as a set
-   under `:posts` and one under `:pages`, and `held-back` is the set of those whose edits the
-   author keeps back. A post that was not published before gets `now` as its date."
-  [published settings on-disk held-back now]
+  "The plan for publishing the whole blog with the settings `:settings`, for the site
+   `:published` as it was published last. `:on-disk` holds the folders that there are, as a
+   set under `:posts` and one under `:pages`, and `:held-back` is the set of those whose edits
+   the author keeps back. A post that was not published before gets `:now` as its date."
+  [{:keys [published settings on-disk held-back now]}]
   (let [listed  {:posts (folders published :posts) :pages (folders published :pages)}
         there   (into (set (:posts on-disk)) (:pages on-disk))
         read    (set/difference there held-back)

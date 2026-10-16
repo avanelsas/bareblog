@@ -57,7 +57,7 @@
    `settings`."
   [dir settings plan]
   (merge (source/published dir settings)
-         (select-keys plan [:read :as-published :settings-as-published? :dates])))
+         (select-keys plan [:read :as-published :link-preview-in :dates])))
 
 ;; A post is edited when what a page would show of it is not what was published. Both are
 ;; read for the settings that were published, so that a change of the settings is no edit.
@@ -150,15 +150,11 @@
         (or (written! how dir settings plan)
             (committed! dir plan))))))
 
-;; A blog that was published takes its settings as they were, with their link preview, as it
-;; takes every post but the one.
 (defn- publish-one!
   [{:keys [say] :as how} dir {:keys [folder now]}]
   (let [published (source/read-published dir)
         on-disk   (source/read-settings dir)
-        settings  (or (:blog published) on-disk)
-        planned   (cond-> (plan/one published folder (find-where dir folder) now)
-                    published (assoc :settings-as-published? true))]
+        settings  (or (:blog published) on-disk)]
     (cond
       (nil? published)
       (say "The blog was never published, so this post is the only one in it. Publish the rest with: bareblog publish --all")
@@ -166,9 +162,13 @@
       (not= settings on-disk)
       (say (str layout/settings-file " is not as it was published. Publish it with: bareblog publish --all"))
 
-      (source/find-changed-link-preview dir settings)
-      (say (str (:link-preview settings) " is not as it was published. Publish it with: bareblog publish --all")))
-    (carry-out! how dir settings planned)))
+      :else
+      (when-some [changed (source/find-changed-link-preview dir settings)]
+        (say (str changed " is not as it was published. Publish it with: bareblog publish --all"))))
+    (carry-out! how dir settings (plan/one {:published published
+                                            :folder    folder
+                                            :where     (find-where dir folder)
+                                            :now       now}))))
 
 (defn- publish-all!
   [{:keys [ask] :as how} dir {:keys [now]}]
@@ -181,7 +181,11 @@
                                  (into #{} (comp (map :folder) (filter there))
                                        (concat (:posts published) (:pages published)))))
         held-back (if (and (seq edited) (not (ask (plan/edits-question edited)))) edited #{})]
-    (carry-out! how dir settings (plan/all published settings on-disk held-back now))))
+    (carry-out! how dir settings (plan/all {:published published
+                                            :settings  settings
+                                            :on-disk   on-disk
+                                            :held-back held-back
+                                            :now       now}))))
 
 (defn- not-a-repository [dir]
   {:outcome :refused

@@ -3,8 +3,7 @@
   (:require [bareblog.app.card :as card]
             [bareblog.app.templates :as templates]
             [baremirror.alpha.parts :as parts]
-            [baremirror.alpha.places :as places]
-            [clojure.string :as str]))
+            [baremirror.alpha.places :as places]))
 
 (def ^:private maker
   "A function that makes a node of a fixed template, by copying one. One is kept for each
@@ -86,16 +85,13 @@
   "The attribute that marks a tag of the head as one of the card of the page, by its name."
   "data-card")
 
-;; Open Graph names its tags by a property, and the card of Twitter by a name.
-(defn- name-attribute [tag-name]
-  (if (str/starts-with? tag-name "og:") "property" "name"))
-
 (defn- make-card-tag!
-  "A new tag of the card in the head of `document`, named `tag-name`."
-  [^js document tag-name]
+  "A new tag of the card in the head of `document`, named `tag-name` by the attribute
+   `attribute`."
+  [^js document attribute tag-name]
   (let [tag (.createElement document "meta")]
     (.setAttribute tag card-mark tag-name)
-    (.setAttribute tag (name-attribute tag-name) tag-name)
+    (.setAttribute tag attribute tag-name)
     (.append (.-head document) tag)
     tag))
 
@@ -107,20 +103,21 @@
   [^js document]
   (into {} (map named-tag) (array-seq (.querySelectorAll (.-head document) (str "meta[" card-mark "]")))))
 
+(defn- content-of [^js tag]
+  (.getAttribute tag "content"))
+
 ;; A page that the author edits is shown again in the same document, so a tag that its card
 ;; had and has not now goes.
 (defn- set-card!
   "Makes the tags of the card in the head of `document` the tags `tags`, where they differ."
   [^js document tags]
-  (let [shown  (card-tags document)
-        wanted (into #{} (map first) tags)]
-    (doseq [[tag-name ^js tag] shown
-            :when (not (contains? wanted tag-name))]
-      (.remove tag))
-    (doseq [[tag-name content] tags
-            :let [^js tag (or (shown tag-name) (make-card-tag! document tag-name))]]
-      (when (not= content (.getAttribute tag "content"))
-        (.setAttribute tag "content" content)))))
+  (let [shown                  (card-tags document)
+        {:keys [gone written]} (card/changes (update-vals shown content-of) tags)]
+    (doseq [tag-name gone]
+      (.remove ^js (shown tag-name)))
+    (doseq [{:keys [attribute content] tag-name :name} written
+            :let [^js tag (or (shown tag-name) (make-card-tag! document attribute tag-name))]]
+      (.setAttribute tag "content" content))))
 
 (def ^:private notice-id "bareblog-notice")
 

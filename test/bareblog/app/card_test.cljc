@@ -39,7 +39,12 @@
     (let [card (card-of a-week {:title  "Maps"
                                 :blocks [{:kind :image :src "/notes/a-week/map.svg"}
                                          {:kind :image :src "/notes/a-week/map.webp"}]})]
-      (is (not-any? card [:picture :description])))))
+      (is (not-any? card [:picture :description]))))
+  (testing "a picture outside the blog is passed over for the next one"
+    (is (= "https://example.org/notes/a-week/tram.png"
+           (get-in (card-of a-week (assoc post :blocks [{:kind :image :src "/elsewhere/map.png"}
+                                                        {:kind :image :src "/notes/a-week/tram.png"}]))
+                   [:picture :at])))))
 
 (deftest addresses-test
   (testing "in the preview, the top of the blog is /, and the addresses are still those of the blog"
@@ -74,19 +79,37 @@
     (is (= ["https://example.org/notes/" "https://example.org/notes/tags/travel/" "https://example.org/notes/archive/"]
            (map #(:url (card-of % nil)) [{:kind :home :number 1} {:kind :tag :tag "travel"} {:kind :archive}])))))
 
+(defn- spelled
+  "The tags of `card`, each as its attribute, its name and its content."
+  [card]
+  (map (juxt :attribute :name :content) (card/tags card)))
+
 (deftest tags-test
   (let [card {:title "A week" :kind :article :site-name "Bare notes" :url "https://example.org/notes/a-week/"
               :description "Tiles." :picture {:at "https://example.org/notes/p.png" :width 1200 :height 630}}]
-    (testing "a card is spelled out as the tags of Open Graph, in order, and a wide picture beneath the text"
-      (is (= [["og:title" "A week"] ["og:type" "article"] ["og:site_name" "Bare notes"]
-              ["og:url" "https://example.org/notes/a-week/"] ["og:description" "Tiles."]
-              ["og:image" "https://example.org/notes/p.png"] ["og:image:width" "1200"] ["og:image:height" "630"]
-              ["twitter:card" "summary_large_image"]]
-             (card/tags card))))
+    (testing "a card is spelled out as the tags of Open Graph, in order, each named by a property,
+              and the card of Twitter by a name, with a wide picture beneath the text"
+      (is (= [["property" "og:title" "A week"] ["property" "og:type" "article"]
+              ["property" "og:site_name" "Bare notes"] ["property" "og:url" "https://example.org/notes/a-week/"]
+              ["property" "og:description" "Tiles."] ["property" "og:image" "https://example.org/notes/p.png"]
+              ["property" "og:image:width" "1200"] ["property" "og:image:height" "630"]
+              ["name" "twitter:card" "summary_large_image"]]
+             (spelled card))))
     (testing "a square picture is shown small beside the text, and so is a card with none"
-      (is (= ["twitter:card" "summary"] (last (card/tags (assoc card :picture square)))))
-      (is (= ["twitter:card" "summary"] (last (card/tags (dissoc card :picture))))))
+      (is (= ["name" "twitter:card" "summary"] (last (spelled (assoc card :picture square)))))
+      (is (= ["name" "twitter:card" "summary"] (last (spelled (dissoc card :picture))))))
     (testing "a picture of unknown size is taken to be wide, and has no size"
-      (let [tags (card/tags (assoc card :picture {:at "https://example.org/notes/p.png"}))]
-        (is (= ["twitter:card" "summary_large_image"] (last tags)))
-        (is (not-any? #{"og:image:width"} (map first tags)))))))
+      (let [tags (spelled (assoc card :picture {:at "https://example.org/notes/p.png"}))]
+        (is (= ["name" "twitter:card" "summary_large_image"] (last tags)))
+        (is (not-any? #{"og:image:width"} (map second tags)))))))
+
+(deftest changes-test
+  (let [title  {:attribute "property" :name "og:title" :content "A week"}
+        wanted [title {:attribute "property" :name "og:type" :content "article"}]]
+    (testing "a head with no card gets every tag"
+      (is (= {:gone [] :written wanted} (card/changes {} wanted))))
+    (testing "a tag with new content is written, one as it is is not, and one not wanted goes"
+      (is (= {:gone ["og:image"] :written [title]}
+             (card/changes {"og:title" "Old" "og:type" "article" "og:image" "p.png"} wanted))))
+    (testing "a card with no tags takes every tag away"
+      (is (= {:gone ["og:title"] :written []} (card/changes {"og:title" "A week"} nil))))))
