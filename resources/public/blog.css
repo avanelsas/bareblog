@@ -215,7 +215,8 @@ body {
 .post-blocks code {
   padding: 0.15em 0.35em;
   border-radius: var(--x-radius-sm, 0.375rem);
-  background: var(--x-color-surface, rgba(0, 0, 0, 0.06));
+  border: 1px solid color-mix(in srgb, var(--x-color-text, #000) 16%, transparent);
+  background: color-mix(in srgb, var(--x-color-text, #000) 10%, transparent);
   font-family: var(--x-font-family-mono, ui-monospace, monospace);
   font-size: 0.9em;
 }
