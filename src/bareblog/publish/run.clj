@@ -27,7 +27,12 @@
    :declined      (constantly "Nothing was published.")
    :refused       :why
    :failed        (fn [{:keys [why]}] (str why "\nNothing was published."))
-   :not-committed (fn [{:keys [why]}] (str "The pages are written, and git could not commit them. " why))
+   :not-committed (fn [{:keys [why moved again]}]
+                    (str "The pages are written, and git could not commit them. " why
+                         (when moved
+                           (str "\n" layout/drafts-dir "/" moved " is now " layout/posts-dir "/" moved
+                                ", with its pages."))
+                         "\nWhen git can commit, publish again with: " again))
    :not-pushed    (fn [{:keys [message why]}]
                     (str "Committed as \"" message "\", and git could not push. " why
                          "\nPush it with: git push"))})
@@ -89,7 +94,8 @@
   (tell-ignored! how dir))
 
 ;; A draft is moved to the posts before it is read, since that is where a published post is.
-;; When nothing comes of the publish, whatever the reason, it is moved back.
+;; When its pages cannot be written, it is moved back. Once they are written it stays, also
+;; when git cannot commit: the pages show it as published, and publishing again commits it.
 (defn- written!
   "Writes the pages of the blog in `dir` for the plan `plan`. Gives nil when they are written,
    and what came of it when they are not."
@@ -107,11 +113,11 @@
 (defn- committed!
   "Commits what the plan `plan` changed in the blog in `dir`, and pushes it. Gives what came
    of it."
-  [dir {:keys [paths message]}]
+  [dir {:keys [paths message move]}]
   (let [{:keys [committed? problem]} (git/commit! dir paths message)
         pushed                       (when committed? (git/push! dir))]
     (cond
-      problem           {:outcome :not-committed :why problem}
+      problem           {:outcome :not-committed :why problem :moved move}
       (not committed?)  {:outcome :unchanged}
       (:problem pushed) {:outcome :not-pushed :message message :why (:problem pushed)}
       :else             {:outcome :published :message message})))
@@ -185,6 +191,9 @@
                  all?                 (publish-all! how dir request)
                  :else                (publish-one! how dir request))
                (catch Exception problem
-                 {:outcome :failed :why (ex-message problem)}))]
+                 {:outcome :failed :why (ex-message problem)}))
+        came (cond-> came
+               (= :not-committed (:outcome came))
+               (assoc :again (str "bareblog publish " (if all? "--all" (:folder request)))))]
     (say ((told (:outcome came)) came))
     came))

@@ -367,6 +367,32 @@
           (is (re-find #"could not push" (last said)))
           (is (re-find #"git push" (last said))))))))
 
+(deftest commit-fails-test
+  (with-repo
+    (fn [{:keys [dir] :as repo}]
+      (publish! repo {:all? true} true)
+      (let [hook (fs/file dir ".git" "hooks" "pre-commit")
+            before (head dir)]
+        (spit hook "#!/bin/sh\necho 'Not now.' >&2\nexit 1\n")
+        (fs/set-posix-file-permissions hook "rwxr-xr-x")
+        (let [{:keys [outcome said]} (publish! repo {:folder "a-new-idea"} true)]
+          (testing "a commit that fails leaves the post among the posts, with its pages, and says so"
+            (is (= :not-committed outcome))
+            (is (not (run/done? outcome)))
+            (is (= before (head dir)))
+            (is (fs/exists? (fs/path dir "posts" "a-new-idea" "post.md")))
+            (is (not (fs/exists? (fs/path dir "drafts" "a-new-idea"))))
+            (is (some #{"a-new-idea"} (folders dir)))
+            (is (re-find #"Not now\." (last said)))
+            (is (re-find #"drafts/a-new-idea is now posts/a-new-idea" (last said)))
+            (is (re-find #"bareblog publish a-new-idea" (last said)))))
+        (testing "publishing it again once git can commit commits it, with the date it was given"
+          (fs/delete hook)
+          (is (= :published (:outcome (publish! repo {:folder "a-new-idea"} true))))
+          (is (contains? (:paths (committed dir)) "posts/a-new-idea/post.md"))
+          (is (= now (:date (listed dir "a-new-idea"))))
+          (is (clean? dir)))))))
+
 (deftest git-test
   (with-repo
     (fn [{:keys [dir remote]}]
