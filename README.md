@@ -234,7 +234,7 @@ add.
 |---|---|---|
 | `:title` | The name of the blog | |
 | `:language` | The language of the pages | `"en"` |
-| `:template` | `:journal`, one reading column, or `:notebook`, a sidebar of posts and a command palette | `:journal` |
+| `:template` | `:journal`, one reading column, `:notebook`, a sidebar of posts and a command palette, or `:magazine`, the posts as cards in a grid | `:journal` |
 | `:available-themes` | The themes a reader can pick from, by the name of a BareDOM theme preset. The first is the one a reader starts with. A new blog has all of them: take out the ones you do not want | BareDOM's own look, and nothing to pick |
 | `:per-page` | How many posts a page of the home page shows | `10` |
 | `:powered-by-footer` | Whether every page ends with the line "Powered by BareBlog". Only `false` leaves it out | `true` |
@@ -263,7 +263,7 @@ ones above it in this list, and none below it:
 | Folder | What is in it |
 |---|---|
 | `blog/` | What a blog is: a post, the list of posts, the address of each page. The command and the browser app share this folder and nothing else |
-| `app/` | The app that runs in the browser: the two blog templates, the view and the rendering, on BareMirror |
+| `app/` | The app that runs in the browser: the three blog templates, the view and the rendering, on BareMirror |
 | `written/` | What a blog is made of once it is written out: its pages, its files and its feed |
 | `read/` | From a directory to data: Markdown to blocks, and a blog from its folders |
 | `preview/` | The local server, and what tells an open page that a file changed |

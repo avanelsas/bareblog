@@ -8,15 +8,17 @@
 ;; Below its breakpoint `x-navbar` shows its brand and its toggle and nothing else. The links
 ;; and the controls are then in a drawer, which the toggle opens. Both places show the same
 ;; state, so neither has to be kept in step with the other.
-(def template
-  "The node of the whole document. Its lists hold the node of the page, by its key, and the
+(defn shell
+  "The node of the whole document of a blog template like Journal, named `template-name`, whose
+   pages are the nodes `page-rows`, by their key. Its lists hold the node of the page, and the
    presets of the theme select, once in the navbar and once in the menu."
-  {:key        "journal"
+  [template-name page-rows]
+  {:key        (name template-name)
    :title      pages/title
    :split      (template/split
-                :journal
+                template-name
                 [:x-theme {:preset :preset}
-                 [:div {:class "page journal"}
+                 [:div {:class (str "page " (name template-name))}
                   (pages/navbar pages/search-field)
                   [:x-drawer {:label (:menu pages/words) :placement "right" :open :menu?
                               :on    {"x-drawer-toggle" :menu}}
@@ -33,4 +35,8 @@
                 :menu-presets {:part "menu-presets" :row pages/preset :of :presets}
                 :pages        {:part "pages" :row pages/page-link}
                 :menu-pages   {:part "menu-pages" :row pages/page-link :of :pages}
-                :main         {:part "main" :rows pages/page-rows}}})
+                :main         {:part "main" :rows page-rows}}})
+
+(def template
+  "The node of the whole document."
+  (shell :journal pages/page-rows))

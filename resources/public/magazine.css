@@ -1,0 +1,109 @@
+/* The Magazine blog template: Journal, with the posts of a list as cards in a grid. */
+
+.magazine .post,
+.magazine .archive,
+.magazine .not-found {
+  margin: 0 auto;
+}
+
+.magazine .entries {
+  max-width: none;
+}
+
+/* The card fills its cell, so the cards of a row are as tall as each other. */
+.magazine .card {
+  position: relative;
+  height: 100%;
+}
+
+.magazine .card::part(base) {
+  box-sizing: border-box;
+  height: 100%;
+  overflow: hidden;
+}
+
+.magazine .cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  object-fit: cover;
+}
+
+.magazine .cover[hidden] {
+  display: none;
+}
+
+.magazine .card-text {
+  padding: var(--x-space-lg, 1rem);
+  font-size: var(--x-font-size-base, 1rem);
+  line-height: 1.5;
+}
+
+.magazine .card h2 {
+  margin: 0 0 var(--x-space-xs, 0.25rem);
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+.magazine .card h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The link of the title covers the card, so a click anywhere on it opens the post. The tags
+   lie above it, and stay links of their own. */
+.magazine .card h2 a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.magazine .card:hover h2 a,
+.magazine .card h2 a:focus-visible {
+  color: var(--x-color-primary, #2563eb);
+}
+
+.magazine .card .tags a {
+  position: relative;
+  z-index: 1;
+}
+
+.magazine .card .summary {
+  display: -webkit-box;
+  margin: var(--x-space-sm, 0.5rem) 0 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+/* The card that leads spans two columns and two rows. */
+.magazine .lead h2 {
+  font-size: 1.75rem;
+}
+
+.magazine .lead .summary {
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+}
+
+/* `x-bento-grid` has a fixed number of columns, and `x-bento-item` writes its span into its
+   own style. A narrower window sets the columns on the grid's part, and a single column
+   takes the span away. */
+@media (max-width: 900px) {
+  .magazine .cards::part(base) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .magazine .cards::part(base) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .magazine .cards > x-bento-item {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+}

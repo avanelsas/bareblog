@@ -84,8 +84,20 @@
     (testing "an entry shows the title, the date, the summary and the address of its post, and
               its picture at the address of its file"
       (is (= {:title "Third" :date "2026-03-01" :href "/c/" :draft? false :summary "Three."
-              :picture "/c/tram.png"}
+              :picture "/c/tram.png" :front? true :first-picture? true}
              (first (row-items node :entries)))))
+    (testing "the entries of the first page are on the front, and those of any other page are not"
+      (is (every? :front? (row-items node :entries)))
+      (let [[_ second-page] (shown {:page {:kind :home :number 2}})]
+        (is (not-any? :front? (row-items second-page :entries)))))
+    (testing "the first entry of a page with a picture is the first picture, and no other is"
+      (let [first-pictures (fn [posts]
+                             (let [[_ page] (shown (assoc site :posts posts) {:page {:kind :home :number 1}})]
+                               (map :first-picture? (row-items page :entries))))]
+        (is (= [true false] (first-pictures posts)))
+        (is (= [false true] (first-pictures [(dissoc (first posts) :picture)
+                                             (assoc (second posts) :picture "a.png")])))
+        (is (= [false false] (first-pictures [(dissoc (first posts) :picture) (second posts)])))))
     (testing "an entry with no picture shows none"
       (is (nil? (:picture (second (row-items node :entries))))))
     (testing "a picture at a full address keeps it, and one under a path gets that path"

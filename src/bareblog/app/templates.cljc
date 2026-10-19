@@ -15,6 +15,7 @@
    The view of a page is the same tree, filled in: an item for each node, and the keys and the
    rows of each list. One function in `render` brings any node to its view."
   (:require [bareblog.app.journal :as journal]
+            [bareblog.app.magazine :as magazine]
             [bareblog.app.notebook :as notebook]
             [bareblog.blog.shape :as shape]
             [clojure.string :as str]))
@@ -22,7 +23,8 @@
 (def by-name
   "The node of the document of each blog template, by the name a blog gives in its settings."
   {:journal  journal/template
-   :notebook notebook/template})
+   :notebook notebook/template
+   :magazine magazine/template})
 
 (defn named
   "The blog template with the name `template-name`. Throws when there is none."

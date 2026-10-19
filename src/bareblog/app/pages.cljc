@@ -46,7 +46,7 @@
   (when current? "page"))
 (def ^:private no-newer? (comp nil? :newer))
 (def ^:private no-older? (comp nil? :older))
-(def ^:private no-picture? (comp nil? :picture))
+(def no-picture? (comp nil? :picture))
 (def ^:private not-filtered? (complement :filtered?))
 (def ^:private no-footer? (complement :powered-by-footer?))
 
@@ -143,9 +143,12 @@
              [:p {:class "summary"} :summary]]])
    :lists {:tags {:part "tags" :row tag}}})
 
-(def entries
+(defn listing
+  "The node of a page that lists posts, named `node-name`. `holder` is the element that holds
+   the entries, as the part \"entries\", and `row` is the node of each entry."
+  [node-name holder row]
   {:split (template/split
-           :entries
+           node-name
            [:section {:class "entries"}
             [:ul {:class "tag-choices" :aria-label (:all-tags words) :data-x-part "all-tags"}]
             [:div {:class "heading" :role "status" :hidden no-heading?}
@@ -153,11 +156,15 @@
              [:button {:type "button" :class "clear" :hidden not-filtered? :on {"click" :clear}}
               (:clear words)]]
             [:p {:class "empty" :hidden posts?} (:no-posts words)]
-            [:ol {:data-x-part "entries"}]
+            holder
             [:x-pagination {:label (:page-numbers words) :page :number :total-pages :pages :hidden one-page?
                             :on    {"page-change-request" :to-page}}]])
-   :lists {:entries  {:part "entries" :row entry}
+   :lists {:entries  {:part "entries" :row row}
            :all-tags {:part "all-tags" :row tag-choice}}})
+
+(def entries
+  "The node of a page that lists posts, one below the other."
+  (listing :entries [:ol {:data-x-part "entries"}] entry))
 
 (def ^:private archive-row
   {:split (template/split

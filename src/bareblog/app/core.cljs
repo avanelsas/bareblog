@@ -13,6 +13,9 @@
             [bareblog.blog.site :as site]
             [bareblog.blog.wire :as wire]
             [baredom.exports.x-badge :as x-badge]
+            [baredom.exports.x-bento-grid :as x-bento-grid]
+            [baredom.exports.x-bento-item :as x-bento-item]
+            [baredom.exports.x-card :as x-card]
             [baredom.exports.x-code :as x-code]
             [baredom.exports.x-command-palette :as x-command-palette]
             [baredom.exports.x-container :as x-container]
@@ -35,6 +38,9 @@
 (def ^:private registrations
   "The function that registers each custom element a blog template can name."
   {"x-badge"        x-badge/init
+   "x-bento-grid"   x-bento-grid/init
+   "x-bento-item"   x-bento-item/init
+   "x-card"         x-card/init
    "x-code"            x-code/init
    "x-command-palette" x-command-palette/init
    "x-container"    x-container/init

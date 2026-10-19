@@ -62,9 +62,19 @@
   [{:keys [title date href draft?]}]
   {:title title :date (site/day date) :href href :draft? (boolean draft?)})
 
-(defn- entry-row [root {:keys [folder summary picture tags] :as entry}]
-  [folder {:item  (assoc (listed entry) :summary summary :picture picture)
+(defn- entry-row [root front? first-picture? {:keys [folder summary picture tags] :as entry}]
+  [folder {:item  (assoc (listed entry)
+                         :summary        summary
+                         :picture        picture
+                         :front?         front?
+                         :first-picture? first-picture?)
            :lists {:tags (tag-rows root tags)}}])
+
+(defn- first-pictures
+  "Whether each of `entries` is the first of them that has a picture."
+  [entries]
+  (let [first-picture (:folder (first (filter :picture entries)))]
+    (map (comp (partial = first-picture) :folder) entries)))
 
 (defn- chosen-row [chosen tag-name]
   [tag-name {:item {:name tag-name :chosen? (= chosen tag-name)}}])
@@ -72,11 +82,14 @@
 (defn- entries-node
   "The node of a page that lists the `:entries` of `listing`. The rest of `listing` says what
    the list is: its `:heading`, the page it is and of how many, whether the reader chose to see
-   only some posts, and the `:tags` to choose from, of which `:chosen-tag` is chosen."
-  [root {:keys [entries tags chosen-tag] :as listing}]
+   only some posts, and the `:tags` to choose from, of which `:chosen-tag` is chosen.
+   `:front?` says that it is the first page of the home page, with nothing chosen."
+  [root {:keys [entries tags chosen-tag front?] :as listing}]
   {:item  (merge {:heading nil :number 1 :pages 1 :filtered? false :count (count entries)}
                  (select-keys listing [:heading :number :pages :filtered?]))
-   :lists {:entries  (rows (map (partial entry-row root) entries))
+   :lists {:entries  (rows (map (partial entry-row root (boolean front?))
+                                (first-pictures entries)
+                                entries))
            :all-tags (rows (map (partial chosen-row chosen-tag) tags))}})
 
 (defn- not-found
@@ -131,6 +144,7 @@
      :node  (entries-node (:root site)
                           {:entries (take per-page (drop (* per-page (dec number)) posts))
                            :number  number
+                           :front?  (= 1 number)
                            :pages   (site/page-count site)
                            :tags    (site/tags site)})}))
 

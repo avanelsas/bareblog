@@ -11,7 +11,7 @@
 (def site
   {:blog  {:title "Bare notes" :template :journal :available-themes ["ocean"]}
    :posts [{:folder "b" :title "Second" :date "2026-02-01" :tags ["travel"] :summary "Two." :draft? true}
-           {:folder "a" :title "First" :date "2025-01-01" :summary "One."}]
+           {:folder "a" :title "First" :date "2025-01-01" :summary "One." :picture "a.png"}]
    :pages [{:folder "about" :title "About" :order 1 :unpublished? true}
            {:folder "contact" :title "Contact"}]})
 
@@ -227,6 +227,30 @@
             (:text write)))
         (template/writes split item)))
 
+(defn- entry-items
+  "The item of each entry on the page `told` of a Magazine blog, in order."
+  [told]
+  (let [[_ node] (first (:by-key (get-in (view/page "/" (site-of :magazine) told {}) [:lists :main])))
+        {:keys [order by-key]} (get-in node [:lists :entries])]
+    (map (comp :item by-key) order)))
+
+(deftest magazine-test
+  (let [entries (get-in (templates/named :magazine) [:lists :main :rows "entries"])
+        card    (get-in entries [:lists :entries :row :split])
+        spans   (fn [told]
+                  (map (fn [item] (select-keys (attrs-of card item "x-bento-item") [:col-span :row-span :order]))
+                       (entry-items told)))]
+    (testing "a list of posts is a grid of cards, which a reader is told is a list"
+      (is (= "x-bento-grid.cards" (named-part (:fixed (:split entries)) "entries")))
+      (is (= "list" (some (fn [[tag attrs]] (when (= :x-bento-grid tag) (:role attrs)))
+                          (elements (:fixed (:split entries)))))))
+    (testing "the newest post with a picture on the first page leads: shown first, two columns wide
+              and two rows high"
+      (is (= [{:col-span 1 :row-span 1 :order nil} {:col-span 2 :row-span 2 :order -1}]
+             (spans (:home pages)))))
+    (testing "on the page of a tag no card leads"
+      (is (every? #{{:col-span 1 :row-span 1 :order nil}} (spans (:tag pages)))))))
+
 (deftest notebook-test
   (let [notebook (templates/named :notebook)
         item     (fn [choice] (:item (view/page "/" (site-of :notebook) (:post pages) choice)))
@@ -348,7 +372,8 @@
 (def ^:private shell-elements
   "The custom elements of the document of each blog template, on a page that shows nothing."
   {:journal  ["x-container" "x-drawer" "x-navbar" "x-search-field" "x-select" "x-theme"]
-   :notebook ["x-badge" "x-command-palette" "x-container" "x-navbar" "x-select" "x-sidebar" "x-theme"]})
+   :notebook ["x-badge" "x-command-palette" "x-container" "x-navbar" "x-select" "x-sidebar" "x-theme"]
+   :magazine ["x-container" "x-drawer" "x-navbar" "x-search-field" "x-select" "x-theme"]})
 
 (deftest custom-elements-test
   (doseq [[template-name shell] shell-elements
@@ -364,7 +389,11 @@
              (tags-of (:post pages))))))
   (testing "a home page of entries has its page numbers"
     (is (contains? (templates/custom-elements (templates/named :journal) (view/page "/" site (:home pages) {}))
-                   "x-pagination"))))
+                   "x-pagination")))
+  (testing "a home page of Magazine has its grid of cards"
+    (is (every? (templates/custom-elements (templates/named :magazine)
+                                           (view/page "/" (site-of :magazine) (:home pages) {}))
+                ["x-bento-grid" "x-bento-item" "x-card" "x-pagination"]))))
 
 (def ^:private page-events
   "The events of the pages, which every blog template has."
@@ -387,7 +416,17 @@
                ["x-select-change-request" :preset]
                ["click" :open-palette]
                ["click" :open-menu]
-               ["toggle" :menu]}})
+               ["toggle" :menu]}
+   :magazine #{["x-search-field-change-request" :search]
+               ["x-search-field-search" :submit-search]
+               ["x-select-change-request" :preset]
+               ["click" :open-menu]
+               ["click" :close-menu]
+               ["x-drawer-toggle" :menu]}})
+
+(deftest every-template-is-tested-test
+  (testing "the tables of elements and of events have every blog template"
+    (is (= (set (keys templates/by-name)) (set (keys shell-elements)) (set (keys shell-events))))))
 
 (deftest events-test
   (doseq [[template-name shell] shell-events]
