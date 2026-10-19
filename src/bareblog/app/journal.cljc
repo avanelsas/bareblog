@@ -27,7 +27,8 @@
                        (into (pages/links "menu-pages"))
                        (conj pages/search-field (pages/theme-select "menu-presets")))]
                   [:x-container {:as "main"}
-                   [:div {:data-x-part "main"}]]]])
+                   [:div {:data-x-part "main"}]]
+                  pages/footer]])
    :lists      {:presets      {:part "presets" :row pages/preset}
                 :menu-presets {:part "menu-presets" :row pages/preset :of :presets}
                 :pages        {:part "pages" :row pages/page-link}

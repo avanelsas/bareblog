@@ -36,6 +36,9 @@
              (str " :available-themes " (pr-str themes))
              (str " :per-page         " (pr-str site/default-per-page))
              ""
+             " ;; The line \"Powered by BareBlog\" at the bottom of every page. false leaves it out."
+             (str " :powered-by-footer " (pr-str site/default-powered-by-footer))
+             ""
              " ;; Set these two before you publish."
              ""
              " ;; Who writes the blog, in its feed. The title of the blog when left out."

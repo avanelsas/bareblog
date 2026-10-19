@@ -29,7 +29,8 @@
    :close       "Close"
    :not-found   "Not found"
    :not-here    "This page is not here."
-   :to-home     "To the home page"})
+   :to-home     "To the home page"
+   :powered-by  "Powered by "})
 
 (def wide-from
   "The width of a window in pixels from which `x-navbar` shows what it holds. A narrower window
@@ -47,6 +48,7 @@
 (def ^:private no-older? (comp nil? :older))
 (def ^:private no-picture? (comp nil? :picture))
 (def ^:private not-filtered? (complement :filtered?))
+(def ^:private no-footer? (complement :powered-by-footer?))
 
 (defn- posts?
   "True when a list has posts, or has none because of what the reader chose."
@@ -252,6 +254,17 @@
                search
                (theme-select "presets")]
               menu-button)))
+
+(def bareblog-address
+  "Where BareBlog is, for a reader who wants to know what made the blog."
+  "https://github.com/avanelsas/bareblog")
+
+(def footer
+  "The line at the bottom of every page, which says what made the blog. The settings of a blog
+   can leave it out."
+  [:footer {:class "site-footer" :hidden no-footer?}
+   (:powered-by words)
+   [:a {:href bareblog-address} "BareBlog"]])
 
 (def close-button
   "The button that closes the menu."

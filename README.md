@@ -202,7 +202,8 @@ you publish it by its folder.
 `bareblog init` writes `blog.edn` with every setting in it. Those that have a value when you
 say nothing are written with that value, so the file shows what your blog does and what you
 can change. `:author` and `:address` are written as comments, since only you know them. **Set
-both before you publish.**
+both before you publish.** `:link-preview` is a comment too, since it names a picture that you
+add.
 
 ```clojure
 {:title            "My blog"
@@ -211,6 +212,9 @@ both before you publish.**
  :available-themes ["ocean" "default" "forest" "sunset" "neo-brutalist" "aurora" "mono-ai" "warm-mineral"]
  :per-page         10
 
+ ;; The line "Powered by BareBlog" at the bottom of every page. false leaves it out.
+ :powered-by-footer true
+
  ;; Set these two before you publish.
 
  ;; Who writes the blog, in its feed. The title of the blog when left out.
@@ -218,6 +222,11 @@ both before you publish.**
 
  ;; Where the blog is published. Every link of a published page starts there.
  ;; :address "https://<you>.github.io/<repository>/"
+
+ ;; The picture that a chat shows with a link to a page that has none of its own: a
+ ;; PNG, JPEG or GIF beside this file. A square one of 400x400 is shown small beside
+ ;; the text, a wide one of 1200x630 beneath it.
+ ;; :link-preview "link-preview.jpg"
  }
 ```
 
@@ -228,8 +237,10 @@ both before you publish.**
 | `:template` | `:journal`, one reading column, or `:notebook`, a sidebar of posts and a command palette | `:journal` |
 | `:available-themes` | The themes a reader can pick from, by the name of a BareDOM theme preset. The first is the one a reader starts with. A new blog has all of them: take out the ones you do not want | BareDOM's own look, and nothing to pick |
 | `:per-page` | How many posts a page of the home page shows | `10` |
+| `:powered-by-footer` | Whether every page ends with the line "Powered by BareBlog". Only `false` leaves it out | `true` |
 | `:author` | The author in the feed | The title |
 | `:address` | Where the blog is published, as a full URL | The top of the host, which is wrong for a blog on GitHub Pages under a repository |
+| `:link-preview` | The picture that a chat shows with a link to a page that has none of its own: a PNG, JPEG or GIF beside `blog.edn` | No picture |
 
 ## What a reader gets
 

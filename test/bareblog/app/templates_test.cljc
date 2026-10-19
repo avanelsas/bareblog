@@ -322,6 +322,29 @@
       (is (= [{:class "nav-link" :type wire/feed-type} {:class "nav-link" :type wire/feed-type}]
              (feed-links template-name "/my-blog/"))))))
 
+(defn- footer-hidden?
+  "Whether the footer of the document of `template-name` is hidden, for a blog with the
+   settings `settings` besides those of the site."
+  [template-name settings]
+  (let [split  (:split (templates/named template-name))
+        footer (some (fn [[tag attrs]] (when (= :footer tag) (:data-x-part attrs)))
+                     (elements (:fixed split)))
+        site   (update (site-of template-name) :blog merge settings)
+        item   (:item (view/page "/" site (:archive pages) {}))]
+    (get-in (into {} (template/writes split item)) [footer :attrs :hidden])))
+
+(deftest footer-test
+  (doseq [template-name (keys templates/by-name)]
+    (testing (str template-name ": every page ends with what made the blog, which leads to BareBlog")
+      (is (= [[:footer {:class "site-footer"} ["Powered by " [:a {:href pages/bareblog-address} "BareBlog"]]]]
+             (for [[tag attrs children] (elements (:fixed (:split (templates/named template-name))))
+                   :when                (= :footer tag)]
+               [tag (dissoc attrs :data-x-part) children]))))
+    (testing (str template-name ": the settings of a blog can leave it out")
+      (is (false? (footer-hidden? template-name {})))
+      (is (false? (footer-hidden? template-name {:powered-by-footer true})))
+      (is (true? (footer-hidden? template-name {:powered-by-footer false}))))))
+
 (def ^:private shell-elements
   "The custom elements of the document of each blog template, on a page that shows nothing."
   {:journal  ["x-container" "x-drawer" "x-navbar" "x-search-field" "x-select" "x-theme"]

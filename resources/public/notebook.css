@@ -12,6 +12,12 @@
   align-items: start;
 }
 
+/* The column of the page and its footer. A long line in it scrolls inside, and does not
+   widen the column. */
+.notebook .content {
+  min-width: 0;
+}
+
 .notebook x-sidebar {
   --x-sidebar-width: 17rem;
   position: sticky;

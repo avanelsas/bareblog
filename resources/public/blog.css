@@ -162,6 +162,24 @@ body {
   }
 }
 
+.site-footer {
+  margin-top: calc(var(--x-space-xl, 1.5rem) * 2);
+  padding: var(--x-space-lg, 1rem) var(--x-space-lg, 1rem) var(--x-space-xl, 1.5rem);
+  border-top: var(--x-border-width, 1px) solid var(--x-color-border, #d0d7de);
+  color: var(--x-color-text-muted, #666);
+  font-size: var(--x-font-size-sm, 0.875rem);
+  text-align: center;
+}
+
+.site-footer a {
+  color: inherit;
+  text-underline-offset: 0.2em;
+}
+
+.site-footer a:hover {
+  color: var(--x-color-primary, #2563eb);
+}
+
 .entries x-pagination {
   margin-top: calc(var(--x-space-xl, 1.5rem) * 2);
 }

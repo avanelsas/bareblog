@@ -356,13 +356,14 @@
   (let [{:keys [blog root]} site]
     (cond-> (merge nothing-local
                    (select-keys local (keys nothing-local))
-                   {:preset     (preset blog (:preset local))
-                    :presets    (count (:available-themes blog))
-                    :tag        (chosen-tag told)
-                    :blog-title (:title blog)
-                    :home       root
-                    :archive    (address/archive root)
-                    :feed       (address/feed root)})
+                   {:preset             (preset blog (:preset local))
+                    :presets            (count (:available-themes blog))
+                    :tag                (chosen-tag told)
+                    :blog-title         (:title blog)
+                    :powered-by-footer? (site/powered-by-footer? blog)
+                    :home               root
+                    :archive            (address/archive root)
+                    :feed               (address/feed root)})
       (= :palette (:search shape)) (assoc :commands (commands site)))))
 
 (defn page

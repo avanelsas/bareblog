@@ -9,6 +9,19 @@
    :summary "Seven days."
    :blocks  [{:kind :text :content ["Text."]}]})
 
+(deftest powered-by-footer-test
+  (testing "a blog shows the line \"Powered by BareBlog\" unless its settings say false"
+    (is (site/powered-by-footer? {}))
+    (is (site/powered-by-footer? {:powered-by-footer true}))
+    (is (not (site/powered-by-footer? {:powered-by-footer false}))))
+  (testing "a value that is not true or false shows the line, and is named as a problem"
+    (is (site/powered-by-footer? {:powered-by-footer "no"}))
+    (is (= ["blog.edn gives \"no\" as its :powered-by-footer, which is true or false."]
+           (site/settings-problems {:powered-by-footer "no"}))))
+  (testing "true, false or nothing is no problem"
+    (doseq [settings [{} {:powered-by-footer true} {:powered-by-footer false}]]
+      (is (empty? (site/settings-problems settings))))))
+
 (deftest entry-test
   (testing "an entry is what a list shows of a post, and the folder to link to"
     (is (= {:folder "a-week-in-lisbon" :title "A week in Lisbon" :date "2026-10-11"

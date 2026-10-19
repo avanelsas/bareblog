@@ -327,6 +327,7 @@
         site         (-> (site/site settings
                                     (concat (map :entry (remove :page? read)) (read-kept blog :posts))
                                     (concat (folder-problems dirs) (mapcat :problems read)
+                                            (site/settings-problems settings)
                                             (link-preview-problems blog settings link-picture)))
                          (site/with-pages (concat (map :entry (filter :page? read)) (read-kept blog :pages))))]
     (cond-> (site/with-problems site (output/problems site))

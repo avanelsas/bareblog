@@ -1,6 +1,7 @@
 (ns bareblog.blog.site
   "What every page of a blog loads: the settings of the blog and its list of posts."
-  (:require [bareblog.blog.text :as text]))
+  (:require [bareblog.blog.layout :as layout]
+            [bareblog.blog.text :as text]))
 
 (defn entry
   "What the list of posts says of `post`, which is in the folder `folder`: enough to show it in
@@ -44,6 +45,26 @@
   (let [all (into (vec (:problems site)) problems)]
     (cond-> site
       (seq all) (assoc :problems all))))
+
+(def default-powered-by-footer
+  "What a new blog writes in its settings for the line \"Powered by BareBlog\", which is what a
+   blog that says nothing of it gets."
+  true)
+
+;; Only false leaves the line out, so that a value written wrong does not hide it.
+(defn powered-by-footer?
+  "True when the pages of the blog with the settings `settings` end with the line \"Powered by
+   BareBlog\"."
+  [settings]
+  (not (false? (:powered-by-footer settings))))
+
+(defn settings-problems
+  "What is wrong with the settings `settings`, as texts."
+  [settings]
+  (when-some [value (:powered-by-footer settings)]
+    (when-not (boolean? value)
+      [(str layout/settings-file " gives " (pr-str value) " as its :powered-by-footer, which is "
+            "true or false.")])))
 
 (defn site
   "The data that every page loads, from the settings of the blog and the entries of its posts.

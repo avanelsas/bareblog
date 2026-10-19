@@ -78,8 +78,10 @@
                      [:ul {:class "tag-choices" :aria-label (:all-tags pages/words) :data-x-part "tags"}]
                      clear-button
                      [:ol {:class "sidebar-posts" :data-x-part "posts"}]]]
-                   [:x-container {:as "main"}
-                    [:div {:data-x-part "main"}]]]]])
+                   [:div {:class "content"}
+                    [:x-container {:as "main"}
+                     [:div {:data-x-part "main"}]]
+                    pages/footer]]]])
    :props      {"palette" {:items palette-items}}
    :lists      {:presets      {:part "presets" :row pages/preset}
                 :menu-presets {:part "menu-presets" :row pages/preset :of :presets}
