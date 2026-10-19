@@ -1,6 +1,8 @@
 # BareBlog
 
-BareBlog is a small set of tools to help you publish a blog on Github Pages. Write a post as Markdown in a folder. One command shows your blog in the browser. Another publishes it to GitHub Pages as static pages.
+BareBlog is a small set of tools to write and publish a blog. Write a post as Markdown in a
+folder. One command shows your blog in the browser. Another publishes it as static pages, on
+GitHub Pages or on any web server.
 
 BareBlog is built using [BareDOM](https://github.com/avanelsas/baredom) web components and the
 BareMirror runtime that ships with it.
@@ -41,6 +43,8 @@ Its text is [`example/posts/every-kind/post.md`](./example/posts/every-kind/post
 beside the page to see how each of these is written.
 
 The example blog also has an About page, in `example/pages/`, and a draft, in `example/drafts/`.
+To see it in another blog template, set `:template :notebook` or `:template :magazine` in
+`example/blog.edn`. The open pages follow.
 
 ## A blog, step by step
 
@@ -111,6 +115,8 @@ click the gear beside "About" on that page and tick "Use your GitHub Pages websi
 | Change a published post | Edit it, then `bareblog publish <folder>` |
 | Take a post offline | Move its folder back to `drafts/`, then `bareblog publish <folder>` |
 | Change the title, the template or the theme | Edit `blog.edn`, then `bareblog publish --all` |
+| Change the link preview picture | Replace the file beside `blog.edn`, then `bareblog publish --all` |
+| Leave out the line "Powered by BareBlog" | Set `:powered-by-footer false` in `blog.edn`, then `bareblog publish --all` |
 | Add a page that is no post, such as About | `bareblog new --page "About"`, write it, then `bareblog publish about` |
 
 Publishing one post reads only that post from disk. An unfinished edit in another post stays on
@@ -160,6 +166,7 @@ BareBlog works out the rest:
 | The summary | The start of the first paragraph |
 | The tags | The last line, when it holds nothing but tags |
 | The date | The day you first publish the post |
+| The picture in lists and link previews | The first picture of the post. A link preview takes the first PNG, JPEG or GIF |
 
 **Tags.** Write them on the last line, each with a `#` and with no space in it:
 
@@ -196,6 +203,36 @@ the pages were first published: the page you publish first comes first. Pages th
 published together, as with `bareblog publish --all`, stand by title. A page is written
 where it is published from, so it has no draft. The preview marks it as not published until
 you publish it by its folder.
+
+## The blog templates
+
+A blog template decides how the blog looks. The posts stay the same: switch the template in
+`blog.edn` and every page follows. Every theme works with every template.
+
+| Template | What it is |
+|---|---|
+| `:journal` | One reading column. The home page lists the posts, each with its first picture small beside its summary |
+| `:notebook` | A sidebar that lists every post by year, with the tags above it. The home page shows the newest post, and a command palette searches |
+| `:magazine` | The home page shows the posts as cards in a grid. The newest post with a picture leads, on a card twice as wide and twice as high |
+
+## Link previews
+
+A chat or a social site that shows a link to your blog reads a card in the page: its title, its
+summary and a picture. BareBlog writes that card in every page.
+
+- A post or a page shows its own title and summary, and its first PNG, JPEG or GIF. A chat
+  shows no SVG, and some show no WebP.
+- Any other page, such as the home page, shows the name of the blog.
+- A page with no picture of its own shows the link preview picture: a PNG, JPEG or GIF beside
+  `blog.edn`, which `:link-preview` names. A square one of about 400 by 400 is shown small
+  beside the text, a wide one of 1200 by 630 beneath it.
+
+A card needs full addresses, so it has a picture and a link only when `:address` is set.
+Publishing one post keeps the link preview picture as it was published. Publish a new one with
+`bareblog publish --all`.
+
+A chat keeps a card it has shown. To see a new one, share the address again with something
+after it, such as `?v=2`.
 
 ## The settings
 
@@ -248,6 +285,25 @@ Static pages: a home page, a page for each post and tag, an archive, your own pa
 feed, which every page links to as "Feed" and which a feed reader takes like an RSS feed. Each
 page is drawn before any script runs. When the script arrives, a reader can search, pick a tag
 and pick a theme.
+
+A list of posts shows the first picture of each post. A link to any page shows a card in a chat.
+Every page ends with the line "Powered by BareBlog", unless the settings leave it out.
+
+## On your own server
+
+`docs/` holds static files only, so any web server can serve it. Set `:address` to where the
+blog lives, such as `https://blog.example.com/`. A blog under a path, such as
+`https://example.com/notes/`, works too.
+
+- **The page for an address with no page** is `404.html`. GitHub Pages shows it by itself.
+  Another server is told: `error_page 404 /404.html;` in nginx, `ErrorDocument 404 /404.html`
+  in Apache.
+- **`.nojekyll` and `CNAME`** are for GitHub Pages. Another server ignores them.
+- **Getting the files there.** `bareblog publish` commits and then pushes to `origin`. Make
+  `origin` a repository on your server, with a hook that copies `docs/` to the web root, and a
+  publish is one step. Without a remote, the publish writes and commits the pages, and says
+  that git could not push. Copy `docs/` yourself then, for example with
+  `rsync -a --delete docs/ you@server:/var/www/blog/`.
 
 ## Working on BareBlog
 
