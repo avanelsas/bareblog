@@ -32,16 +32,24 @@
   (rows (:keyed (reduce with-key {:keyed [] :seen {}} blocks))))
 
 ;; Inside the view the site knows two things more than it was read with: `:root`, where the
-;; top of the blog is, and for each post its `:href`.
+;; top of the blog is, and for each post its `:href`, with the address of its picture.
+
+(defn- addressed-entry
+  "The `entry` of a post or a page, in a blog whose top is at `root`, with its address, and
+   its picture at the address of its file."
+  [root {:keys [folder picture] :as entry}]
+  (let [href (address/post root folder)]
+    (cond-> (assoc entry :href href)
+      picture (assoc :picture (text/place href picture)))))
 
 (defn- addressed
   "The `site` for a blog whose top is at `root`, with the address of each post and of each
    page that is no post."
   [site root]
-  (let [with-href (partial mapv (fn [entry] (assoc entry :href (address/post root (:folder entry)))))]
+  (let [addressed-entries (partial mapv (partial addressed-entry root))]
     (cond-> (assoc site :root root)
-      (:posts site) (update :posts with-href)
-      (:pages site) (update :pages with-href))))
+      (:posts site) (update :posts addressed-entries)
+      (:pages site) (update :pages addressed-entries))))
 
 (defn- tag-row [root tag-name]
   [tag-name {:item {:name tag-name :href (address/tag root tag-name)}}])
@@ -54,8 +62,8 @@
   [{:keys [title date href draft?]}]
   {:title title :date (site/day date) :href href :draft? (boolean draft?)})
 
-(defn- entry-row [root {:keys [folder summary tags] :as entry}]
-  [folder {:item  (assoc (listed entry) :summary summary)
+(defn- entry-row [root {:keys [folder summary picture tags] :as entry}]
+  [folder {:item  (assoc (listed entry) :summary summary :picture picture)
            :lists {:tags (tag-rows root tags)}}])
 
 (defn- chosen-row [chosen tag-name]

@@ -45,6 +45,7 @@
   (when current? "page"))
 (def ^:private no-newer? (comp nil? :newer))
 (def ^:private no-older? (comp nil? :older))
+(def ^:private no-picture? (comp nil? :picture))
 (def ^:private not-filtered? (complement :filtered?))
 
 (defn- posts?
@@ -135,7 +136,9 @@
              [:time {:class "date"} :date]
              draft
              [:ul {:class "tags" :data-x-part "tags"}]]
-            [:p {:class "summary"} :summary]])
+            [:div {:class "abstract"}
+             [:img {:class "thumbnail" :src :picture :alt "" :loading "lazy" :hidden no-picture?}]
+             [:p {:class "summary"} :summary]]])
    :lists {:tags {:part "tags" :row tag}}})
 
 (def entries

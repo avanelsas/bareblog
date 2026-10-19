@@ -5,17 +5,19 @@
 (def blog {:title "Bare notes" :template :journal :available-themes ["ocean" "forest"] :per-page 2})
 
 (def posts
-  [{:folder "c" :title "Third" :date "2026-03-01T21:15:00+01:00" :tags ["travel" "food"] :summary "Three."}
+  [{:folder "c" :title "Third" :date "2026-03-01T21:15:00+01:00" :tags ["travel" "food"] :summary "Three."
+    :picture "./tram.png"}
    {:folder "b" :title "Second" :date "2026-02-01" :tags ["travel"] :summary "Two." :draft? true}
    {:folder "a" :title "First" :date "2025-01-01" :summary "One."}])
 
 (def site {:blog blog :posts posts})
 
 (defn- shown
-  "The key and the node of what the page `told` shows of `site`."
+  "The key and the node of what the page `told` shows of `site`, whose top is at `root`."
   ([told] (shown site told))
-  ([site told]
-   (let [{:keys [order by-key]} (get-in (view/page "/" site told {}) [:lists :main])]
+  ([site told] (shown "/" site told))
+  ([root site told]
+   (let [{:keys [order by-key]} (get-in (view/page root site told {}) [:lists :main])]
      [(first order) (by-key (first order))])))
 
 (defn- row-items
@@ -63,6 +65,13 @@
     (is (= "Third · Bare notes"
            (:title (view/page "/" site {:page {:kind :post :folder "c"} :text {:folder "c" :title "Third" :blocks []}} {}))))))
 
+(defn- first-picture
+  "The picture of the first entry of the home page, when the first post has `picture`, in a
+   blog whose top is at `root`."
+  [root picture]
+  (let [[_ node] (shown root (assoc-in site [:posts 0 :picture] picture) {:page {:kind :home :number 1}})]
+    (:picture (first (row-items node :entries)))))
+
 (deftest home-test
   (let [[k node] (shown {:page {:kind :home :number 1}})]
     (testing "the home page is a page of entries with no heading"
@@ -72,9 +81,16 @@
       (is (= [{:name "food" :chosen? false} {:name "travel" :chosen? false}] (row-items node :all-tags))))
     (testing "it shows the first posts of the list, as many as the blog asks for on a page"
       (is (= ["c" "b"] (get-in node [:lists :entries :order]))))
-    (testing "an entry shows the title, the date, the summary and the address of its post"
-      (is (= {:title "Third" :date "2026-03-01" :href "/c/" :draft? false :summary "Three."}
+    (testing "an entry shows the title, the date, the summary and the address of its post, and
+              its picture at the address of its file"
+      (is (= {:title "Third" :date "2026-03-01" :href "/c/" :draft? false :summary "Three."
+              :picture "/c/tram.png"}
              (first (row-items node :entries)))))
+    (testing "an entry with no picture shows none"
+      (is (nil? (:picture (second (row-items node :entries))))))
+    (testing "a picture at a full address keeps it, and one under a path gets that path"
+      (is (= "https://cdn.example.com/a.gif" (first-picture "/" "https://cdn.example.com/a.gif")))
+      (is (= "/notes/c/tram.png" (first-picture "/notes/" "tram.png"))))
     (testing "a draft says that it is one"
       (is (true? (:draft? (second (row-items node :entries))))))
     (testing "an entry lists its tags, each with the address of its page"

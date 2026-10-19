@@ -2,6 +2,7 @@
   "The card of a page: what a site that shows a link to the page, as a chat, reads of it. A
    card is facts, and `tags` spells them out as the tags of Open Graph."
   (:require [bareblog.blog.address :as address]
+            [bareblog.blog.text :as text]
             [clojure.string :as str]))
 
 (defn- published
@@ -16,9 +17,6 @@
   (cond
     (re-find #"^https?://" src)  src
     (str/starts-with? src root) (published blog-address (subs src (count root)))))
-
-(defn- shows-picture? [x]
-  (and (map? x) (address/picture? (:src x))))
 
 (defn- with-address
   "The size of the picture `picture`, with its full address `address` under `:at`. Nil without
@@ -37,7 +35,7 @@
    picture of the blog."
   [root blog-address link-picture shown]
   (or (some (partial own-picture root blog-address)
-            (filter shows-picture? (tree-seq coll? seq (:blocks shown))))
+            (filter (comp address/picture? :src) (text/pictures shown)))
       (when link-picture
         (with-address link-picture (published blog-address (:src link-picture))))))
 

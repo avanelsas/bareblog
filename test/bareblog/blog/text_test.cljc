@@ -137,6 +137,12 @@
                                      {:kind :text :content ["Text."]}]}
                            "/a-post/")))))
 
+(deftest pictures-test
+  (testing "the pictures of a post are its photos and the images inside its blocks, in order"
+    (is (= ["harbour.jpg" "map.png"] (take 2 (map :src (text/pictures with-images))))))
+  (testing "a post with no picture has none"
+    (is (empty? (text/pictures {:blocks [{:kind :text :content ["Text."]}]})))))
+
 (deftest sized-test
   (let [sized (text/sized with-images {"harbour.jpg" {:width 300 :height 200}
                                        "map.png"     {:width 64 :height 64}})]

@@ -1,12 +1,15 @@
 (ns bareblog.blog.site
-  "What every page of a blog loads: the settings of the blog and its list of posts.")
+  "What every page of a blog loads: the settings of the blog and its list of posts."
+  (:require [bareblog.blog.text :as text]))
 
 (defn entry
   "What the list of posts says of `post`, which is in the folder `folder`: enough to show it in
-   a list and to link to it."
+   a list, with the address of its first picture, and to link to it."
   [folder post draft?]
-  (cond-> (assoc (select-keys post [:title :date :tags :summary]) :folder folder)
-    draft? (assoc :draft? true)))
+  (let [picture (:src (first (text/pictures post)))]
+    (cond-> (assoc (select-keys post [:title :date :tags :summary]) :folder folder)
+      picture (assoc :picture picture)
+      draft?  (assoc :draft? true))))
 
 ;; The date of a post is the moment it was first published, on the clock of its author:
 ;; `2026-10-12T14:03:22+02:00`. It is compared as text, which is the order of time for as long

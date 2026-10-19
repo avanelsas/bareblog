@@ -128,8 +128,38 @@ body {
   color: var(--x-color-primary, #2563eb);
 }
 
+.entry .abstract {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--x-space-md, 0.75rem);
+  margin-top: var(--x-space-sm, 0.5rem);
+}
+
+/* The picture runs from the top of the capitals of the first line of the summary to the
+   baseline of its fourth line, or its third on a narrow screen. A browser without the units
+   lh and cap keeps the plain square. */
+.entry .thumbnail {
+  flex: none;
+  width: 6rem;
+  height: 6rem;
+  width: calc(3lh + 1cap);
+  height: calc(3lh + 1cap);
+  margin-top: calc((1lh - 1cap) / 2);
+  object-fit: cover;
+  border-radius: var(--x-radius-md, 0.375rem);
+}
+
 .entry .summary {
-  margin: var(--x-space-sm, 0.5rem) 0 0;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .entry .thumbnail {
+    width: 4.5rem;
+    height: 4.5rem;
+    width: calc(2lh + 1cap);
+    height: calc(2lh + 1cap);
+  }
 }
 
 .entries x-pagination {

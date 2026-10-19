@@ -130,6 +130,14 @@
   (sequence (comp (filter map?) (mapcat (apply juxt ks)) (filter string?))
             (tree-seq coll? seq (:blocks post))))
 
+(defn- picture? [x]
+  (and (map? x) (#{:photo :image} (:kind x)) (string? (:src x))))
+
+(defn pictures
+  "The pictures that `post` shows, a photo or an image inside a block, in order."
+  [post]
+  (filter picture? (tree-seq coll? seq (:blocks post))))
+
 (defn sources
   "The addresses in `post` of the files beside it that it shows, as they are written and as a
    set."
@@ -161,12 +169,20 @@
   [post sizes]
   (update post :blocks (partial walk/postwalk (partial with-size sizes))))
 
+(defn place
+  "The address `source` as the address of the file it names under `at`, the address of the
+   post, when it names one beside the post. Any other address stays as it is."
+  [at source]
+  (if (file-beside source)
+    (str at (from-here source))
+    source))
+
 (defn- placed-at
   "The address under `k` in `x` as the address of the file it names under `at`, when it names
    one beside the post."
   [at x k]
   (cond-> x
-    (file-beside (get x k)) (update k (comp (partial str at) from-here))))
+    (contains? x k) (update k (partial place at))))
 
 (defn- with-place [at x]
   (if (map? x)

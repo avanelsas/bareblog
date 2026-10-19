@@ -18,6 +18,14 @@
     (is (not (contains? (site/entry "a-week-in-lisbon" post false) :blocks))))
   (testing "a draft says that it is one"
     (is (true? (:draft? (site/entry "a-new-idea" post true)))))
+  (testing "an entry has the address of the first picture of the post"
+    (is (= "harbour.jpg"
+           (:picture (site/entry "a" (assoc post :blocks [{:kind :text :content ["Text."]}
+                                                          {:kind :photo :src "harbour.jpg" :width 300 :height 200}
+                                                          {:kind :photo :src "later.jpg"}])
+                                 false)))))
+  (testing "a post with no picture has none"
+    (is (not (contains? (site/entry "a-week-in-lisbon" post false) :picture))))
   (testing "a post with no date and no tags has neither"
     (is (= {:folder "bare" :title "Bare"} (site/entry "bare" {:title "Bare" :blocks []} false)))))
 
