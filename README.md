@@ -43,8 +43,8 @@ Its text is [`example/posts/every-kind/post.md`](./example/posts/every-kind/post
 beside the page to see how each of these is written.
 
 The example blog also has an About page, in `example/pages/`, and a draft, in `example/drafts/`.
-To see it in another blog template, set `:template :notebook` or `:template :magazine` in
-`example/blog.edn`. The open pages follow.
+To see it in another blog template, set `:template` to `:notebook`, `:magazine`, `:longform`
+or `:diary` in `example/blog.edn`. The open pages follow.
 
 ## A blog, step by step
 
@@ -214,6 +214,8 @@ A blog template decides how the blog looks. The posts stay the same: switch the 
 | `:journal` | One reading column. The home page lists the posts, each with its first picture small beside its summary |
 | `:notebook` | A sidebar that lists every post by year, with the tags above it. The home page shows the newest post, and a command palette searches |
 | `:magazine` | The home page shows the posts as cards in a grid. The newest post with a picture leads, on a card twice as wide and twice as high |
+| `:longform` | The home page shows the posts as a deck of large cards, which pile up as the reader scrolls. A post opens on its first picture, with its title at the foot of it |
+| `:diary` | A calendar beside the list of posts. Only the days with a post can be picked. A day or a month shows its posts |
 
 ## Link previews
 
@@ -271,7 +273,7 @@ add.
 |---|---|---|
 | `:title` | The name of the blog | |
 | `:language` | The language of the pages | `"en"` |
-| `:template` | `:journal`, one reading column, `:notebook`, a sidebar of posts and a command palette, or `:magazine`, the posts as cards in a grid | `:journal` |
+| `:template` | `:journal`, one reading column, `:notebook`, a sidebar of posts and a command palette, `:magazine`, the posts as cards in a grid, `:longform`, a deck of large cards, or `:diary`, a calendar beside the posts | `:journal` |
 | `:available-themes` | The themes a reader can pick from, by the name of a BareDOM theme preset. The first is the one a reader starts with. A new blog has all of them: take out the ones you do not want | BareDOM's own look, and nothing to pick |
 | `:per-page` | How many posts a page of the home page shows | `10` |
 | `:powered-by-footer` | Whether every page ends with the line "Powered by BareBlog". Only `false` leaves it out | `true` |
@@ -319,7 +321,7 @@ ones above it in this list, and none below it:
 | Folder | What is in it |
 |---|---|
 | `blog/` | What a blog is: a post, the list of posts, the address of each page. The command and the browser app share this folder and nothing else |
-| `app/` | The app that runs in the browser: the three blog templates, the view and the rendering, on BareMirror |
+| `app/` | The app that runs in the browser: the five blog templates, the view and the rendering, on BareMirror |
 | `written/` | What a blog is made of once it is written out: its pages, its files and its feed |
 | `read/` | From a directory to data: Markdown to blocks, and a blog from its folders |
 | `preview/` | The local server, and what tells an open page that a file changed |

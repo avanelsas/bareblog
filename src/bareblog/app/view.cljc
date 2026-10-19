@@ -83,10 +83,12 @@
   "The node of a page that lists the `:entries` of `listing`. The rest of `listing` says what
    the list is: its `:heading`, the page it is and of how many, whether the reader chose to see
    only some posts, and the `:tags` to choose from, of which `:chosen-tag` is chosen.
-   `:front?` says that it is the first page of the home page, with nothing chosen."
-  [root {:keys [entries tags chosen-tag front?] :as listing}]
-  {:item  (merge {:heading nil :number 1 :pages 1 :filtered? false :count (count entries)}
-                 (select-keys listing [:heading :number :pages :filtered?]))
+   `:front?` says that it is the first page of the home page, with nothing chosen, and `:date`
+   is the date that the reader chose. The list also knows the days of the posts of `site`."
+  [{:keys [root] :as site} {:keys [entries tags chosen-tag front?] :as listing}]
+  {:item  (merge {:heading nil :number 1 :pages 1 :filtered? false :count (count entries)
+                  :date nil :days (site/post-days site)}
+                 (select-keys listing [:heading :number :pages :filtered? :date]))
    :lists {:entries  (rows (map (partial entry-row root (boolean front?))
                                 (first-pictures entries)
                                 entries))
@@ -118,22 +120,32 @@
 (defn- tagged? [tag-name entry]
   (some #{tag-name} (:tags entry)))
 
+(defn- dated?
+  "True when `entry` is of the date `date`: a day, as `2026-10-12`, or a month, as `2026-10`."
+  [date entry]
+  (str/starts-with? (str (:date entry)) date))
+
 (defn- chosen
   "The posts of `posts` that the reader chose to see: those that match every word of `query`,
-   and have the tag `tag-name` when there is one."
-  [posts query tag-name]
+   have the tag `tag-name` when there is one, and are of the date `date` when there is one."
+  [posts {:keys [query tag date]}]
   (filter (every-pred (partial matches? (words-of query))
-                      (if tag-name (partial tagged? tag-name) any?))
+                      (if tag (partial tagged? tag) any?)
+                      (if date (partial dated? date) any?))
           posts))
 
 (defn- filtered-home
   "The home page as one list of the posts that the reader chose to see."
-  [{:keys [posts] :as site} {:keys [query tag]}]
-  (let [found (chosen posts query tag)]
+  [{:keys [posts] :as site} {:keys [tag date] :as local}]
+  (let [found (chosen posts local)]
     {:key   "entries"
      :named {:kind :home :number 1 :found (count found)}
-     :node  (entries-node (:root site)
-                          {:entries found :filtered? true :tags (site/tags site) :chosen-tag tag})}))
+     :node  (entries-node site
+                          {:entries    found
+                           :filtered?  true
+                           :tags       (site/tags site)
+                           :chosen-tag tag
+                           :date       date})}))
 
 (defn- paged-home
   "Page `number` of the home page as a list of entries."
@@ -141,7 +153,7 @@
   (let [per-page (site/per-page site)]
     {:key   "entries"
      :named {:kind :home :number number}
-     :node  (entries-node (:root site)
+     :node  (entries-node site
                           {:entries (take per-page (drop (* per-page (dec number)) posts))
                            :number  number
                            :front?  (= 1 number)
@@ -150,8 +162,8 @@
 
 (defn- filtering?
   "True when the reader chose to see only some of the posts."
-  [{:keys [query tag]}]
-  (boolean (or (seq (words-of query)) tag)))
+  [{:keys [query tag date]}]
+  (boolean (or (seq (words-of query)) tag date)))
 
 (declare post)
 
@@ -194,7 +206,7 @@
     (if (seq tagged)
       {:key   "entries"
        :named {:kind :tag :tag tag-name}
-       :node  (entries-node (:root site) {:entries tagged :heading tag-name})}
+       :node  (entries-node site {:entries tagged :heading tag-name})}
       (not-found site))))
 
 (defn- year [{:keys [date]}]
@@ -239,7 +251,10 @@
   (if shown
     {:key   "post"
      :named {:kind :post :name title}
-     :node  {:item  (merge {:title title :date (site/day date) :draft? (marked? (:posts site) folder :draft?)}
+     :node  {:item  (merge {:title   title
+                            :date    (site/day date)
+                            :draft?  (marked? (:posts site) folder :draft?)
+                            :picture (:src (first (text/pictures shown)))}
                            (neighbours site folder))
              :lists {:tags   (tag-rows (:root site) tags)
                      :blocks (block-rows blocks)}}}

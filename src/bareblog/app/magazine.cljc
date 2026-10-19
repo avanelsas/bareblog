@@ -27,8 +27,7 @@
   [item]
   (when (lead? item) -1))
 
-;; The link of the title covers the whole card, so the card is one link. `x-card` with
-;; `interactive` would be a button.
+;; `x-card` with `interactive` would be a button, so the link of the title is the link.
 (def ^:private card
   "An entry as a card: its picture, its title, its date and tags, and its summary."
   {:split (template/split
@@ -39,14 +38,8 @@
                            :row-span span
                            :order    place}
             [:x-card {:class "card" :variant "outlined" :padding "none"}
-             [:img {:class "cover" :src :picture :alt "" :loading "lazy" :hidden pages/no-picture?}]
-             [:div {:class "card-text"}
-              [:h2 [:a {:href :href} :title]]
-              [:div {:class "meta"}
-               [:time {:class "date"} :date]
-               pages/draft
-               [:ul {:class "tags" :data-x-part "tags"}]]
-              [:p {:class "summary"} :summary]]]])
+             pages/cover
+             pages/card-text]])
    :lists {:tags {:part "tags" :row pages/tag}}})
 
 (def ^:private cards

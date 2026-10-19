@@ -25,13 +25,16 @@
 (deftest initial-test
   (testing "a page that was told nothing searches for nothing and has chosen nothing"
     (is (= {:root  "/"
-            :local {:query "" :tag nil :preset nil :menu? false :palette? false :command-key? false}}
+            :local {:query "" :tag nil :date nil :preset nil :menu? false :palette? false
+                    :command-key? false}}
            (state/initial {}))))
   (testing "it starts with where the top of its blog is"
     (is (= "/my-blog/" (:root (state/initial {:root "/my-blog/"})))))
   (testing "it starts with what the reader chose before, and with what the page knows of its keyboard"
-    (is (= {:query "lisbon" :tag "travel" :preset "forest" :menu? false :palette? false :command-key? true}
-           (:local (state/initial {:query "lisbon" :tag "travel" :preset "forest" :command-key? true}))))))
+    (is (= {:query "lisbon" :tag "travel" :date "2026-10" :preset "forest" :menu? false :palette? false
+            :command-key? true}
+           (:local (state/initial {:query "lisbon" :tag "travel" :date "2026-10" :preset "forest"
+                                   :command-key? true}))))))
 
 (deftest told-test
   (testing "what a page is told becomes its site and its page"
@@ -122,9 +125,14 @@
     (is (= "forest" (get-in (state/shown (after [:told {:site site :page home}] [:preset "forest"]))
                             [:view :item :preset]))))
   (testing "on the home page the address asks for what the reader chose"
-    (is (= {:q "" :tag ""} (:asked (state/shown (after [:told {:site site :page home}])))))
-    (is (= {:q "lisbon" :tag "travel"}
-           (:asked (state/shown (after [:told {:site site :page home}] [:search "lisbon"] [:tag "travel"]))))))
+    (is (= {:q "" :tag "" :date ""} (:asked (state/shown (after [:told {:site site :page home}])))))
+    (is (= {:q "lisbon" :tag "travel" :date ""}
+           (:asked (state/shown (after [:told {:site site :page home}] [:search "lisbon"] [:tag "travel"])))))
+    (is (= {:q "" :tag "" :date "2026-10-12"}
+           (:asked (state/shown (after [:told {:site site :page home}] [:month "2026-10"] [:day "2026-10-12"]))))))
+  (testing "letting go of the choice lets go of the date too"
+    (is (nil? (:date (local-after [:day "2026-10-12"] [:clear]))))
+    (is (nil? (:date (local-after [:day ""])))))
   (testing "on any other page the address is left alone"
     (is (nil? (:asked (state/shown (after [:told {:site site :page post}] [:search "lisbon"]))))))
   (testing "the view knows whether the palette and the menu are open"
@@ -134,7 +142,7 @@
       (is (true? (:menu? (item [:menu true]))))
       (is (false? (:menu? (item))))))
   (testing "where a choice takes effect on every page, the address asks for it on every page"
-    (is (= {:q "" :tag "travel"}
+    (is (= {:q "" :tag "travel" :date ""}
            (:asked (state/shown (after [:told {:site notebook-site :page post}] [:tag "travel"]))))))
   (testing "the preset to keep is the one the reader chose"
     (is (= "forest" (:preset (state/shown (after [:preset "forest"])))))))

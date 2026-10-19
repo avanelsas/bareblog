@@ -180,6 +180,64 @@ body {
   color: var(--x-color-primary, #2563eb);
 }
 
+/* The face of a card, which the blog templates with cards share: the first picture of a post,
+   and what the card says of it. The card itself is positioned. */
+.cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  object-fit: cover;
+}
+
+.cover[hidden] {
+  display: none;
+}
+
+.card-text {
+  padding: var(--x-space-lg, 1rem);
+  font-size: var(--x-font-size-base, 1rem);
+  line-height: 1.5;
+}
+
+.card-text h2 {
+  margin: 0 0 var(--x-space-xs, 0.25rem);
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+.card-text h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The link of the title covers the card, so a click anywhere on it opens the post. The tags
+   lie above it, and stay links of their own. */
+.card-text h2 a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.card-text h2 a:hover,
+.card-text h2 a:focus-visible {
+  color: var(--x-color-primary, #2563eb);
+}
+
+.card-text .tags a {
+  position: relative;
+  z-index: 1;
+}
+
+.card-text .summary {
+  display: -webkit-box;
+  margin: var(--x-space-sm, 0.5rem) 0 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
 .entries x-pagination {
   margin-top: calc(var(--x-space-xl, 1.5rem) * 2);
 }

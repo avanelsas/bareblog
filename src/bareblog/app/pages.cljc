@@ -110,16 +110,27 @@
 (def ^:private block
   {:fixed-of blocks/template})
 
-(def post
+(def meta-line
+  "What a post shows below its title: its date, whether it is a draft, and its tags."
+  [:div {:class "meta"}
+   [:time {:class "date"} :date]
+   draft
+   [:ul {:class "tags" :data-x-part "tags"}]])
+
+(def post-header
+  "The header of a post: its title, its date, whether it is a draft, and its tags."
+  [:header {:class "post-header"}
+   [:h1 :title]
+   meta-line])
+
+(defn post-page
+  "The node of the page of a post, named `node-name`, which opens with `header`: an element that
+   holds `post-header`."
+  [node-name header]
   {:split (template/split
-           :post
+           node-name
            [:article {:class "post"}
-            [:header {:class "post-header"}
-             [:h1 :title]
-             [:div {:class "meta"}
-              [:time {:class "date"} :date]
-              draft
-              [:ul {:class "tags" :data-x-part "tags"}]]]
+            header
             [:div {:class "post-blocks" :data-x-part "blocks"}]
             [:nav {:class "neighbours" :aria-label (:others words)}
              [:a {:class "newer" :rel "next" :href (comp :href :newer) :hidden no-newer?}
@@ -129,23 +140,37 @@
    :lists {:tags   {:part "tags" :row tag}
            :blocks {:part "blocks" :row block}}})
 
-(def ^:private entry
+(def post
+  "The page of a post."
+  (post-page :post post-header))
+
+(def cover
+  "The first picture of a post, across the top of a card."
+  [:img {:class "cover" :src :picture :alt "" :loading "lazy" :hidden no-picture?}])
+
+;; The link of the title covers the whole card, so the card is one link.
+(def card-text
+  "What a card says of a post: its title, as the link to it, its date and tags, and its summary."
+  [:div {:class "card-text"}
+   [:h2 [:a {:href :href} :title]]
+   meta-line
+   [:p {:class "summary"} :summary]])
+
+(def entry
+  "A post in a list: its title, its date and tags, and its summary beside its first picture."
   {:split (template/split
            :entry
            [:li {:class "entry"}
             [:h2 [:a {:href :href} :title]]
-            [:div {:class "meta"}
-             [:time {:class "date"} :date]
-             draft
-             [:ul {:class "tags" :data-x-part "tags"}]]
+            meta-line
             [:div {:class "abstract"}
              [:img {:class "thumbnail" :src :picture :alt "" :loading "lazy" :hidden no-picture?}]
              [:p {:class "summary"} :summary]]])
    :lists {:tags {:part "tags" :row tag}}})
 
 (defn listing
-  "The node of a page that lists posts, named `node-name`. `holder` is the element that holds
-   the entries, as the part \"entries\", and `row` is the node of each entry."
+  "The node of a page that lists posts, named `node-name`. `holder` holds the entries in the part
+   \"entries\", and `row` is the node of each entry."
   [node-name holder row]
   {:split (template/split
            node-name

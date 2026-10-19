@@ -15,6 +15,7 @@
             [baredom.exports.x-badge :as x-badge]
             [baredom.exports.x-bento-grid :as x-bento-grid]
             [baredom.exports.x-bento-item :as x-bento-item]
+            [baredom.exports.x-calendar :as x-calendar]
             [baredom.exports.x-card :as x-card]
             [baredom.exports.x-code :as x-code]
             [baredom.exports.x-command-palette :as x-command-palette]
@@ -24,6 +25,8 @@
             [baredom.exports.x-image :as x-image]
             [baredom.exports.x-navbar :as x-navbar]
             [baredom.exports.x-pagination :as x-pagination]
+            [baredom.exports.x-scroll-parallax :as x-scroll-parallax]
+            [baredom.exports.x-scroll-stack :as x-scroll-stack]
             [baredom.exports.x-search-field :as x-search-field]
             [baredom.exports.x-select :as x-select]
             [baredom.exports.x-sidebar :as x-sidebar]
@@ -40,6 +43,7 @@
   {"x-badge"        x-badge/init
    "x-bento-grid"   x-bento-grid/init
    "x-bento-item"   x-bento-item/init
+   "x-calendar"     x-calendar/init
    "x-card"         x-card/init
    "x-code"            x-code/init
    "x-command-palette" x-command-palette/init
@@ -49,6 +53,8 @@
    "x-image"        x-image/init
    "x-navbar"       x-navbar/init
    "x-pagination"   x-pagination/init
+   "x-scroll-parallax" x-scroll-parallax/init
+   "x-scroll-stack" x-scroll-stack/init
    "x-search-field" x-search-field/init
    "x-select"          x-select/init
    "x-sidebar"         x-sidebar/init
@@ -152,7 +158,7 @@
   "What the address of this page asks for, by name."
   []
   (let [params (js/URLSearchParams. (.-search js/location))]
-    {:query (.get params "q") :tag (.get params "tag")}))
+    {:query (.get params "q") :tag (.get params "tag") :date (.get params "date")}))
 
 (defn- document-root
   "Where the top of the blog is, as the document says."
@@ -214,6 +220,11 @@
   [_origin ^js event]
   (.. event -detail -item -value))
 
+(defn- detail-month
+  "The month that a calendar was moved to."
+  [_origin ^js event]
+  (.. event -detail -month))
+
 (defn- nothing [_origin _event]
   nil)
 
@@ -225,6 +236,8 @@
    :preset        detail-value
    :tag           row-key
    :tag-link      tag-picked!
+   :day           detail-value
+   :month         detail-month
    :clear         nothing
    :menu          detail-open
    :open-menu     nothing

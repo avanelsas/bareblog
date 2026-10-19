@@ -251,6 +251,44 @@
     (testing "on the page of a tag no card leads"
       (is (every? #{{:col-span 1 :row-span 1 :order nil}} (spans (:tag pages)))))))
 
+(deftest longform-test
+  (let [longform (templates/named :longform)
+        deck     (get-in longform [:lists :main :rows "entries"])
+        post     (:split (get-in longform [:lists :main :rows "post"]))
+        hero     (fn [picture] (attrs-of post {:title "A post" :picture picture} "x-scroll-parallax"))]
+    (testing "a list of posts is a deck of cards, which a reader is told is a list"
+      (is (= "x-scroll-stack.deck" (named-part (:fixed (:split deck)) "entries")))
+      (is (= "list" (some (fn [[tag attrs]] (when (= :x-scroll-stack tag) (:role attrs)))
+                          (elements (:fixed (:split deck)))))))
+    (testing "a post opens on its first picture, which moves slower than its title"
+      (is (= "hero with-picture" (:class (hero "/a/tram.jpg"))))
+      (is (= {:src "/a/tram.jpg" :hidden false}
+             (select-keys (attrs-of post {:picture "/a/tram.jpg"} "img.hero-picture") [:src :hidden])))
+      (is (= ["0.5" "1"] (keep (comp :data-speed second) (elements (:fixed post))))))
+    (testing "a post with no picture opens on its title alone"
+      (is (= "hero" (:class (hero nil))))
+      (is (true? (:hidden (attrs-of post {:picture nil} "img.hero-picture")))))))
+
+(deftest diary-test
+  (let [entries  (:split (get-in (templates/named :diary) [:lists :main :rows "entries"]))
+        listing  {:heading nil :number 1 :pages 1 :filtered? false :count 2 :date nil
+                  :days ["2026-09-29" "2026-10-02"]}
+        calendar (fn [item] (attrs-of entries (merge listing item) "x-calendar.calendar"))]
+    (testing "the calendar shows the month of the newest post, held to the days of the posts"
+      (is (= {:month "2026-10" :min "2026-09-29" :max "2026-10-02" :value nil :hidden false}
+             (select-keys (calendar {}) [:month :min :max :value :hidden]))))
+    (testing "every day between the posts that has no post cannot be picked"
+      (is (= "2026-09-30 2026-10-01" (:disabled-dates (calendar {})))))
+    (testing "a day that the reader chose is picked, and its month shown"
+      (is (= {:value "2026-09-29" :month "2026-09"}
+             (select-keys (calendar {:date "2026-09-29"}) [:value :month]))))
+    (testing "a month that the reader chose is shown, and no day is picked"
+      (is (= {:value nil :month "2026-09"} (select-keys (calendar {:date "2026-09"}) [:value :month]))))
+    (testing "the page of a tag has no calendar, since a date picks nothing there"
+      (is (true? (:hidden (calendar {:heading "travel"})))))
+    (testing "a blog with no post that was published has no calendar, since there is no day to pick"
+      (is (true? (:hidden (calendar {:days []})))))))
+
 (deftest notebook-test
   (let [notebook (templates/named :notebook)
         item     (fn [choice] (:item (view/page "/" (site-of :notebook) (:post pages) choice)))
@@ -373,7 +411,14 @@
   "The custom elements of the document of each blog template, on a page that shows nothing."
   {:journal  ["x-container" "x-drawer" "x-navbar" "x-search-field" "x-select" "x-theme"]
    :notebook ["x-badge" "x-command-palette" "x-container" "x-navbar" "x-select" "x-sidebar" "x-theme"]
-   :magazine ["x-container" "x-drawer" "x-navbar" "x-search-field" "x-select" "x-theme"]})
+   :magazine ["x-container" "x-drawer" "x-navbar" "x-search-field" "x-select" "x-theme"]
+   :longform ["x-container" "x-drawer" "x-navbar" "x-search-field" "x-select" "x-theme"]
+   :diary    ["x-container" "x-drawer" "x-navbar" "x-search-field" "x-select" "x-theme"]})
+
+(def ^:private post-elements
+  "The custom elements that the page of a post has in a blog template, besides those of its
+   blocks."
+  {:longform ["x-scroll-parallax"]})
 
 (deftest custom-elements-test
   (doseq [[template-name shell] shell-elements
@@ -385,7 +430,9 @@
     (testing (str template-name ": a page has those of what it shows too")
       (is (= (conj (set shell) "x-badge") (tags-of (:archive pages)))))
     (testing (str template-name ": the page of a post has those of its blocks, at any depth")
-      (is (= (into (set shell) ["x-badge" "x-code" "x-image" "x-table" "x-table-cell" "x-table-row"])
+      (is (= (-> (set shell)
+                 (into ["x-badge" "x-code" "x-image" "x-table" "x-table-cell" "x-table-row"])
+                 (into (post-elements template-name)))
              (tags-of (:post pages))))))
   (testing "a home page of entries has its page numbers"
     (is (contains? (templates/custom-elements (templates/named :journal) (view/page "/" site (:home pages) {}))
@@ -422,7 +469,21 @@
                ["x-select-change-request" :preset]
                ["click" :open-menu]
                ["click" :close-menu]
-               ["x-drawer-toggle" :menu]}})
+               ["x-drawer-toggle" :menu]}
+   :longform #{["x-search-field-change-request" :search]
+               ["x-search-field-search" :submit-search]
+               ["x-select-change-request" :preset]
+               ["click" :open-menu]
+               ["click" :close-menu]
+               ["x-drawer-toggle" :menu]}
+   :diary    #{["x-search-field-change-request" :search]
+               ["x-search-field-search" :submit-search]
+               ["x-select-change-request" :preset]
+               ["click" :open-menu]
+               ["click" :close-menu]
+               ["x-drawer-toggle" :menu]
+               ["x-calendar-change" :day]
+               ["x-calendar-navigate" :month]}})
 
 (deftest every-template-is-tested-test
   (testing "the tables of elements and of events have every blog template"

@@ -21,6 +21,11 @@
   [date]
   (some-> date (subs 0 10)))
 
+(defn post-days
+  "The days on which the posts of `site` were first published, oldest first, each once."
+  [site]
+  (vec (into (sorted-set) (keep (comp day :date)) (:posts site))))
+
 (defn- by-date
   "Compares two entries: a post with no date first, then the later date, then by title."
   [a b]

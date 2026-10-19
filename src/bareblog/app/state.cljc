@@ -4,8 +4,8 @@
    The state holds where the top of the blog is, as `:root`, what the page was told, the
    `:site` and its own `:page` or a `:problem`, and
    under `:local` what is the page's own: what the reader chose, which is the text to search
-   for, a tag and a theme preset, whether the menu and the palette are open, and what the page
-   knows of its keyboard.
+   for, a tag, a date and a theme preset, whether the menu and the palette are open, and what
+   the page knows of its keyboard.
 
    A message goes through `step`, and `shown` says what the page then shows: a notice, the view
    of the document, what the address asks for, and the preset to keep. An event, and what the
@@ -18,10 +18,11 @@
 (defn initial
   "The state of a page that was told nothing yet, with where the top of its blog is, what the
    reader chose before, and what the page knows of its keyboard."
-  [{:keys [root query tag preset command-key?]}]
+  [{:keys [root query tag date preset command-key?]}]
   {:root  (or root address/top)
    :local {:query        (or query "")
            :tag          tag
+           :date         (not-empty date)
            :preset       preset
            :menu?        false
            :palette?     false
@@ -61,8 +62,13 @@
     (= tag-name (:tag local)) (assoc local :tag nil)
     :else                     (assoc local :tag tag-name)))
 
+;; A date is a day, as `2026-10-12`, or a month, as `2026-10`. The posts of a date are those
+;; whose date starts with it.
+(defn- pick-date [local date]
+  (assoc local :date (not-empty date)))
+
 (defn- clear [local _]
-  (assoc local :query "" :tag nil))
+  (assoc local :query "" :tag nil :date nil))
 
 (defn- pick-preset
   "What is local after `preset` is picked. A pick of no preset changes nothing."
@@ -93,6 +99,8 @@
   {:search        search
    :tag           pick-tag
    :tag-link      pick-tag
+   :day           pick-date
+   :month         pick-date
    :clear         clear
    :preset        pick-preset
    :menu          menu
@@ -155,9 +163,9 @@
 
 (defn- asked
   "What the address asks for of the list, when the page is one that can show it."
-  [{{:keys [query tag]} :local :as state}]
+  [{{:keys [query tag date]} :local :as state}]
   (when (shows-choice? state)
-    {:q query :tag (or tag "")}))
+    {:q query :tag (or tag "") :date (or date "")}))
 
 (defn shown
   "What the page shows for `state`, as a value: a notice or nil, the view of the document or

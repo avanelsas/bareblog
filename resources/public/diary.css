@@ -1,0 +1,46 @@
+/* The Diary blog template: Journal, with a calendar beside the list of posts. */
+
+.diary .post,
+.diary .archive,
+.diary .not-found {
+  margin: 0 auto;
+}
+
+.diary .entries {
+  max-width: 62rem;
+  margin: 0 auto;
+}
+
+/* The calendar stays in view beside the list, and stands above it in a narrow window. */
+.diary .days-and-posts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: calc(var(--x-space-xl, 1.5rem) * 1.5);
+}
+
+.diary .calendar {
+  position: sticky;
+  top: var(--x-space-xl, 1.5rem);
+}
+
+.diary .calendar[hidden] {
+  display: none;
+}
+
+.diary .diary-entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (max-width: 760px) {
+  .diary .days-and-posts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .diary .calendar {
+    position: static;
+    justify-self: center;
+  }
+}

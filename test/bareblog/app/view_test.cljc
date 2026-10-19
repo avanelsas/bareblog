@@ -12,6 +12,10 @@
 
 (def site {:blog blog :posts posts})
 
+(def days
+  "The days of the posts of `site`, oldest first."
+  ["2025-01-01" "2026-02-01" "2026-03-01"])
+
 (defn- shown
   "The key and the node of what the page `told` shows of `site`, whose top is at `root`."
   ([told] (shown site told))
@@ -76,7 +80,7 @@
   (let [[k node] (shown {:page {:kind :home :number 1}})]
     (testing "the home page is a page of entries with no heading"
       (is (= "entries" k))
-      (is (= {:heading nil :count 2 :number 1 :pages 2 :filtered? false} (:item node))))
+      (is (= {:heading nil :count 2 :number 1 :pages 2 :filtered? false :date nil :days days} (:item node))))
     (testing "it offers every tag of the blog to choose from, and none is chosen"
       (is (= [{:name "food" :chosen? false} {:name "travel" :chosen? false}] (row-items node :all-tags))))
     (testing "it shows the first posts of the list, as many as the blog asks for on a page"
@@ -120,11 +124,27 @@
     (is (= ["entries" 0 []] (let [[k node] (shown {:blog blog :posts []} {:page {:kind :home :number 1}})]
                               [k (get-in node [:item :count]) (get-in node [:lists :entries :order])])))))
 
+(deftest date-test
+  (let [found (fn [date]
+                (let [{:keys [order by-key]} (get-in (view/page "/" site {:page {:kind :home :number 1}}
+                                                                 {:date date})
+                                                     [:lists :main])
+                      node (by-key (first order))]
+                  {:order (get-in node [:lists :entries :order]) :item (:item node)}))]
+    (testing "a month shows the posts of that month, as a choice"
+      (is (= ["b"] (:order (found "2026-02"))))
+      (is (= {:filtered? true :date "2026-02"} (select-keys (:item (found "2026-02")) [:filtered? :date]))))
+    (testing "a day shows the posts of that day"
+      (is (= ["c"] (:order (found "2026-03-01")))))
+    (testing "a date with no post shows none"
+      (is (empty? (:order (found "2026-04")))))))
+
 (deftest tag-test
   (let [[k node] (shown {:page {:kind :tag :tag "travel"}})]
     (testing "the page of a tag is a page of entries under the tag, on one page"
       (is (= "entries" k))
-      (is (= {:heading "travel" :count 2 :number 1 :pages 1 :filtered? false} (:item node))))
+      (is (= {:heading "travel" :count 2 :number 1 :pages 1 :filtered? false :date nil :days days}
+             (:item node))))
     (testing "it offers no tags to choose from"
       (is (= [] (row-items node :all-tags))))
     (testing "it shows every post with the tag"
@@ -169,7 +189,7 @@
   (testing "a search shows every post that matches, on one page, and says that it is a choice"
     (let [[k node] (chosen {:query "t"})]
       (is (= "entries" k))
-      (is (= {:heading nil :count 3 :number 1 :pages 1 :filtered? true} (:item node)))))
+      (is (= {:heading nil :count 3 :number 1 :pages 1 :filtered? true :date nil :days days} (:item node)))))
   (testing "a word is looked for in the title, the summary and the tags, in any case"
     (is (= ["c"] (found {:query "THIRD"})))
     (is (= ["a"] (found {:query "one."})))
@@ -236,6 +256,11 @@
       (is (= [{:name "travel" :href "/tags/travel/"}] (row-items node :tags))))
     (testing "the blocks are in the order of the post, each under its key"
       (is (= [one two] (mapv (get-in node [:lists :blocks :by-key]) (get-in node [:lists :blocks :order]))))))
+  (testing "the page of a post has the address of its first picture, or none"
+    (is (= "/c/tram.jpg"
+           (:picture (:item (post-node "c" {:title  "Third"
+                                            :blocks [one {:kind :photo :src "/c/tram.jpg"}]})))))
+    (is (nil? (:picture (:item (post-node "c" {:title "Third" :blocks [one two]}))))))
   (testing "the newest post has no newer one, and the oldest no older one"
     (is (nil? (:newer (:item (post-node "c" {:title "Third" :blocks []})))))
     (is (nil? (:older (:item (post-node "a" {:title "First" :blocks []}))))))

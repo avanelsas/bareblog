@@ -22,6 +22,13 @@
     (doseq [settings [{} {:powered-by-footer true} {:powered-by-footer false}]]
       (is (empty? (site/settings-problems settings))))))
 
+(deftest days-test
+  (testing "the days of the posts are each day once, oldest first, and a post with no date has none"
+    (is (= ["2026-10-02" "2026-10-12"]
+           (site/post-days {:posts [{:date "2026-10-12T09:00:00+02:00"} {:date "2026-10-02"}
+                                    {:date "2026-10-12T21:00:00+02:00"} {:title "Bare"}]})))))
+
+
 (deftest entry-test
   (testing "an entry is what a list shows of a post, and the folder to link to"
     (is (= {:folder "a-week-in-lisbon" :title "A week in Lisbon" :date "2026-10-11"
