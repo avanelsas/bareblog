@@ -272,11 +272,13 @@
 (deftest diary-test
   (let [entries  (:split (get-in (templates/named :diary) [:lists :main :rows "entries"]))
         listing  {:heading nil :number 1 :pages 1 :filtered? false :count 2 :date nil
-                  :days ["2026-09-29" "2026-10-02"]}
+                  :days ["2026-09-29" "2026-10-02"] :language "nl"}
         calendar (fn [item] (attrs-of entries (merge listing item) "x-calendar.calendar"))]
     (testing "the calendar shows the month of the newest post, held to the days of the posts"
       (is (= {:month "2026-10" :min "2026-09-29" :max "2026-10-02" :value nil :hidden false}
              (select-keys (calendar {}) [:month :min :max :value :hidden]))))
+    (testing "the calendar names its months and days in the language of the blog"
+      (is (= "nl" (:locale (calendar {})))))
     (testing "every day between the posts that has no post cannot be picked"
       (is (= "2026-09-30 2026-10-01" (:disabled-dates (calendar {})))))
     (testing "a day that the reader chose is picked, and its month shown"

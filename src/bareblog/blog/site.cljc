@@ -87,6 +87,11 @@
   "The language of a blog that names none."
   "en")
 
+(defn language
+  "The language of the blog with the settings `blog`, as a language tag such as `nl`."
+  [blog]
+  (:language blog default-language))
+
 (defn dates
   "The date of each post and page in `site` that has one, by its folder."
   [site]

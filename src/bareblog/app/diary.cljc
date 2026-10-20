@@ -48,6 +48,7 @@
                 :min            first-day
                 :max            last-day
                 :disabled-dates quiet-days
+                :locale         :language
                 :hidden         no-calendar?
                 :on             {"x-calendar-change"   :day
                                  "x-calendar-navigate" :month}}])

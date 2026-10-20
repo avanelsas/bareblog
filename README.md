@@ -272,7 +272,7 @@ add.
 | Key | What it is | When left out |
 |---|---|---|
 | `:title` | The name of the blog | |
-| `:language` | The language of the pages | `"en"` |
+| `:language` | The language of the pages, of the feed and of the Diary calendar, as a language tag such as `"nl"`. BareBlog's own words, such as "Archive", stay English | `"en"` |
 | `:template` | `:journal`, one reading column, `:notebook`, a sidebar of posts and a command palette, `:magazine`, the posts as cards in a grid, `:longform`, a deck of large cards, or `:diary`, a calendar beside the posts | `:journal` |
 | `:available-themes` | The themes a reader can pick from, by the name of a BareDOM theme preset. The first is the one a reader starts with. A new blog has all of them: take out the ones you do not want | BareDOM's own look, and nothing to pick |
 | `:per-page` | How many posts a page of the home page shows | `10` |

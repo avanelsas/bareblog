@@ -4,6 +4,7 @@
    The feed is made as a tree: an element is a vector of its tag, its attributes and what it
    holds, which is text or elements. `atom-feed` writes the tree out."
   (:require [bareblog.blog.address :as address]
+            [bareblog.blog.site :as site]
             [clojure.string :as str]))
 
 (defn- entry
@@ -27,13 +28,13 @@
 (defn tree
   "The feed of the blog in `site`, whose top is at `root`, as a tree: the posts that have a
    date, the newest first, each with its title, its address, its date, its summary and its
-   tags."
+   tags. The feed is in the language of the blog."
   [root {:keys [blog posts]}]
   (let [origin (:origin (address/of-blog (:address blog)))
         at     (fn [page] (str origin (address/of-page root page)))
         dated  (filter :date posts)
         home   (at {:kind :home :number 1})]
-    (into [:feed {:xmlns "http://www.w3.org/2005/Atom"}
+    (into [:feed {:xmlns "http://www.w3.org/2005/Atom" :xml:lang (site/language blog)}
            [:title {} (:title blog)]
            [:id {} home]
            [:link {:href home}]

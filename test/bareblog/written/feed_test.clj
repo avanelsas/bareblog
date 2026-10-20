@@ -29,7 +29,7 @@
 
 (deftest tree-test
   (testing "the feed is a tree: an element is its tag, its attributes and what it holds"
-    (is (= [:feed {:xmlns "http://www.w3.org/2005/Atom"}
+    (is (= [:feed {:xmlns "http://www.w3.org/2005/Atom" :xml:lang "en"}
             [:title {} "Bare"]
             [:id {} "/"]
             [:link {:href "/"}]
@@ -44,6 +44,16 @@
              nil
              [:category {:term "x"}]]]
            (feed/tree "/" {:blog {:title "Bare"} :posts [{:folder "a" :title "A" :date "2026-01-01T09:00:00Z" :tags ["x"]}]})))))
+
+(defn- feed-attributes
+  "The attributes of the feed of a blog with the settings `blog` and no posts."
+  [blog]
+  (second (feed/tree "/" {:blog blog :posts []})))
+
+(deftest language-test
+  (testing "the feed is in the language of the blog, and in English when the blog names none"
+    (is (= "nl" (:xml:lang (feed-attributes {:title "Bare" :language "nl"}))))
+    (is (= "en" (:xml:lang (feed-attributes {:title "Bare"}))))))
 
 (deftest feed-test
   (let [document (read-feed root site)

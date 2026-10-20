@@ -84,10 +84,11 @@
    the list is: its `:heading`, the page it is and of how many, whether the reader chose to see
    only some posts, and the `:tags` to choose from, of which `:chosen-tag` is chosen.
    `:front?` says that it is the first page of the home page, with nothing chosen, and `:date`
-   is the date that the reader chose. The list also knows the days of the posts of `site`."
-  [{:keys [root] :as site} {:keys [entries tags chosen-tag front?] :as listing}]
+   is the date that the reader chose. The list also knows the days of the posts of `site`, and
+   the language of the blog."
+  [{:keys [root blog] :as site} {:keys [entries tags chosen-tag front?] :as listing}]
   {:item  (merge {:heading nil :number 1 :pages 1 :filtered? false :count (count entries)
-                  :date nil :days (site/post-days site)}
+                  :date nil :days (site/post-days site) :language (site/language blog)}
                  (select-keys listing [:heading :number :pages :filtered? :date]))
    :lists {:entries  (rows (map (partial entry-row root (boolean front?))
                                 (first-pictures entries)
@@ -411,7 +412,7 @@
                                   :shape    (shape/of-blog blog)}
         {:keys [key named node]} ((get mains (:kind what) nothing) told)]
     {:template (shape/template-name blog)
-     :language (:language blog site/default-language)
+     :language (site/language blog)
      :title    (document-title ((:title template) named) (:title blog))
      :card     (when-not (= :not-found (:kind named)) (card/card told))
      :item     (item told)

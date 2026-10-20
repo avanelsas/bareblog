@@ -80,7 +80,10 @@
   (let [[k node] (shown {:page {:kind :home :number 1}})]
     (testing "the home page is a page of entries with no heading"
       (is (= "entries" k))
-      (is (= {:heading nil :count 2 :number 1 :pages 2 :filtered? false :date nil :days days} (:item node))))
+      (is (= {:heading nil :count 2 :number 1 :pages 2 :filtered? false}
+             (select-keys (:item node) [:heading :count :number :pages :filtered?]))))
+    (testing "the list knows the days of the posts and the language of the blog"
+      (is (= {:days days :language "en"} (select-keys (:item node) [:days :language]))))
     (testing "it offers every tag of the blog to choose from, and none is chosen"
       (is (= [{:name "food" :chosen? false} {:name "travel" :chosen? false}] (row-items node :all-tags))))
     (testing "it shows the first posts of the list, as many as the blog asks for on a page"
@@ -143,8 +146,8 @@
   (let [[k node] (shown {:page {:kind :tag :tag "travel"}})]
     (testing "the page of a tag is a page of entries under the tag, on one page"
       (is (= "entries" k))
-      (is (= {:heading "travel" :count 2 :number 1 :pages 1 :filtered? false :date nil :days days}
-             (:item node))))
+      (is (= {:heading "travel" :count 2 :number 1 :pages 1 :filtered? false}
+             (select-keys (:item node) [:heading :count :number :pages :filtered?]))))
     (testing "it offers no tags to choose from"
       (is (= [] (row-items node :all-tags))))
     (testing "it shows every post with the tag"
@@ -189,7 +192,8 @@
   (testing "a search shows every post that matches, on one page, and says that it is a choice"
     (let [[k node] (chosen {:query "t"})]
       (is (= "entries" k))
-      (is (= {:heading nil :count 3 :number 1 :pages 1 :filtered? true :date nil :days days} (:item node)))))
+      (is (= {:heading nil :count 3 :number 1 :pages 1 :filtered? true}
+             (select-keys (:item node) [:heading :count :number :pages :filtered?])))))
   (testing "a word is looked for in the title, the summary and the tags, in any case"
     (is (= ["c"] (found {:query "THIRD"})))
     (is (= ["a"] (found {:query "one."})))

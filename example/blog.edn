@@ -1,7 +1,8 @@
 {;; The name of the blog, in the navbar and in the title of every page.
  :title            "Bare notes"
 
- ;; The language of the pages.
+ ;; The language of the pages, of the feed and of the Diary calendar, as a language tag such
+ ;; as "nl". BareBlog's own words, such as "Archive", stay English.
  :language         "en"
 
  ;; How the blog looks: :journal, :notebook, :magazine, :longform or :diary.
