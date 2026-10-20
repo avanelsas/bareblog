@@ -32,7 +32,8 @@ A photo:
 
 ![The harbour at dawn, with a boat on the water](harbour.svg)
 
-Code in a language that `x-code` colours:
+Code in a language that `x-code` colours: JavaScript, JSON, CSS, HTML or Clojure. Code in any
+other language is shown plain.
 
 ```js
 const greeting = name => `Hello, ${name}.`;
@@ -64,12 +65,17 @@ and on lines of its own like this:
   Hidden text.
 </details>
 
-HTML in a fence marked `live` runs too, in a frame of its own, above its code:
+HTML in a fence marked `live` runs too, in a frame of its own, above its code. A BareDOM
+component in it works as it does on any page:
 
 ```html live
 <x-badge text="New" variant="success"></x-badge>
 <x-badge text="Draft" variant="warning"></x-badge>
 ```
+
+The frame takes the height of what it shows. `height=300` after `live` gives it a height of
+its own. It loads BareDOM from jsDelivr, so a reader needs to be online to
+see it. What runs in it cannot reach the page around it.
 
 A post names its tags on its last line, as this one does. An underscore is a space.
 

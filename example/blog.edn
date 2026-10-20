@@ -2,34 +2,38 @@
  :title            "Bare notes"
 
  ;; The language of the pages, of the feed and of the Diary calendar, as a language tag such
- ;; as "nl". BareBlog's own words, such as "Archive", stay English.
+ ;; as "nl". BareBlog's own words, such as "Archive", stay English. When left out: "en".
  :language         "en"
 
- ;; How the blog looks: :journal, :notebook, :magazine, :longform or :diary.
+ ;; How the blog looks: :journal, :notebook, :magazine, :longform or :diary. When left
+ ;; out: :journal.
  :template         :journal
 
  ;; The themes a reader can pick from, by the name of a BareDOM theme preset. The first is
  ;; the one a reader starts with. Every theme: "ocean" "default" "forest" "sunset"
- ;; "neo-brutalist" "aurora" "mono-ai" "warm-mineral".
+ ;; "neo-brutalist" "aurora" "mono-ai" "warm-mineral". A new blog has all of them: take out
+ ;; the ones you do not want. When left out: BareDOM's own look, and nothing to pick.
  :available-themes ["ocean" "forest" "warm-mineral"]
 
  ;; How many posts a page of the home page shows. Kept small here, so that the example
- ;; has more than one page.
+ ;; has more than one page. When left out: 10.
  :per-page         3
 
- ;; The line "Powered by BareBlog" at the bottom of every page. false leaves it out.
+ ;; The line "Powered by BareBlog" at the bottom of every page. Shown unless false.
  :powered-by-footer true
 
  ;; Set these two before you publish.
 
- ;; Who writes the blog, in its feed. The title of the blog when left out.
+ ;; Who writes the blog, in its feed. When left out: the title of the blog.
  ;; :author "Your name"
 
- ;; Where the blog is published. Every link of a published page starts there.
+ ;; Where the blog is published, as a full URL. Every link of a published page starts
+ ;; there. When left out: the top of the host, which is wrong for a blog on GitHub Pages
+ ;; under a repository.
  ;; :address "https://<you>.github.io/<repository>/"
 
  ;; The picture that a chat shows with a link to a page that has none of its own: a
  ;; PNG, JPEG or GIF beside this file. A square one of 400x400 is shown small beside
- ;; the text, a wide one of 1200x630 beneath it.
+ ;; the text, a wide one of 1200x630 beneath it. When left out: no picture.
  ;; :link-preview "link-preview.jpg"
  }

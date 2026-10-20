@@ -1,5 +1,5 @@
 (ns bareblog.code-test
-  "Holds the code to the rules of its folders, and the folders of the README to the code."
+  "Holds the code to the rules of its folders, and the table of its folders to the code."
   (:require [babashka.fs :as fs]
             [clojure.string :as str]
             [clojure.test :refer [deftest is]]))
@@ -20,10 +20,14 @@
   "The folders of the code. A folder uses those before it, and none after it."
   ["blog" "app" "written" "read" "preview" "publish" "command"])
 
-(defn- read-readme-folders
-  "The folders of the code in the order that the table of the README gives them."
+(def ^:private folder-table
+  "The file whose table names the folders of the code."
+  "CONTRIBUTING.md")
+
+(defn- read-documented-folders
+  "The folders of the code in the order that the table of `folder-table` gives them."
   []
-  (mapv second (re-seq #"(?m)^\| `(\w+)/` \|" (slurp "README.md"))))
+  (mapv second (re-seq #"(?m)^\| `(\w+)/` \|" (slurp folder-table))))
 
 (defn- folder-of
   "The folder of the namespace `named`, which is the part of its name after the first."
@@ -55,9 +59,9 @@
          :when    (not= user used)]
      [user used])))
 
-(deftest the-folders-are-those-of-the-code-and-of-the-readme-in-that-order
+(deftest the-folders-are-those-of-the-code-and-of-its-docs-in-that-order
   (is (= (set folders) (set (map folder-of (read-namespaces)))))
-  (is (= folders (read-readme-folders))))
+  (is (= folders (read-documented-folders))))
 
 (deftest a-folder-uses-those-before-it-and-none-after
   (let [place (zipmap folders (range))]
