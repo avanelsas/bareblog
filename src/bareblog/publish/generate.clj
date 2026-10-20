@@ -14,6 +14,7 @@
             [bareblog.blog.address :as address]
             [bareblog.blog.wire :as wire]
             [bareblog.blog.layout :as layout]
+            [bareblog.blog.pictures :as pictures]
             [bareblog.preview.serve :as serve]
             [bareblog.read.source :as source]
             [bareblog.written.output :as output]
@@ -179,12 +180,11 @@
     (fs/create-dirs (fs/path out folder))
     (fs/copy (fs/path from file-name) (fs/path out folder file-name) {:replace-existing true})))
 
-(defn- copy-link-preview!
-  "Copies the link preview of `blog`, whose link picture is `link-picture`, into the top of
-   `out`."
-  [blog out {:keys [src] :as link-picture}]
-  (when link-picture
-    (fs/copy (fs/path (source/link-preview-dir blog) src) (fs/path out src) {:replace-existing true})))
+(defn- copy-pictures!
+  "Copies the pictures of `blog`, as `pictures` holds them, into the top of `out`."
+  [blog out pictures]
+  (doseq [src (pictures/files pictures)]
+    (fs/copy (fs/path (source/pictures-dir blog) src) (fs/path out src) {:replace-existing true})))
 
 (defn- write-blog!
   "Writes the whole of `blog` into the directory `out`, and gives the file of each page. Its
@@ -203,7 +203,7 @@
           (write-text! out file text))
         (copy-app! app out)
         (copy-media! blog out (distinct (keep :text (vals told))))
-        (copy-link-preview! blog out (:link-picture site))
+        (copy-pictures! blog out (:pictures site))
         files)
       (finally
         @(http/server-stop! server)))))

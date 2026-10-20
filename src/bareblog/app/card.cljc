@@ -45,10 +45,11 @@
   "The card of the page that `told` describes. A post or a page of the author is an article,
    with its own title and summary. Any other page is the blog, by its name."
   [{:keys [site page] shown :text}]
-  (let [{:keys [blog link-picture root]} site
-        blog-address                     (when (:address blog) (address/of-blog (:address blog)))
-        article                          (when (#{:post :standalone} (:kind page)) shown)
-        found                            (when blog-address (card-picture root blog-address link-picture article))]
+  (let [{:keys [blog root]} site
+        link-picture        (get-in site [:pictures :link-preview])
+        blog-address        (when (:address blog) (address/of-blog (:address blog)))
+        article             (when (#{:post :standalone} (:kind page)) shown)
+        found               (when blog-address (card-picture root blog-address link-picture article))]
     (cond-> {:title     (if article (:title article) (:title blog))
              :kind      (if article :article :website)
              :site-name (:title blog)}

@@ -94,12 +94,6 @@
                 (not (contains? wire/reserved file-name))
                 (re-matches (re-pattern file-pattern) file-name))))
 
-(defn link-preview-name?
-  "True when `file-name` can name a link preview: a PNG, a JPEG or a GIF beside the settings
-   of a blog, by its name alone."
-  [file-name]
-  (and (string? file-name) (file-name? file-name) (address/picture? file-name)))
-
 (defn- from-here
   "The address `source` without the `./` that it may start with, which says no more than that
    the address is from where the post is."

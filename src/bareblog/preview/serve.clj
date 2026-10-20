@@ -16,8 +16,7 @@
             [bareblog.written.feed :as feed]
             [clojure.string :as str]
             [org.httpkit.server :as http])
-  (:import [java.security MessageDigest]
-           [java.util.regex Matcher]))
+  (:import [java.util.regex Matcher]))
 
 (defn app-dir
   "The directory of the files of the app, for BareBlog in the directory `home`."
@@ -298,14 +297,10 @@
       (serve-file (fs/path (source/find-media-dir blog folder) file))
       not-found)))
 
-(defn- serve-static [{:keys [app]} {:keys [file]} _request]
-  (serve-file (fs/path app file)))
-
-(defn- read-version
-  "The version of the file at `path`: the start of a digest of what it holds."
-  [path]
-  (let [digest (.digest (MessageDigest/getInstance "SHA-256") (fs/read-all-bytes path))]
-    (subs (format "%064x" (BigInteger. 1 digest)) 0 12)))
+(defn- serve-static
+  "A file at the top: a picture that the settings of the blog name, or else a file of the app."
+  [{:keys [app blog]} {:keys [file]} _request]
+  (serve-file (or (source/find-served-picture blog file) (fs/path app file))))
 
 ;; The versions are read for each page that is sent, which takes a millisecond or two. A
 ;; preview then names a script that was built again by what it holds now.
@@ -317,7 +312,7 @@
         (for [path  (fs/glob app "**")
               :let  [file (fs/unixify (fs/relativize app path))]
               :when (and (fs/regular-file? path) (not= wire/index file))]
-          [file (read-version path)])))
+          [file (source/read-version path)])))
 
 (defn- read-document
   "The response that sends the page of the app, for what is served."

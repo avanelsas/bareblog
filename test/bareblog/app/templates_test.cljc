@@ -360,9 +360,8 @@
           (tree-seq vector? seq tree)))
 
 (deftest home-link-test
-  (testing "in the navbar the name of the blog leads to the home page, and nothing else does"
-    (is (= [[:a {:slot "brand" :class "brand" :href :home} :blog-title]]
-           (home-links (pages/navbar pages/search-field)))))
+  (testing "in the navbar the brand leads to the home page, and nothing else does"
+    (is (= [pages/brand] (home-links (pages/navbar pages/search-field)))))
   (testing "the links of the navbar, which a menu holds too, have none to the home page"
     (is (empty? (home-links (pages/links "menu-pages"))))))
 
@@ -396,6 +395,50 @@
         site   (update (site-of template-name) :blog merge settings)
         item   (:item (view/page "/" site (:archive pages) {}))]
     (get-in (into {} (template/writes split item)) [footer :attrs :hidden])))
+
+(defn- brand-writes
+  "What the brand of the document of `template-name` is written with, by the tag of each of its
+   elements, for a blog with the pictures `pictures`."
+  [template-name pictures]
+  (let [split  (:split (templates/named template-name))
+        brand  (some (fn [[_ attrs :as piece]] (when (= "brand" (:class attrs)) piece))
+                     (elements (:fixed split)))
+        parts  (into {} (keep (fn [[tag attrs]] (some->> (:data-x-part attrs) (vector tag))))
+                     (elements (into [:a] (last brand))))
+        site   (assoc (site-of template-name) :pictures pictures)
+        writes (into {} (template/writes split (:item (view/page "/" site (:archive pages) {}))))]
+    (update-vals parts writes)))
+
+(deftest brand-test
+  (doseq [template-name (keys templates/by-name)]
+    (testing (str template-name ": without a logo, the brand is the name of the blog")
+      (let [{:keys [picture source span]} (brand-writes template-name nil)]
+        (is (true? (get-in picture [:attrs :hidden])))
+        (is (nil? (get-in source [:attrs :srcset])))
+        (is (= {:attrs {:hidden false} :text "Bare notes"} span))))
+    (testing (str template-name ": a logo is the whole brand, with the name as its text, and a
+                  picture for the dark mode where there is one")
+      (let [{:keys [picture source img span]}
+            (brand-writes template-name {:logo {:light {:src "logo.svg" :version "a1"}
+                                                :dark  {:src "logo dark.svg" :version "b2"}}})]
+        (is (false? (get-in picture [:attrs :hidden])))
+        (is (= {:src "/logo.svg?v=a1" :alt "Bare notes"} (:attrs img)))
+        (is (= "/logo%20dark.svg?v=b2" (get-in source [:attrs :srcset])))
+        (is (true? (get-in span [:attrs :hidden])))))
+    (testing (str template-name ": a logo with one picture shows it in both modes")
+      (is (nil? (get-in (brand-writes template-name {:logo {:light {:src "logo.svg" :version "a1"}}})
+                        [:source :attrs :srcset]))))))
+
+(deftest favicon-test
+  (testing "a blog with no favicon has no tag of one"
+    (is (= [] (pages/favicon-tags (:favicon (view/page "/" site (:archive pages) {}))))))
+  (testing "a favicon is a tag of the head, and one for the dark mode follows it"
+    (is (= [{:href "/my-blog/icon.svg?v=a1"}
+            {:href "/my-blog/icon-dark.svg?v=b2" :media "(prefers-color-scheme: dark)"}]
+           (pages/favicon-tags (:favicon (view/page "/my-blog/"
+                                             (assoc site :pictures {:favicon {:light {:src "icon.svg" :version "a1"}
+                                                                              :dark  {:src "icon-dark.svg" :version "b2"}}})
+                                             (:archive pages) {})))))))
 
 (deftest footer-test
   (doseq [template-name (keys templates/by-name)]

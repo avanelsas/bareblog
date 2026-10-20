@@ -103,7 +103,7 @@ build that GitHub starts fails.
 |---|---|
 | Change a published post | Edit it, then `bareblog publish <folder>` |
 | Take a post offline | Move its folder back to `drafts/`, then `bareblog publish <folder>` |
-| Change a setting or the link preview picture | Edit `blog.edn` or replace the picture, then `bareblog publish --all` |
+| Change a setting, or a picture such as the logo | Edit `blog.edn` or replace the picture, then `bareblog publish --all` |
 | Add a page that is no post, such as About | `bareblog new --page "About"`, write it, then `bareblog publish about` |
 
 Publishing one post reads only that post from disk. An unfinished edit in another post stays on
@@ -124,8 +124,8 @@ A blog template decides what the blog looks like. The posts stay the same: switc
 
 ## More
 
-- [The guide](./GUIDE.md): what a blog is made of, what a post and a page hold, link previews,
-  and a blog on your own server.
+- [The guide](./GUIDE.md): what a blog is made of, what a post and a page hold, a logo and a
+  favicon, link previews, and a blog on your own server.
 - [Working on BareBlog](./CONTRIBUTING.md): how the code is laid out, and how to test it.
 
 ## License

@@ -57,7 +57,7 @@
             :dates           {"b" "2026-02-01" "a" "2025-01-01" "about" "2026-01-15"}
             :paths           ["posts/b" "docs"]
             :message         "Publish b"
-            :link-preview-in "docs"}
+            :pictures-in "docs"}
            (one published "b" {:in-posts? true}))))
   (testing "a new post from the drafts is moved, and gets today as its date"
     (let [planned (one published "c" {:in-drafts? true})]
@@ -75,7 +75,7 @@
     (is (re-find #"nothing named zebra" (:refuse (one published "zebra" {})))))
   (testing "a page is read from the pages, is not moved, and gets today as the day it is first published"
     (is (= {:read #{"contact"} :as-published #{"a" "b" "about"} :paths ["pages/contact" "docs"]
-            :message "Publish contact" :link-preview-in "docs"
+            :message "Publish contact" :pictures-in "docs"
             :dates {"contact" today "b" "2026-02-01" "a" "2025-01-01" "about" "2026-01-15"}}
            (one published "contact" {:in-pages? true})))
     (is (= ["pages/about" "docs"] (:paths (one published "about" {:in-pages? true})))))
@@ -97,7 +97,7 @@
   (testing "the first post of a blog that was never published is a new one, with the link
             preview from the top of the blog"
     (is (= {:read #{"a"} :as-published #{} :dates {"a" today}}
-           (select-keys (one nil "a" {:in-posts? true}) [:read :as-published :dates :link-preview-in])))))
+           (select-keys (one nil "a" {:in-posts? true}) [:read :as-published :dates :pictures-in])))))
 
 (deftest all-test
   (testing "the whole blog reads every folder there is, and commits the settings too"
@@ -135,7 +135,13 @@
     (is (= ["blog.edn" "link-preview.jpg" "docs"]
            (take 3 (:paths (all published {:link-preview "link-preview.jpg"} {:posts #{} :pages #{}} #{})))))
     (is (= ["blog.edn" "docs"]
-           (take 2 (:paths (all published {:link-preview "../x.jpg"} {:posts #{} :pages #{}} #{})))))))
+           (take 2 (:paths (all published {:link-preview "../x.jpg"} {:posts #{} :pages #{}} #{}))))))
+  (testing "every picture that the settings name is committed beside them, once"
+    (is (= ["blog.edn" "logo.svg" "logo-dark.svg" "icon.svg" "docs"]
+           (take 5 (:paths (all published {:logo {:light "logo.svg" :dark "logo-dark.svg"} :favicon "icon.svg"}
+                                {:posts #{} :pages #{}} #{})))))
+    (is (= ["blog.edn" "logo.svg" "docs"]
+           (take 3 (:paths (all published {:logo "logo.svg" :favicon "logo.svg"} {:posts #{} :pages #{}} #{})))))))
 
 (deftest questions-test
   (testing "each question names the posts it is about, in the order of the alphabet"

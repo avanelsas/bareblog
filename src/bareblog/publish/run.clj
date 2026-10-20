@@ -57,7 +57,7 @@
    `settings`."
   [dir settings plan]
   (merge (source/published dir settings)
-         (select-keys plan [:read :as-published :link-preview-in :dates])))
+         (select-keys plan [:read :as-published :pictures-in :dates])))
 
 ;; A post is edited when what a page would show of it is not what was published. Both are
 ;; read for the settings that were published, so that a change of the settings is no edit.
@@ -163,7 +163,7 @@
       (say (str layout/settings-file " is not as it was published. Publish it with: bareblog publish --all"))
 
       :else
-      (when-some [changed (source/find-changed-link-preview dir settings)]
+      (doseq [changed (source/find-changed-pictures dir settings)]
         (say (str changed " is not as it was published. Publish it with: bareblog publish --all"))))
     (carry-out! how dir settings (plan/one {:published published
                                             :folder    folder

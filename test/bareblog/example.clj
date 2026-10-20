@@ -2,6 +2,7 @@
   "A directory to change in a test: one with nothing in it, or a copy of the example blog,
    with its settings, its posts, its drafts and its pages."
   (:require [babashka.fs :as fs]
+            [bareblog.blog.pictures :as pictures]
             [clojure.edn :as edn]))
 
 (def dir "example")
@@ -18,12 +19,14 @@
 
 (defn- copy-to!
   "Copies what an author wrote of the example blog into the directory `target`, with
-   `settings` put over its settings."
+   `settings` put over its settings, and the pictures beside them."
   [target settings]
   (doseq [posts ["posts" "drafts" "pages"]]
     (fs/copy-tree (fs/path dir posts) (fs/path target posts)))
-  (spit (fs/file target "blog.edn")
-        (pr-str (merge (edn/read-string (slurp (fs/file dir "blog.edn"))) settings))))
+  (let [own (edn/read-string (slurp (fs/file dir "blog.edn")))]
+    (doseq [src (distinct (map :src (pictures/named own)))]
+      (fs/copy (fs/path dir src) (fs/path target src)))
+    (spit (fs/file target "blog.edn") (pr-str (merge own settings)))))
 
 (defn with-copy
   "What `check` gives for the directory of a copy of the example blog, with `settings` put

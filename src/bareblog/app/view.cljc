@@ -51,6 +51,17 @@
       (:posts site) (update :posts addressed-entries)
       (:pages site) (update :pages addressed-entries))))
 
+(defn- picture-address
+  "The address of `picture`, a picture of the blog at `root`, with its version, or nil."
+  [root {:keys [src version]}]
+  (when src
+    (str (address/file root (address/encoded src)) "?v=" version)))
+
+(defn- picture-addresses
+  "The address of each picture of the kind `kind` in `site`, by mode."
+  [{:keys [pictures root]} kind]
+  (update-vals (get pictures kind) (partial picture-address root)))
+
 (defn- tag-row [root tag-name]
   [tag-name {:item {:name tag-name :href (address/tag root tag-name)}}])
 
@@ -387,6 +398,7 @@
     (cond-> (merge nothing-local
                    (select-keys local (keys nothing-local))
                    {:preset             (preset blog (:preset local))
+                    :logo               (picture-addresses site :logo)
                     :presets            (count (:available-themes blog))
                     :tag                (chosen-tag told)
                     :blog-title         (:title blog)
@@ -400,9 +412,9 @@
   "What the page that `told` describes shows of the blog in `site`, whose top is at `root`,
    for what is local to the page in `local`: what the reader chose, a `:query`, a `:tag` and a
    `:preset`, whether the menu and the palette are open, and what the page knows of its
-   keyboard. The result names the blog template, the language, the title and the card of the
-   document, and holds what the template is given: an item, the page, and each other list that
-   the template asks for."
+   keyboard. The result names the blog template, the language, the title, the card and the
+   favicon of the document, and holds what the template is given: an item, the page, and each
+   other list that the template asks for."
   [root {:keys [blog] :as site} {shown :text what :page} local]
   (let [template                 (templates/of-blog blog)
         told                     {:site     (addressed site root)
@@ -415,6 +427,7 @@
      :language (site/language blog)
      :title    (document-title ((:title template) named) (:title blog))
      :card     (when-not (= :not-found (:kind named)) (card/card told))
+     :favicon  (picture-addresses (:site told) :favicon)
      :item     (item told)
      :lists    (into {:main (rows [[key node]])}
                      (map (juxt identity (partial list-rows told)))

@@ -1,14 +1,17 @@
 # The BareBlog guide
 
 What the [README](./README.md) leaves out: what a blog is made of, what a post and a page hold,
-link previews, and a blog on your own server.
+the pictures of the blog, link previews, and a blog on your own server.
 
 ## What a blog is
 
 ```
 my-blog/
   blog.edn              the settings
-  link-preview.jpg      the picture of a link to the blog, if you want one
+  logo.svg              the pictures of the blog, if you want them: its logo,
+  logo-dark.svg           its favicon and its link preview, each where the
+  favicon.svg             settings name it
+  link-preview.jpg
   .gitignore            what git leaves alone: the drafts, and the files a Mac adds
   drafts/               on your disk only
     a-new-idea/
@@ -70,6 +73,21 @@ page of the blog, and is in none of the lists of posts.
 A page is only its text too, with its first heading as its title. The links stand in the
 order the pages were first published, and pages published together stand by title. A page
 has no draft: the preview marks it as not published until you publish it.
+
+## The pictures of the blog
+
+The settings can name three pictures beside `blog.edn`:
+
+| Setting | What it is | Formats |
+|---|---|---|
+| `:logo` | The brand of the navbar, in place of the title. It can hold the name of the blog in a font of its own | SVG, PNG, JPEG, GIF, WebP |
+| `:favicon` | The icon of the blog in the tab of a browser | SVG, PNG, ICO |
+| `:link-preview` | The picture of a link to a page that has none of its own | PNG, JPEG, GIF |
+
+A logo and a favicon can have a picture for each mode of the theme:
+`{:light "logo.svg" :dark "logo-dark.svg"}`. The one under `:dark` is shown when the theme is
+dark. One name, as `"logo.svg"`, is the picture in both modes. A browser keeps a picture until
+it changes, and then takes the new one.
 
 ## Link previews
 

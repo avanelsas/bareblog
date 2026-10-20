@@ -4,13 +4,14 @@
    A plan says what is read and what is kept: under `:read` the folders of the posts and the
    pages that are read from disk, under `:as-published` those that are taken as they were
    published last, and under `:dates` the date of each post and page, which is the moment it
-   was first published. Under `:link-preview-in` it names the directory, from the top of the
-   blog, that the link preview is taken from, where that is not the top. It says what goes:
+   was first published. Under `:pictures-in` it names the directory, from the top of the blog,
+   that the pictures are taken from, where that is not the top. It says what goes:
    under `:removed` the published posts that are taken out, which the author is asked about
    first, and under `:move` the draft that becomes a post. And it says what is committed: the
    `:paths`, from the top of the blog, and the `:message`. A plan that does nothing has a
    `:refuse`, the text that says why."
-  (:require [bareblog.blog.site :as site]
+  (:require [bareblog.blog.pictures :as pictures]
+            [bareblog.blog.site :as site]
             [bareblog.blog.text :as text]
             [bareblog.blog.layout :as layout]
             [clojure.set :as set]
@@ -107,17 +108,18 @@
                :dates        (dates published read now)
                :paths        (conj (paths where folder) layout/output-dir)
                :message      (str (if (= :remove what) "Remove " "Publish ") folder)}
-        published                                                  (assoc :link-preview-in layout/output-dir)
+        published                                                  (assoc :pictures-in layout/output-dir)
         (= :remove what)                                           (assoc :removed #{folder})
         (and (= :new what) (not page?) (not (:in-posts? where))) (assoc :move folder)))))
 
-;; A link preview that is not there is a problem of the blog, and git commits nothing for a
-;; path with nothing under it.
+;; A picture that is not there is a problem of the blog, and git commits nothing for a path
+;; with nothing under it.
 (defn- settings-paths
-  "The paths of the settings `settings`: their file, and the link preview they name."
-  [{:keys [link-preview]}]
-  (cond-> [layout/settings-file]
-    (text/link-preview-name? link-preview) (conj link-preview)))
+  "The paths of the settings `settings`: their file, and the pictures they name."
+  [settings]
+  (into [layout/settings-file]
+        (comp (filter pictures/fits?) (map :src) (distinct))
+        (pictures/named settings)))
 
 ;; An edit that the author keeps back stays out of the pages and out of the commit: the post
 ;; is taken as it was published, and its folder is not among the paths.

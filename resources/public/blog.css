@@ -33,6 +33,22 @@ body {
   text-decoration: none;
 }
 
+/* A logo is the whole brand: it may hold the name of the blog in a font of its own. It keeps
+   to the height of the navbar, and to some of its width on a narrow screen. */
+
+.page .brand picture:not([hidden]) {
+  display: flex;
+}
+
+.page .brand .logo {
+  display: block;
+  height: 2rem;
+  width: auto;
+  max-width: min(14rem, 50vw);
+  object-fit: contain;
+  object-position: left center;
+}
+
 /* The links to the pages of the author stand among the other links, as if nothing held them. */
 
 .page .page-links {

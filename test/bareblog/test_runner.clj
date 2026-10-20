@@ -7,6 +7,7 @@
     bareblog.example-test
     bareblog.blog.address-test
     bareblog.blog.days-test
+    bareblog.blog.pictures-test
     bareblog.blog.shape-test
     bareblog.blog.site-test
     bareblog.blog.text-test

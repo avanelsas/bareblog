@@ -1,6 +1,7 @@
 (ns bareblog.app.render
   "Brings the document to a page view."
   (:require [bareblog.app.card :as card]
+            [bareblog.app.pages :as pages]
             [bareblog.app.templates :as templates]
             [baremirror.alpha.parts :as parts]
             [baremirror.alpha.places :as places]))
@@ -119,6 +120,40 @@
             :let [^js tag (or (shown tag-name) (make-card-tag! document attribute tag-name))]]
       (.setAttribute tag "content" content))))
 
+(defn- icon-tags
+  "The tags of the head of `document` that name a favicon."
+  [^js document]
+  (array-seq (.querySelectorAll (.-head document) "link[rel=icon]")))
+
+(defn- icon-of
+  "What the favicon tag `tag` names: its `:href`, with its `:media` where it has one."
+  [^js tag]
+  (cond-> {:href (.getAttribute tag "href")}
+    (.hasAttribute tag "media") (assoc :media (.getAttribute tag "media"))))
+
+(defn- remove! [^js element]
+  (.remove element))
+
+(defn- make-icon-tag!
+  "A new favicon tag in the head of `document`, for `icon`."
+  [^js document {:keys [href media]}]
+  (let [tag (.createElement document "link")]
+    (.setAttribute tag "rel" "icon")
+    (.setAttribute tag "href" href)
+    (when media
+      (.setAttribute tag "media" media))
+    (.append (.-head document) tag)))
+
+;; A browser takes the first favicon tag whose media fits, so the tags are written again in
+;; their order where any of them differs.
+(defn- set-icons!
+  "Makes the favicon tags in the head of `document` those of `icons`, where they differ."
+  [^js document icons]
+  (let [shown (icon-tags document)]
+    (when (not= icons (map icon-of shown))
+      (run! remove! shown)
+      (run! (partial make-icon-tag! document) icons))))
+
 (def ^:private notice-id "bareblog-notice")
 
 (defn- make-notice!
@@ -140,7 +175,7 @@
 
 (defn render!
   "Brings `document` to the page view `view`."
-  [^js document {:keys [language title card] :as view}]
+  [^js document {:keys [language title card favicon] :as view}]
   (let [{:keys [key] :as template} (templates/named (:template view))
         nodes                      (places/sync! {:document {:parent (.-body document)}}
                                                  {:document [key]}
@@ -148,5 +183,6 @@
     (set-language! document language)
     (set-title! document title)
     (set-card! document (some-> card card/tags))
+    (set-icons! document (pages/favicon-tags favicon))
     (bring! (nodes key) template view)
     nil))

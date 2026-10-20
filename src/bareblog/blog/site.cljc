@@ -1,6 +1,7 @@
 (ns bareblog.blog.site
   "What every page of a blog loads: the settings of the blog and its list of posts."
   (:require [bareblog.blog.layout :as layout]
+            [bareblog.blog.pictures :as pictures]
             [bareblog.blog.text :as text]))
 
 (defn entry
@@ -63,13 +64,18 @@
   [settings]
   (not (false? (:powered-by-footer settings))))
 
-(defn settings-problems
-  "What is wrong with the settings `settings`, as texts."
+(defn- footer-problems
+  "What is wrong with how `settings` say whether a page ends with the footer, as texts."
   [settings]
   (when-some [value (:powered-by-footer settings)]
     (when-not (boolean? value)
       [(str layout/settings-file " gives " (pr-str value) " as its :powered-by-footer, which is "
             "true or false.")])))
+
+(defn settings-problems
+  "What is wrong with the settings `settings`, as texts."
+  [settings]
+  (concat (footer-problems settings) (pictures/settings-problems settings)))
 
 (defn site
   "The data that every page loads, from the settings of the blog and the entries of its posts.

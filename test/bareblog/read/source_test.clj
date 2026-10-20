@@ -201,7 +201,7 @@
                        (fn [dir]
                          (prepare! dir)
                          (let [site (source/read-site (merge (source/preview dir) more))]
-                           {:link-picture (:link-picture site)
+                           {:link-picture (some-> (get-in site [:pictures :link-preview]) (dissoc :version))
                             :problems     (filter #(str/includes? % ":link-preview") (:problems site))})))))
         beside    (fn [file-name] (fn [dir] (example/write-gif! dir file-name 400 400)))
         nothing   (fn [_dir])]
@@ -220,28 +220,79 @@
                    (first (:problems (read-with "pages/about/x.gif" nothing))))))
     (testing "a link preview taken as it was published is named where it was looked for"
       (is (= ["blog.edn names \"link-preview.gif\" as its :link-preview, and there is no such file in docs, where it was published."]
-             (:problems (read-with "link-preview.gif" (beside "link-preview.gif") {:link-preview-in "docs"})))))
+             (:problems (read-with "link-preview.gif" (beside "link-preview.gif") {:pictures-in "docs"})))))
     (testing "a blog that names no picture is told nothing of it"
       (is (= {:link-picture nil :problems []} (update (read-with nil nothing) :problems vec))))))
 
-(deftest changed-link-preview-test
+(deftest pictures-test
+  (let [read-with (fn [settings prepare!]
+                    (example/with-copy (merge {:logo nil :favicon nil} settings)
+                      (fn [dir]
+                        (prepare! dir)
+                        (let [site (source/read-site (source/preview dir))]
+                          {:pictures (update-vals (:pictures site) #(update-vals % (fn [read] (dissoc read :version))))
+                           :problems (filter #(re-find #":logo|:favicon" %) (:problems site))}))))
+        svg       (fn [& file-names] (fn [dir] (doseq [file-name file-names] (spit (fs/file dir file-name) "<svg/>"))))]
+    (testing "one name for a logo is its picture in both modes"
+      (is (= {:pictures {:logo {:light {:src "logo.svg"}}} :problems []}
+             (update (read-with {:logo "logo.svg"} (svg "logo.svg")) :problems vec))))
+    (testing "a logo and a favicon may have a picture for each mode"
+      (is (= {:logo    {:light {:src "logo.svg"} :dark {:src "logo-dark.svg"}}
+              :favicon {:light {:src "icon.svg"}}}
+             (:pictures (read-with {:logo    {:light "logo.svg" :dark "logo-dark.svg"}
+                                    :favicon {:light "icon.svg"}}
+                                   (svg "logo.svg" "logo-dark.svg" "icon.svg"))))))
+    (testing "a picture of a mode that is not there is named, and the other is read"
+      (let [{:keys [pictures problems]} (read-with {:logo {:light "logo.svg" :dark "gone.svg"}} (svg "logo.svg"))]
+        (is (= {:logo {:light {:src "logo.svg"}}} pictures))
+        (is (= ["blog.edn names \"gone.svg\" as its :logo, and there is no such file beside blog.edn."] problems))))
+    (testing "a picture of a format that its kind does not take is named, with the formats it takes"
+      (is (= ["blog.edn names \"icon.webp\" as its :favicon, which is no name of an SVG, PNG or ICO beside blog.edn."]
+             (:problems (read-with {:favicon "icon.webp"} (svg "icon.webp"))))))
+    (testing "settings that name no picture for each mode are told so"
+      (is (= ["blog.edn gives {:dark \"x.svg\"} as its :logo, which is the name of a picture, or a map with one under :light and maybe one under :dark."]
+             (:problems (read-with {:logo {:dark "x.svg"}} (svg))))))
+    (testing "each picture has a version that changes with what it holds"
+      (example/with-copy {:logo "logo.svg"}
+        (fn [dir]
+          (let [version (fn [] (get-in (source/read-site (source/preview dir)) [:pictures :logo :light :version]))]
+            (spit (fs/file dir "logo.svg") "<svg/>")
+            (let [before (version)]
+              (spit (fs/file dir "logo.svg") "<svg></svg>")
+              (is (string? before))
+              (is (not= before (version))))))))))
+
+(deftest served-picture-test
+  (example/with-copy {:logo {:light "mark.svg" :dark "mark-dark.svg"}}
+    (fn [dir]
+      (spit (fs/file dir "mark.svg") "<svg/>")
+      (let [blog (source/preview dir)]
+        (testing "a picture that the settings name is served from beside them"
+          (is (= (str (fs/path dir "mark.svg")) (str (source/find-served-picture blog "mark.svg")))))
+        (testing "one that is not there, or that the settings do not name, is not"
+          (is (nil? (source/find-served-picture blog "mark-dark.svg")))
+          (is (nil? (source/find-served-picture blog "logo-dark.svg")))
+          (is (nil? (source/find-served-picture blog "blog.edn"))))))))
+
+(deftest changed-pictures-test
   (example/with-copy {}
     (fn [dir]
-      (let [settings {:link-preview "link-preview.gif"}
-            changed  #(source/find-changed-link-preview dir settings)]
-        (testing "a link preview with nothing published of it yet is changed"
+      (let [settings {:link-preview "link-preview.gif" :logo "mark.svg"}
+            changed  #(source/find-changed-pictures dir settings)]
+        (testing "a picture with nothing published of it yet is changed"
           (example/write-gif! dir "link-preview.gif" 400 400)
-          (is (= "link-preview.gif" (changed))))
+          (is (= ["link-preview.gif"] (changed))))
         (testing "one that is as it was published is not"
           (fs/create-dirs (fs/path dir "docs"))
           (example/write-gif! (fs/path dir "docs") "link-preview.gif" 400 400)
-          (is (nil? (changed))))
-        (testing "one that differs from what was published is"
+          (is (empty? (changed))))
+        (testing "one that differs from what was published is, of every kind"
           (example/write-gif! dir "link-preview.gif" 800 400)
-          (is (= "link-preview.gif" (changed))))
+          (spit (fs/file dir "mark.svg") "<svg/>")
+          (is (= ["link-preview.gif" "mark.svg"] (changed))))
         (testing "settings that name none, or a picture that is not there, have no changed one"
-          (is (nil? (source/find-changed-link-preview dir {})))
-          (is (nil? (source/find-changed-link-preview dir {:link-preview "gone.gif"}))))))))
+          (is (empty? (source/find-changed-pictures dir {})))
+          (is (empty? (source/find-changed-pictures dir {:link-preview "gone.gif"}))))))))
 
 ;; A folder is made before its text is saved, and the rest of the blog is read meanwhile.
 (deftest folder-without-text-test

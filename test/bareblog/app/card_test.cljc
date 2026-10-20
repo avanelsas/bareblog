@@ -57,10 +57,10 @@
                    [:picture :at]))))
   (testing "a blog whose settings name no address has no address in its card, and no picture"
     (is (= {:title "A week in Lisbon" :kind :article :site-name "Bare notes" :description "Tiles, trams and fish."}
-           (card-of {:blog (dissoc blog :address) :root "/" :link-picture square} a-week post)))))
+           (card-of {:blog (dissoc blog :address) :root "/" :pictures {:link-preview square}} a-week post)))))
 
 (deftest link-picture-test
-  (let [with-square (assoc site :link-picture square)
+  (let [with-square (assoc site :pictures {:link-preview square})
         bare        (assoc post :blocks [{:kind :text :text "Tiles."}])]
     (testing "a post with no picture of its own has that of the blog, from its top, with its size"
       (is (= {:at "https://example.org/notes/link-preview.jpg" :width 400 :height 400}

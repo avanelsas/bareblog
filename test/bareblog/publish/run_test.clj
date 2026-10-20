@@ -379,16 +379,17 @@
         (is (every? (:paths (committed dir)) ["blog.edn" "link-preview.gif" "docs/link-preview.gif"]))
         (is (clean? dir)))
       (testing "the site that every page loads names it, with its size"
-        (is (= {:src "link-preview.gif" :width 400 :height 400} (:link-picture (site dir)))))
+        (is (= {:src "link-preview.gif" :width 400 :height 400}
+               (dissoc (get-in (site dir) [:pictures :link-preview]) :version))))
       (example/write-gif! dir "link-preview.gif" 800 400)
       (testing "one post keeps the link preview as it was published, and the author is told of the new one"
         (let [{:keys [outcome said]} (publish! repo {:folder "hello-bareblog"} true)]
           (is (= :unchanged outcome))
           (is (some #{"link-preview.gif is not as it was published. Publish it with: bareblog publish --all"} said))
-          (is (= 400 (:width (:link-picture (site dir)))))))
+          (is (= 400 (get-in (site dir) [:pictures :link-preview :width])))))
       (testing "the whole blog publishes the new one"
         (is (= :published (:outcome (publish! repo {:all? true} true))))
-        (is (= 800 (:width (:link-picture (site dir)))))
+        (is (= 800 (get-in (site dir) [:pictures :link-preview :width])))
         (is (clean? dir))))))
 
 (deftest commit-fails-test

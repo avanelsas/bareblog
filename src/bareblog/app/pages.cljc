@@ -49,6 +49,10 @@
 (def no-picture? (comp nil? :picture))
 (def ^:private not-filtered? (complement :filtered?))
 (def ^:private no-footer? (complement :powered-by-footer?))
+(def ^:private logo-light (comp :light :logo))
+(def ^:private logo-dark (comp :dark :logo))
+(def ^:private no-logo? (comp nil? logo-light))
+(def ^:private logo? (comp some? logo-light))
 
 (defn- posts?
   "True when a list has posts, or has none because of what the reader chose."
@@ -274,18 +278,39 @@
             :on         {"click" :open-menu}}
    "\u2630"])
 
+(def dark-mode
+  "The media query of a theme in its dark mode, which a picture for that mode is shown in."
+  "(prefers-color-scheme: dark)")
+
+(def brand
+  "The brand of the navbar, which leads to the home page: the logo of the blog, with the name
+   of the blog as its text, or else the name."
+  [:a {:slot "brand" :class "brand" :href :home}
+   [:picture {:hidden no-logo?}
+    [:source {:media dark-mode :srcset logo-dark}]
+    [:img {:class "logo" :src logo-light :alt :blog-title}]]
+   [:span {:hidden logo?} :blog-title]])
+
 (defn navbar
-  "The navbar of a page: the name of the blog, which leads to the home page, the links, and
-   `search` and the theme select, with the button that opens the menu where the navbar hides
-   them."
+  "The navbar of a page: the brand, the links, and `search` and the theme select, with the
+   button that opens the menu where the navbar hides them."
   [search]
   (into [:x-navbar {:label :blog-title :sticky true}
-         [:a {:slot "brand" :class "brand" :href :home} :blog-title]]
+         brand]
         (conj (links "pages")
               [:div {:slot "actions" :class "actions"}
                search
                (theme-select "presets")]
               menu-button)))
+
+(defn favicon-tags
+  "The tags of the head that name the favicon of the blog, for the addresses of its pictures
+   by mode in `favicon`, in order: each a `:href`, with the `:media` it is for where that is
+   one mode."
+  [{:keys [light dark]}]
+  (cond-> []
+    light (conj {:href light})
+    dark  (conj {:href dark :media dark-mode})))
 
 (def bareblog-address
   "Where BareBlog is, for a reader who wants to know what made the blog."
