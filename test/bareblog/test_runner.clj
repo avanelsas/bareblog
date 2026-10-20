@@ -3,7 +3,7 @@
   (:require [clojure.test :as t]))
 
 (def namespaces
-  '[bareblog.claude-test
+  '[bareblog.code-test
     bareblog.example-test
     bareblog.blog.address-test
     bareblog.blog.days-test

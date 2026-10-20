@@ -328,8 +328,7 @@ ones above it in this list, and none below it:
 | `publish/` | From data to pages on GitHub: the plan of a publish, the saved pages, git |
 | `command/` | The `bareblog` command, and what `init` and `new` make |
 
-The tests are in `test/bareblog/`, in the same folders. [`CLAUDE.md`](./CLAUDE.md) lists every
-file with what it is, and the rules the code keeps.
+The tests are in `test/bareblog/`, in the same folders.
 
 ## License
 

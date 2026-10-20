@@ -1,5 +1,5 @@
-(ns bareblog.claude-test
-  "Holds what CLAUDE.md says of the code to the code."
+(ns bareblog.code-test
+  "Holds the code to the rules of its folders, and the folders of the README to the code."
   (:require [babashka.fs :as fs]
             [clojure.string :as str]
             [clojure.test :refer [deftest is]]))
@@ -16,22 +16,14 @@
   []
   (set (map namespace-of (fs/glob "src" "**.{clj,cljc,cljs}"))))
 
-(defn- read-listed
-  "The namespaces that the table of CLAUDE.md lists."
-  []
-  (set (map second (re-seq #"(?m)^    (bareblog[\w.-]*)\s" (slurp "CLAUDE.md")))))
-
-(deftest the-table-of-namespaces-lists-every-source-file-and-no-other
-  (is (= (read-namespaces) (read-listed))))
-
 (def folders
   "The folders of the code. A folder uses those before it, and none after it."
   ["blog" "app" "written" "read" "preview" "publish" "command"])
 
-(defn- read-folders
-  "The folders of the code in the order that the table of CLAUDE.md gives them."
+(defn- read-readme-folders
+  "The folders of the code in the order that the table of the README gives them."
   []
-  (mapv second (re-seq #"(?m)^    (\w+)/ " (slurp "CLAUDE.md"))))
+  (mapv second (re-seq #"(?m)^\| `(\w+)/` \|" (slurp "README.md"))))
 
 (defn- folder-of
   "The folder of the namespace `named`, which is the part of its name after the first."
@@ -63,9 +55,9 @@
          :when    (not= user used)]
      [user used])))
 
-(deftest the-folders-are-those-of-the-code-and-of-the-table-in-that-order
+(deftest the-folders-are-those-of-the-code-and-of-the-readme-in-that-order
   (is (= (set folders) (set (map folder-of (read-namespaces)))))
-  (is (= folders (read-folders))))
+  (is (= folders (read-readme-folders))))
 
 (deftest a-folder-uses-those-before-it-and-none-after
   (let [place (zipmap folders (range))]
