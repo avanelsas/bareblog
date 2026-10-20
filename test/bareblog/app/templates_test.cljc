@@ -59,10 +59,7 @@
       (doseq [[kind told] pages]
         (is (every? all-fixed? (templates/fixed-templates blog-template
                                                           (view/page "/" (site-of template-name) told {})))
-            kind)))
-    (testing (str template-name ": a property is set on a part that its node has")
-      (doseq [{:keys [split props]} (templates/nodes blog-template)]
-        (is (every? (part-names (:fixed split)) (keys props)))))))
+            kind)))))
 
 (deftest keys-test
   (testing "every blog template has its own key, so that a page is never taken for another's"
@@ -91,7 +88,8 @@
 (defn- keyword-holes
   "The holes of `split` that are a key of the item."
   [split]
-  (filter keyword? (mapcat (fn [{:keys [attrs text]}] (cons text (vals attrs))) (:holes split))))
+  (filter keyword? (mapcat (fn [{:keys [attrs text props]}] (concat [text] (vals attrs) (vals props)))
+                           (:holes split))))
 
 (deftest view-and-template-test
   (doseq [[template-name blog-template] templates/by-name
@@ -110,12 +108,7 @@
       (doseq [[kind told]             pages
               [{:keys [split]} shown] (shown-nodes blog-template (view/page "/" site told {}))
               :when                   split]
-        (is (map? (template/writes split (:item shown))) (str kind))))
-    (testing (str template-name ": the view gives the key of every property that a node sets")
-      (doseq [[kind told]             pages
-              [{:keys [props]} shown] (shown-nodes blog-template (view/page "/" site told {}))
-              hole                    (mapcat vals (vals props))]
-        (is (some? (hole (:item shown))) (str kind))))))
+        (is (map? (template/writes split (:item shown))) (str kind))))))
 
 (deftest words-test
   (testing "Journal names each kind of page in the title of the document"
@@ -308,9 +301,10 @@
       (is (true? (:hidden (written "button.clear" {}))))
       (is (false? (:hidden (written "button.clear" {:tag "travel"})))))
     (testing "the palette is given its commands as a property, each under the name of its group"
-      (let [items (get-in notebook [:props "palette" :items])]
+      (let [commands [{:id "b" :year "2026"} {:id "n"} {:id "about" :page? true}]
+            writes   (into {} (template/writes (:split notebook) (assoc (item {}) :commands commands)))]
         (is (= [{:id "b" :group "2026"} {:id "n" :group "No date"} {:id "about" :group "Pages"}]
-               (items {:commands [{:id "b" :year "2026"} {:id "n"} {:id "about" :page? true}]})))))
+               (get-in writes ["palette" :props :items])))))
     (testing "a row of the sidebar marks the post of the page, and shows its year when it is the first"
       (let [row (get-in notebook [:lists :posts :row :split])]
         (is (= "page" (:aria-current (attrs-of row {:current? true :href "/a/"} "a"))))

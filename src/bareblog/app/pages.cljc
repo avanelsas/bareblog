@@ -54,6 +54,11 @@
 (def ^:private no-logo? (comp nil? logo-light))
 (def ^:private logo? (comp some? logo-light))
 
+;; BareMirror gives a property the value as it is. The tests read it as the data it was made from.
+(def as-js
+  "Turns data into what a component that reads JavaScript is given."
+  #?(:cljs clj->js :clj identity))
+
 (defn- posts?
   "True when a list has posts, or has none because of what the reader chose."
   [{:keys [filtered?] n :count}]

@@ -17,7 +17,7 @@
     "preview": "cd example && ../bin/bareblog preview"
   },
   "devDependencies": {
-    "@vanelsas/baredom": "4.10.1",
+    "@vanelsas/baredom": "4.11.0",
     "shadow-cljs": "^3.4.11"
   }
 }

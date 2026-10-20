@@ -41,13 +41,16 @@
     year  year
     :else (:no-date pages/words)))
 
+(defn- palette-item
+  "The item of the palette for `command`, with the name of its group."
+  [command]
+  (assoc (dissoc command :year :page?) :group (group command)))
+
 (defn- palette-items
   "The items of the palette: every command that the view gives, with the name of its group."
   [{:keys [commands]}]
-  (mapv (fn [command] (assoc (dissoc command :year :page?) :group (group command))) commands))
+  (mapv palette-item commands))
 
-;; The palette takes its commands as a property, which BareMirror does not write. `:props`
-;; names the part, the property and what gives its value, and the renderer writes it.
 (def template
   "The node of the whole document. Its lists hold the node of the page, by its key, the posts
    and the tags of the sidebar, and the presets of the theme select."
@@ -63,6 +66,7 @@
                                        :empty-text  (:none (:found pages/words))
                                        :open        :palette?
                                        :data-x-part "palette"
+                                       :props       {:items (comp pages/as-js palette-items)}
                                        :on          {"x-command-palette-open-request"  :open-palette
                                                      "x-command-palette-close-request" :close-palette
                                                      "x-command-palette-select"        :open-post}}]
@@ -82,7 +86,6 @@
                     [:x-container {:as "main"}
                      [:div {:data-x-part "main"}]]
                     pages/footer]]]])
-   :props      {"palette" {:items palette-items}}
    :lists      {:presets      {:part "presets" :row pages/preset}
                 :menu-presets {:part "menu-presets" :row pages/preset :of :presets}
                 :tags         {:part "tags" :row pages/tag-choice}

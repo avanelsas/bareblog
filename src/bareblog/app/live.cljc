@@ -4,7 +4,7 @@
 
 (def ^:private baredom-module
   "The BareDOM module that registers every component, which a live frame loads."
-  "https://cdn.jsdelivr.net/npm/@vanelsas/baredom@4.10.1/dist/all.js")
+  "https://cdn.jsdelivr.net/npm/@vanelsas/baredom@4.11.0/dist/all.js")
 
 (def height-key
   "The name under which a live frame tells the page the height of what it shows."

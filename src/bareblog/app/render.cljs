@@ -31,41 +31,14 @@
     (doseq [k order]
       (bring! (nodes k) (node-of k) (by-key k)))))
 
-(def ^:private last-set
-  "The symbol under which an element holds the value last set for each of its properties."
-  (js/Symbol "bareblog.properties"))
-
-(defn- defined? [^js element]
-  (.matches element ":defined"))
-
-;; A node is brought to its view once before it is placed, and a custom element is not yet
-;; what it will be until it is in the document. A property that is written before that hides
-;; the one the element gets, so the write waits for the next time the node is brought.
-(defn- set-property!
-  "Makes `value` the property `property` of `element`, where it differs from what was set
-   last. BareMirror writes text and attributes. This is the one place that writes a property."
-  [^js element property value]
-  (let [before (or (unchecked-get element last-set) {})]
-    (when (and (defined? element) (not= value (get before property ::none)))
-      (unchecked-set element (name property) (clj->js value))
-      (unchecked-set element last-set (assoc before property value)))))
-
-(defn- bring-properties!
-  "Sets each property that `props` names, by part, to what its hole gives for `item`."
-  [element-parts props item]
-  (doseq [[part-name properties] props
-          [property hole]        properties]
-    (set-property! (element-parts part-name) property (hole item))))
-
 (defn- bring!
-  "Brings `element`, which is a node of `node`, to `shown`: the item of its template, the
-   properties that the node names, and the rows of each of its lists."
-  [^js element {:keys [split lists props] :as _node} shown]
+  "Brings `element`, which is a node of `node`, to `shown`: the item of its template, and the
+   rows of each of its lists."
+  [^js element {:keys [split lists] :as _node} shown]
   (when split
     (parts/write-item! element split (:item shown)))
-  (when (or (seq lists) (seq props))
+  (when (seq lists)
     (let [element-parts (parts/read-parts element)]
-      (bring-properties! element-parts props (:item shown))
       (doseq [[list-name row-list] lists]
         (bring-list! element-parts list-name row-list (templates/rows-of row-list list-name shown))))))
 

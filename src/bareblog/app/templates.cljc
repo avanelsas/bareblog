@@ -5,8 +5,7 @@
    thing the view gives it, or `:fixed-of`, a function from what the view gives it to a fixed
    template. A node may have `:lists`. A list names the part that holds its rows, and says what
    node a row is: `:row` for every row, or `:rows` by the key of the row. A list with `:of`
-   shows the rows that the view gives under that name. A node may have `:props`: by part, the
-   properties that the renderer sets, each with what gives its value.
+   shows the rows that the view gives under that name.
 
    What a blog template says of a blog apart from its nodes is its shape, in
    `bareblog.blog.shape`, under the same name. The nodes of the pages are in `pages`, and every
