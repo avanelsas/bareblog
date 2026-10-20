@@ -92,7 +92,7 @@
   {"bb.edn"                     #"com\.github\.avanelsas/baredom \{:mvn/version \"([^\"]+)\"\}"
    "shadow-cljs.edn"            #"\[com\.github\.avanelsas/baredom \"([^\"]+)\"\]"
    "package.json"               #"\"@vanelsas/baredom\": \"([^\"]+)\""
-   "src/bareblog/app/live.cljc" #"@vanelsas/baredom@([^/]+)/dist/"})
+   "src/bareblog/app/live.cljc" #"@vanelsas/baredom@([^/]+)/dist/all\.js"})
 
 (defn- read-versions
   "BareDOM's version in each place that names it, by the name of the file."

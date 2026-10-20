@@ -13,6 +13,7 @@
     bareblog.app.blocks-test
     bareblog.app.card-test
     bareblog.app.live-test
+    bareblog.app.requests-test
     bareblog.app.state-test
     bareblog.app.templates-test
     bareblog.app.view-test

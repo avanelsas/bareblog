@@ -2,9 +2,9 @@
   "A live frame: the document that it shows for HTML that an author runs, and the height that
    it tells the page.")
 
-(def ^:private baredom-modules
-  "Where a live frame loads the module of each BareDOM component that it shows."
-  "https://cdn.jsdelivr.net/npm/@vanelsas/baredom@4.5.0/dist/")
+(def ^:private baredom-module
+  "The BareDOM module that registers every component, which a live frame loads."
+  "https://cdn.jsdelivr.net/npm/@vanelsas/baredom@4.10.1/dist/all.js")
 
 (def height-key
   "The name under which a live frame tells the page the height of what it shows."
@@ -29,14 +29,10 @@
   "How a live frame with a height of its own fills that height."
   "html,body{height:100%;}")
 
-;; A module script runs once the body is parsed, so it finds every element that the HTML of
-;; the author makes.
+;; `loaded` always settles, so a frame whose module does not load still tells its height.
 (def ^:private loading
-  "The part of the script that registers each BareDOM component in the document. A tag that
-   BareDOM has no module for is left as it is."
-  (str "const loaded=Promise.allSettled([...new Set([...document.querySelectorAll(\"*\")]"
-       ".map(e=>e.localName))].filter(t=>t.startsWith(\"x-\"))"
-       ".map(t=>import(\"" baredom-modules "\"+t+\".js\").then(m=>m.init())));"))
+  "The part of the script that registers every BareDOM component."
+  (str "const loaded=import(\"" baredom-module "\").then(m=>m.init()).catch(()=>{});"))
 
 ;; A frame out of view runs no ResizeObserver, so it also tells its height once it is loaded.
 (def ^:private measuring

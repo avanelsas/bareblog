@@ -337,9 +337,9 @@
   (when (compare-and-set! listening? false true)
     (listen-to-window!)
     (events/listen! (.-body js/document)
-                    {:dispatch! dispatch!
-                     :events    (all-events)
-                     :requests  requests/requests})))
+                    {:dispatch!        dispatch!
+                     :events           (all-events)
+                     :requested-values requests/requested-values})))
 
 ;; What the page is told: by its files, or over its socket.
 
