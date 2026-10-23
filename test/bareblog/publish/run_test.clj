@@ -335,6 +335,15 @@
             (is (fs/exists? (fs/path dir "drafts" "bad-tag" "post.md")))
             (is (not (fs/exists? (fs/path dir "posts" "bad-tag"))))
             (is (not-any? #{"bad-tag"} (folders dir)))))
+        (testing "a post with a tag that a published post writes in another way is not published"
+          (fs/create-dirs (fs/path dir "drafts" "travel-case"))
+          (spit (fs/file dir "drafts" "travel-case" "post.md") "Text.\n\n#Travel\n")
+          (let [{:keys [outcome why]} (publish! repo {:folder "travel-case"} true)]
+            (is (= :failed outcome))
+            (is (re-find #"\"Travel\" in travel-case and \"travel\" in a-week-in-lisbon \(as it was published\)" why))
+            (is (fs/exists? (fs/path dir "drafts" "travel-case" "post.md")))
+            (is (not-any? #{"travel-case"} (folders dir))))
+          (fs/delete-tree (fs/path dir "drafts" "travel-case")))
         (testing "a draft with no text is no post, and is not moved"
           (fs/create-dirs (fs/path dir "drafts" "no-text"))
           (let [{:keys [outcome why]} (publish! repo {:folder "no-text"} true)]

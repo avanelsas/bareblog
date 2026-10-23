@@ -105,6 +105,7 @@ build that GitHub starts fails.
 | Take a post offline | Move its folder back to `drafts/`, then `bareblog publish <folder>` |
 | Change a setting, or a picture such as the logo | Edit `blog.edn` or replace the picture, then `bareblog publish --all` |
 | Add a page that is no post, such as About | `bareblog new --page "About"`, write it, then `bareblog publish about` |
+| See every tag, or write one tag one way | `bareblog tags`, then `bareblog tags rename baredom "BareDOM"` and `bareblog publish --all` |
 
 Publishing one post reads only that post from disk. An unfinished edit in another post stays on
 your machine.

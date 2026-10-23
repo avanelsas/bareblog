@@ -23,7 +23,7 @@
 
    A text says two things of itself that are no blocks. A heading of the first level that
    opens it is its title. A last paragraph of nothing but tags, as `#travel #x-code`, names
-   its tags."
+   its tags, and `retagged` writes that paragraph anew."
   (:require [clojure.string :as str]
             [nextjournal.markdown :as md]))
 
@@ -277,10 +277,15 @@
   "What a paragraph of nothing but tags looks like."
   #"\s*#[^\s#_][^\s#]*(?:\s+#[^\s#_][^\s#]*)*\s*")
 
+(defn tag-named
+  "The tag that `text` names, as it is read from a tag: an underscore is a space."
+  [text]
+  (-> text (str/replace #"[_\s]+" " ") str/trim))
+
 (defn- tag-of
   "The tag that an author wrote as `written`, with its mark."
   [written]
-  (-> (subs written 1) (str/replace #"_+" " ") str/trim))
+  (tag-named (subs written 1)))
 
 (defn tags
   "The tags that the paragraph `paragraph` names, in the order they are written and each once,
@@ -312,3 +317,43 @@
     {:heading (some-> opening plain)
      :tags    tags
      :blocks  (with-first-marks (into blocks (footnotes (:footnotes doc))))}))
+
+(defn written-tag
+  "The tag `tag-name` as an author writes it, with its mark."
+  [tag-name]
+  (str "#" (str/replace tag-name " " "_")))
+
+(defn tag?
+  "True when the tag `tag-name` can be written, and is read back as itself."
+  [tag-name]
+  (= [tag-name] (tags (written-tag tag-name))))
+
+(defn- runs
+  "The lines `lines` as runs of lines that are blank and runs that are not."
+  [lines]
+  (partition-by str/blank? lines))
+
+(defn- tags-at
+  "The index `i` when the run of lines `run` is a paragraph of nothing but tags, or nil."
+  [i run]
+  (when (tags (str/join "\n" run))
+    i))
+
+(defn- last-tags-run
+  "The index in `runs` of the last run of lines that is a paragraph of nothing but tags, or nil."
+  [runs]
+  (last (keep-indexed tags-at runs)))
+
+;; The text is given only when it reads back with nothing changed but its tags. The new line
+;; keeps the carriage return of the line it replaces.
+(defn retagged
+  "The text `text` of a post or a page with the tags `new-tags` in place of its own, or nil
+   when it names none."
+  [text new-tags]
+  (let [parts (vec (runs (str/split text #"\n" -1)))]
+    (when-some [i (last-tags-run parts)]
+      (let [line    (str (str/join " " (map written-tag new-tags))
+                         (when (str/ends-with? (last (parts i)) "\r") "\r"))
+            written (str/join "\n" (apply concat (assoc parts i [line])))]
+        (when (= (assoc (read-post text) :tags new-tags) (read-post written))
+          written)))))

@@ -10,6 +10,7 @@
     bareblog.blog.pictures-test
     bareblog.blog.shape-test
     bareblog.blog.site-test
+    bareblog.blog.tags-test
     bareblog.blog.text-test
     bareblog.app.blocks-test
     bareblog.app.card-test
@@ -30,7 +31,8 @@
     bareblog.publish.plan-test
     bareblog.publish.run-test
     bareblog.command.cli-test
-    bareblog.command.start-test])
+    bareblog.command.start-test
+    bareblog.command.tags-test])
 
 (defn run
   "Runs every test namespace. The process ends with 1 when a test fails."

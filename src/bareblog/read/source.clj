@@ -196,6 +196,15 @@
     {:posts (into #{} (comp (remove standalone?) (map :folder)) usable)
      :pages (into #{} (comp (filter standalone?) (map :folder)) usable)}))
 
+(defn list-texts
+  "Each post, draft and page of the blog in the directory `dir` that can be read: its folder,
+   its place from the top of the blog, its file, and whether it is a draft or a page."
+  [dir]
+  (for [{:keys [in] folder-dir :dir :as source} (filter usable? (list-dirs (preview dir)))]
+    (assoc (select-keys source [:folder :place :draft?])
+           :page? (standalone? source)
+           :file  (str (fs/path folder-dir (layout/text-file in))))))
+
 (defn- refused
   "What is wrong with a directory whose name is no name of the folder of a post or a page."
   [{:keys [place]}]
@@ -348,11 +357,13 @@
 
 (defn read-problems
   "What is wrong with the posts and the pages that `blog` reads, as texts: with the files
-   they name, and with the tags of the posts."
+   they name, and with the tags of the posts, also beside those taken as they were published."
   [blog]
-  (let [read (read-entries (with-published blog) (list-dirs blog))]
+  (let [read (read-entries (with-published blog) (list-dirs blog))
+        kept (read-kept blog :posts)]
     (concat (mapcat :problems read)
-            (output/problems {:posts (map :entry (remove :page? read))}))))
+            (output/problems {:posts (concat (map :entry (remove :page? read)) kept)}
+                             (into #{} (map :folder) kept)))))
 
 (defn read-site
   "What every page of `blog` loads, with what is wrong with the blog."

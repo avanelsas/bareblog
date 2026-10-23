@@ -40,6 +40,14 @@
     (is (every? (comp some? :refuse cli/asked)
                 [["publish"] ["publish" "a" "b"] ["publish" "--all" "a"] ["publish" "--everything"]
                  ["publish" "--yes"]])))
+  (testing "the tags are listed, or one is renamed with its new name"
+    (is (= {:command "tags"} (cli/asked ["tags"])))
+    (is (= {:command "tags" :rename ["baredom" "BareDOM"] :yes? false} (cli/asked ["tags" "rename" "baredom" "BareDOM"])))
+    (is (= {:command "tags" :rename ["a" "b"] :yes? true} (cli/asked ["tags" "rename" "--yes" "a" "b"]))))
+  (testing "a rename without both names, or with more, is refused"
+    (is (every? (comp some? :refuse cli/asked)
+                [["tags" "rename"] ["tags" "rename" "a"] ["tags" "rename" "a" "b" "c"] ["tags" "list"]
+                 ["tags" "--yes"]])))
   (testing "no command, and help, ask for how the command is used"
     (is (= {:command "help"} (cli/asked [])))
     (is (= {:command "help"} (cli/asked ["help"]))))

@@ -18,7 +18,10 @@
              "                 --no-open        without opening the browser"
              "bareblog publish a-new-blog-post  one post or page: new, edited or removed"
              "bareblog publish --all            every post and page, as it is on disk"
-             "                 --yes            with a yes to every question"]))
+             "                 --yes            with a yes to every question"
+             "bareblog tags                     every tag, and each written in more than one way"
+             "bareblog tags rename old \"new\"    a tag, in every post and page"
+             "              --yes               with a yes to the question"]))
 
 (def default-port 8080)
 
@@ -67,6 +70,14 @@
       (and (= all what) (empty? more))                    {:all? true :yes? yes?}
       (and what (empty? more) (not= \- (first what)))     {:folder what :yes? yes?}
       :else {:refuse "Give the folder of a post or a page, or --all: bareblog publish a-new-blog-post"})))
+
+(defn- asks-tags [args]
+  (let [[what from to & more] (remove #{yes} args)
+        yes?                  (boolean (some #{yes} args))]
+    (cond
+      (empty? args)                                    {}
+      (and (= "rename" what) from to (empty? more))    {:rename [from to] :yes? yes?}
+      :else {:refuse "Give a tag and its new name, in quotes: bareblog tags rename old \"new\""})))
 
 (defn- asks-nothing [_args]
   {})
@@ -130,6 +141,13 @@
             came (publish! how dir (assoc asked :now (now)))]
         (if (done? (:outcome came)) 0 1)))))
 
+;; The tags are changed by name, as a publish is.
+(defn- run-tags! [{:keys [dir]} {:keys [rename yes?]}]
+  (let [how {:say println :ask (if yes? say-yes! ask!)}]
+    (if-some [[from to] rename]
+      ((requiring-resolve 'bareblog.command.tags/rename!) how dir from to)
+      ((requiring-resolve 'bareblog.command.tags/list!) how dir))))
+
 (defn- run-help! [_where _asked]
   (println usage)
   0)
@@ -142,6 +160,7 @@
    "new"     {:asks asks-new :run run-new! :in-a-blog? true}
    "preview" {:asks asks-preview :run run-preview! :in-a-blog? true}
    "publish" {:asks asks-publish :run run-publish! :in-a-blog? true}
+   "tags"    {:asks asks-tags :run run-tags! :in-a-blog? true}
    "help"    {:asks asks-nothing :run run-help!}})
 
 (defn asked
