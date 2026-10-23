@@ -3,6 +3,37 @@
 All notable changes to BareBlog are listed here. Until 1.0.0, a release may change the
 settings, the layout of a blog and the commands.
 
+## [0.2.0] - 2026-10-23
+
+BareBlog needs BareDOM 4.15.0.
+
+### Added
+
+- **How far a post is read.** A line along the top of the window fills as the reader scrolls,
+  in the colours of the theme. A post that fits in the window has none.
+- **The headings of a post beside its text,** headed Content. The list marks the heading the
+  reader is at, stays in view while the page scrolls, and goes to a heading on a click. It
+  shows in every blog template where the column holds both.
+- **`bareblog tags`** lists every tag with how many posts and pages have it.
+  `bareblog tags rename old "new"` writes a tag anew in every post, draft and page, after it
+  shows what changes and asks.
+- **Three settings, each off unless true:**
+  - `:gradient-titles` fills the titles of posts and pages, also in a list, with a gradient of
+    the colours of the theme. The title of a post moves its gradient once as the page opens.
+  - `:navbar-colors` lets the colours of the theme drift behind the navbar.
+  - `:page-colors` lays them still behind the whole page.
+
+### Changed
+
+- **A tag written in more than one way stops a publish.** Tags that differ only in case, or in
+  a dash, an underscore or a space, are one tag. The preview shows the problem, with the
+  `bareblog tags rename` that writes them one way.
+- **Titles grow with the window,** a post's to 4rem and those in a list to 2.25rem.
+- **Pulling past the end of a page** shows the colour of the page, and only a narrow window can
+  be pulled.
+- **In Notebook the navbar sticks** to the top of the window.
+- **Releases** are made by a pull request and a tag. See `RELEASING.md`.
+
 ## [0.1.0] - 2026-10-20
 
 The first release. BareBlog needs BareDOM 4.11.0.
