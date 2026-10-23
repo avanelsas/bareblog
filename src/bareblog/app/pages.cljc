@@ -328,17 +328,41 @@
     [:img {:class "logo" :src logo-light :alt :blog-title}]]
    [:span {:hidden logo?} :blog-title]])
 
+(def ^:private theme-colors
+  "The three colours of the theme, as x-gaussian-blur takes them."
+  "var(--x-color-primary), var(--x-color-secondary), var(--x-color-tertiary)")
+
+(def page-colors
+  "The colours of the theme, still, behind the whole page when the item says so."
+  [:x-gaussian-blur {:class       "page-colors"
+                     :colors      theme-colors
+                     :animation   "none"
+                     :blur        "50"
+                     :count       "5"
+                     :size        "large"
+                     :opacity     "0.25"
+                     :data-colors :page-colors?}])
+
 (defn navbar
-  "The navbar of a page: the brand, the links, and `search` and the theme select, with the
-   button that opens the menu where the navbar hides them."
+  "The navbar of a page, in a band that shows the colours of the theme when the item says so:
+   the brand, the links, and `search` and the theme select, with the button that opens the
+   menu where the navbar hides them."
   [search]
-  (into [:x-navbar {:label :blog-title :sticky true}
-         brand]
-        (conj (links "pages")
-              [:div {:slot "actions" :class "actions"}
-               search
-               (theme-select "presets")]
-              menu-button)))
+  [:x-gaussian-blur {:class       "navbar-band"
+                     :colors      theme-colors
+                     :blur        "10"
+                     :count       "4"
+                     :size        "60"
+                     :speed       "slow"
+                     :opacity     "0.7"
+                     :data-colors :navbar-colors?}
+   (into [:x-navbar {:label :blog-title}
+          brand]
+         (conj (links "pages")
+               [:div {:slot "actions" :class "actions"}
+                search
+                (theme-select "presets")]
+               menu-button))])
 
 (defn favicon-tags
   "The tags of the head that name the favicon of the blog, for the addresses of its pictures

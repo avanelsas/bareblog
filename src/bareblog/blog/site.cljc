@@ -75,6 +75,26 @@
   [settings]
   (true? (:gradient-titles settings)))
 
+(def default-navbar-colors
+  "What a new blog writes in its settings for the colours behind its navbar, which is what a
+   blog that says nothing of them gets."
+  false)
+
+(defn navbar-colors?
+  "Whether the settings `settings` put the colours of the theme behind the navbar."
+  [settings]
+  (true? (:navbar-colors settings)))
+
+(def default-page-colors
+  "What a new blog writes in its settings for the colours behind its pages, which is what a
+   blog that says nothing of them gets."
+  false)
+
+(defn page-colors?
+  "Whether the settings `settings` put the colours of the theme behind the whole page."
+  [settings]
+  (true? (:page-colors settings)))
+
 (defn- yes-or-no-problems
   "What is wrong with how `settings` give the setting `k`, which is true or false, as texts."
   [settings k]
@@ -87,6 +107,8 @@
   [settings]
   (concat (yes-or-no-problems settings :powered-by-footer)
           (yes-or-no-problems settings :gradient-titles)
+          (yes-or-no-problems settings :navbar-colors)
+          (yes-or-no-problems settings :page-colors)
           (pictures/settings-problems settings)))
 
 (defn site

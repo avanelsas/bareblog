@@ -80,7 +80,8 @@
 (deftest settings-text-test
   (testing "the settings of a new blog are settings: its title, and what else a blog needs"
     (is (= {:title "My \"first\" blog" :language "en" :template :journal :available-themes start/themes
-            :per-page 10 :powered-by-footer true :gradient-titles false}
+            :per-page 10 :powered-by-footer true :gradient-titles false
+            :navbar-colors false :page-colors false}
            (edn/read-string (start/settings-text " My \"first\" blog ")))))
   (testing "a new blog has every theme of BareDOM, each once, and starts with ocean"
     (is (= "ocean" (first start/themes)))
@@ -89,8 +90,10 @@
     (is (apply distinct? start/themes)))
   (testing "every setting that a blog has a value for when it says nothing is written with that value"
     (is (= [site/default-language shape/default-template site/default-per-page
-            site/default-powered-by-footer site/default-gradient-titles]
-           ((juxt :language :template :per-page :powered-by-footer :gradient-titles)
+            site/default-powered-by-footer site/default-gradient-titles site/default-navbar-colors
+            site/default-page-colors]
+           ((juxt :language :template :per-page :powered-by-footer :gradient-titles :navbar-colors
+                  :page-colors)
             (edn/read-string (start/settings-text "My blog"))))))
   (testing "they show where the author and the address go, name neither, and say when to set them"
     (is (re-find #";; :author \"Your name\"" (start/settings-text "My blog")))

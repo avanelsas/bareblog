@@ -17,6 +17,7 @@ body {
 
 .page {
   min-height: 100vh;
+  isolation: isolate;
   background: var(--x-color-bg, #fff);
   color: var(--x-color-text, #111);
   font-family: var(--x-font-family, system-ui, sans-serif);
@@ -39,6 +40,51 @@ body {
   color: inherit;
   font-weight: var(--x-font-weight-semibold, 600);
   text-decoration: none;
+}
+
+/* The colours behind the whole page, fixed to the window. In the stacking context of the page,
+   z-index -1 lies over its background and under its content. They darken a light page and light
+   a dark one. */
+
+.page .page-colors {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  mix-blend-mode: multiply;
+}
+
+@media (prefers-color-scheme: dark) {
+  .page .page-colors {
+    mix-blend-mode: screen;
+  }
+}
+
+.page .page-colors:not([data-colors]) {
+  display: none;
+}
+
+/* The band that holds the navbar. x-gaussian-blur makes itself as high as what holds it. The
+   band takes the height of the navbar. */
+
+.page .navbar-band {
+  height: auto;
+  background: var(--x-color-bg, #fff);
+}
+
+.page .navbar-band[data-colors] x-navbar {
+  --x-navbar-bg: transparent;
+}
+
+.page .navbar-band[data-colors] x-select {
+  --x-select-bg: transparent;
+}
+
+.page .navbar-band[data-colors] x-search-field {
+  --x-search-field-bg: transparent;
+}
+
+.page .navbar-band:not([data-colors])::part(backdrop) {
+  display: none;
 }
 
 /* A logo is the whole brand: it may hold the name of the blog in a font of its own. It keeps
