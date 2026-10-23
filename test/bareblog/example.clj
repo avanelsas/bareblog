@@ -28,6 +28,22 @@
       (fs/copy (fs/path dir src) (fs/path target src)))
     (spit (fs/file target "blog.edn") (pr-str (merge own settings)))))
 
+;; A repository that a test made may still be written by git, in a process of its own that
+;; keeps its house after a commit. A directory that fills again as it is deleted is deleted again.
+(defn- delete-dir!
+  "Deletes the directory `dir` and what it holds, trying again for a while when it is not empty
+   by the time it is deleted."
+  [dir]
+  (loop [tries-left 30]
+    (when-not (try
+                (fs/delete-tree dir)
+                true
+                (catch java.nio.file.DirectoryNotEmptyException problem
+                  (when-not (pos? tries-left)
+                    (throw problem))))
+      (Thread/sleep 100)
+      (recur (dec tries-left)))))
+
 (defn with-copy
   "What `check` gives for the directory of a copy of the example blog, with `settings` put
    over its settings. The copy is gone afterwards."
@@ -37,7 +53,7 @@
       (copy-to! target settings)
       (check (str target))
       (finally
-        (fs/delete-tree target)))))
+        (delete-dir! target)))))
 
 (defn with-empty-dir
   "What `check` gives for a directory with nothing in it. It is gone afterwards."
@@ -46,4 +62,4 @@
     (try
       (check dir)
       (finally
-        (fs/delete-tree dir)))))
+        (delete-dir! dir)))))

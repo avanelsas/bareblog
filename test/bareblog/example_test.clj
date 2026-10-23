@@ -1,6 +1,9 @@
 (ns bareblog.example-test
-  "Holds the post of the example blog that shows every kind to the kinds there are."
-  (:require [bareblog.app.blocks :as blocks]
+  "Holds the post of the example blog that shows every kind to the kinds there are, and the
+   directory of a test to going when the test is done."
+  (:require [babashka.fs :as fs]
+            [bareblog.app.blocks :as blocks]
+            [bareblog.example :as example]
             [bareblog.read.reader :as reader]
             [clojure.test :refer [deftest is testing]]))
 
@@ -19,3 +22,29 @@
       (is (= #{} (reduce disj (set (keys blocks/inlines)) (conj kinds :unknown)))))
     (testing "nothing that BareBlog has no kind for"
       (is (not (contains? kinds :unknown))))))
+
+(defn- keep-writing!
+  "Writes a file in the directory `dir` every few milliseconds, for `ms` milliseconds, as git
+   does when it keeps its house in a process of its own."
+  [dir ms]
+  (let [until (+ (System/currentTimeMillis) ms)]
+    (fs/create-dirs (fs/path dir ".git" "objects"))
+    (loop [n 0]
+      (when (< (System/currentTimeMillis) until)
+        (try
+          (spit (fs/file dir ".git" "objects" (str n)) "x")
+          (catch java.io.IOException _))
+        (Thread/sleep 2)
+        (recur (inc n))))))
+
+(deftest empty-dir-test
+  (testing "the directory of a test goes, also while something still writes in it"
+    (let [seen   (atom nil)
+          writer (atom nil)]
+      (example/with-empty-dir
+        (fn [dir]
+          (reset! seen dir)
+          (reset! writer (future (keep-writing! dir 300)))
+          (Thread/sleep 50)))
+      @@writer
+      (is (not (fs/exists? @seen))))))
