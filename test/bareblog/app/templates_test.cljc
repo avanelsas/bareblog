@@ -135,12 +135,12 @@
 
 (defn- hidden
   "The parts of the node of the page that hide themselves, when the page `told` shows `site`
-   for what the reader chose in `choice`, each as its tag and its class."
+   for what is `local` to the page, each as its tag and its class."
   ([site told]
    (hidden site told {}))
-  ([site told choice]
+  ([site told local]
    (let [journal         (templates/named :journal)
-         page            (view/page "/" site told choice)
+         page            (view/page "/" site told local)
          k               (first (get-in page [:lists :main :order]))
          {:keys [split]} (templates/row-node (get-in journal [:lists :main]) k)
          shown           (get-in page [:lists :main :by-key k])]
@@ -151,7 +151,8 @@
            (template/writes split (:item shown))))))
 
 (deftest hidden-test
-  (let [empty-site (assoc site :posts [])
+  (let [reading    {:read 0.4}
+        empty-site (assoc site :posts [])
         two-pages  (assoc-in site [:blog :per-page] 1)
         older      {:folder "0" :title "Zero" :date "2024-01-01"}
         newer      {:folder "c" :title "Third" :date "2027-01-01"}]
@@ -173,15 +174,22 @@
       (is (= #{} (hidden empty-site (:archive pages)))))
     (testing "the page of a draft with a newer and an older post hides nothing"
       (is (= #{} (hidden (update site :posts (partial into [newer]))
-                         {:page {:kind :post :folder "b"} :text {:folder "b" :title "Second" :blocks []}}))))
+                         {:page {:kind :post :folder "b"} :text {:folder "b" :title "Second" :blocks []}}
+                         reading))))
     (testing "the page of the newest post, a draft, hides the link to a newer one"
-      (is (= #{"a.newer"} (hidden site {:page {:kind :post :folder "b"} :text {:folder "b" :title "Second" :blocks []}}))))
+      (is (= #{"a.newer"} (hidden site {:page {:kind :post :folder "b"} :text {:folder "b" :title "Second" :blocks []}}
+                                  reading))))
     (testing "the page of a published post with both neighbours hides the badge of a draft"
       (is (= #{"x-badge.draft"} (hidden (update site :posts conj older)
-                                        {:page {:kind :post :folder "a"} :text {:folder "a" :title "First" :blocks []}}))))
+                                        {:page {:kind :post :folder "a"} :text {:folder "a" :title "First" :blocks []}}
+                                        reading))))
     (testing "the page of the oldest post hides the link to an older one too"
       (is (= #{"x-badge.draft" "a.older"}
-             (hidden site {:page {:kind :post :folder "a"} :text {:folder "a" :title "First" :blocks []}}))))))
+             (hidden site {:page {:kind :post :folder "a"} :text {:folder "a" :title "First" :blocks []}}
+                     reading))))
+    (testing "the page of a post that fits in the window hides the line of how far it is read"
+      (is (= #{"a.newer" "x-progress.read-progress"}
+             (hidden site {:page {:kind :post :folder "b"} :text {:folder "b" :title "Second" :blocks []}}))))))
 
 (deftest menu-test
   (let [journal (templates/named :journal)
@@ -470,7 +478,7 @@
       (is (= (conj (set shell) "x-badge") (tags-of (:archive pages)))))
     (testing (str template-name ": the page of a post has those of its blocks, at any depth")
       (is (= (-> (set shell)
-                 (into ["x-badge" "x-code" "x-image" "x-table" "x-table-cell" "x-table-row"])
+                 (into ["x-badge" "x-code" "x-image" "x-progress" "x-table" "x-table-cell" "x-table-row"])
                  (into (post-elements template-name)))
              (tags-of (:post pages))))))
   (testing "a home page of entries has its page numbers"

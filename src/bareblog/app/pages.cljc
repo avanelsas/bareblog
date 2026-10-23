@@ -47,6 +47,7 @@
 (def ^:private no-newer? (comp nil? :newer))
 (def ^:private no-older? (comp nil? :older))
 (def no-picture? (comp nil? :picture))
+(def ^:private not-reading? (comp nil? :read))
 (def ^:private not-filtered? (complement :filtered?))
 (def ^:private no-footer? (complement :powered-by-footer?))
 (def ^:private logo-light (comp :light :logo))
@@ -132,6 +133,18 @@
    [:h1 :title]
    meta-line])
 
+;; The line says no more than the scrollbar does, so it is hidden from assistive technology.
+;; x-progress takes away an `aria-label` that it did not write, and shows its own label as text.
+;; It is fixed to the window, which holds while no element around the post is transformed.
+(def read-progress
+  "How far the reader has scrolled through the page of a post, as a line along the top of the
+   window. A page with nothing to scroll through hides it."
+  [:x-progress {:class       "read-progress"
+                :value       :read
+                :max         1
+                :aria-hidden "true"
+                :hidden      not-reading?}])
+
 (defn post-page
   "The node of the page of a post, named `node-name`, which opens with `header`: an element that
    holds `post-header`."
@@ -139,6 +152,7 @@
   {:split (template/split
            node-name
            [:article {:class "post"}
+            read-progress
             header
             [:div {:class "post-blocks" :data-x-part "blocks"}]
             [:nav {:class "neighbours" :aria-label (:others words)}

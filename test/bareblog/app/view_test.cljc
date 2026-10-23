@@ -17,11 +17,13 @@
   ["2025-01-01" "2026-02-01" "2026-03-01"])
 
 (defn- shown
-  "The key and the node of what the page `told` shows of `site`, whose top is at `root`."
+  "The key and the node of what the page `told` shows of `site`, whose top is at `root`, for
+   what is `local` to the page."
   ([told] (shown site told))
   ([site told] (shown "/" site told))
-  ([root site told]
-   (let [{:keys [order by-key]} (get-in (view/page root site told {}) [:lists :main])]
+  ([root site told] (shown root site told {}))
+  ([root site told local]
+   (let [{:keys [order by-key]} (get-in (view/page root site told local) [:lists :main])]
      [(first order) (by-key (first order))])))
 
 (defn- row-items
@@ -245,8 +247,11 @@
 (def one {:kind :text :content ["One."]})
 (def two {:kind :text :content ["Two."]})
 
-(defn- post-node [folder post]
-  (second (shown {:page {:kind :post :folder folder} :text (assoc post :folder folder)})))
+(defn- post-node
+  ([folder post] (post-node folder post {}))
+  ([folder post local]
+   (second (shown "/" site {:page {:kind :post :folder folder} :text (assoc post :folder folder)}
+                  local))))
 
 (deftest post-test
   (let [node (post-node "b" {:title "Second" :date "2026-02-01T08:00:00+01:00" :tags ["travel" "travel"] :blocks [one two]})]
@@ -265,6 +270,9 @@
            (:picture (:item (post-node "c" {:title  "Third"
                                             :blocks [one {:kind :photo :src "/c/tram.jpg"}]})))))
     (is (nil? (:picture (:item (post-node "c" {:title "Third" :blocks [one two]}))))))
+  (testing "the page of a post has how far the reader has read it, or nothing when it fits"
+    (is (= 0.4 (:read (:item (post-node "a" {:title "First" :blocks []} {:read 0.4})))))
+    (is (nil? (:read (:item (post-node "a" {:title "First" :blocks []}))))))
   (testing "the newest post has no newer one, and the oldest no older one"
     (is (nil? (:newer (:item (post-node "c" {:title "Third" :blocks []})))))
     (is (nil? (:older (:item (post-node "a" {:title "First" :blocks []}))))))

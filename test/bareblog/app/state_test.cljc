@@ -75,8 +75,30 @@
   (testing "the palette is opened and closed, by its button and by what it asks for itself"
     (is (true? (:palette? (local-after [:open-palette]))))
     (is (false? (:palette? (local-after [:open-palette] [:close-palette])))))
+  (testing "how far the reader has read is kept, and a page that fits keeps none"
+    (is (= 0.4 (:read (local-after [:read 0.4]))))
+    (is (nil? (:read (local-after [:read 0.4] [:read nil])))))
+  (testing "how far the reader has read stays when the page is told its post again"
+    (is (= 0.4 (:read (local-after [:told {:site site :page post}] [:read 0.4]
+                                   [:told {:site site :page post}])))))
   (testing "a message with no meaning for the state changes nothing"
     (is (= (after [:search "x"]) (after [:search "x"] [:to-page 2] [:submit-search] [:unknown 1])))))
+
+(deftest read-share-test
+  (testing "how far the window has come through the page, in thousandths"
+    (is (= 0.0 (state/read-share 0 800)))
+    (is (= 0.5 (state/read-share 400 800)))
+    (is (= 0.329 (state/read-share 263.5 800)))
+    (is (= 1.0 (state/read-share 800 800))))
+  (testing "on a long page the line moves within a few pixels of scrolling"
+    (let [long-room 16400]
+      (is (pos? (state/read-share 9 long-room)))))
+  (testing "a window that scrolls past either end, as it bounces, stays within the page"
+    (is (= 0.0 (state/read-share -20 800)))
+    (is (= 1.0 (state/read-share 830 800))))
+  (testing "a page that fits in the window has nothing to read through"
+    (is (nil? (state/read-share 0 0)))
+    (is (nil? (state/read-share 0 -120)))))
 
 (deftest destination-test
   (let [on-home (after [:told {:site site :page home}] [:search "two words"])

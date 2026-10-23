@@ -7,6 +7,14 @@ body {
   margin: 0;
 }
 
+/* A narrow window may be pulled past an end, to reload. It then shows the document, which the
+   app colours as the page. */
+@media (min-width: 641px) {
+  html {
+    overscroll-behavior-y: none;
+  }
+}
+
 .page {
   min-height: 100vh;
   background: var(--x-color-bg, #fff);
@@ -485,6 +493,31 @@ body {
   margin: 0;
   font-size: 2rem;
   line-height: 1.2;
+}
+
+/* How far the reader has read: a line along the top of the window, over the navbar, in the
+   colours of the theme. The fill holds the whole gradient however far it has come. x-progress
+   sets its own height inside, so the height goes on its track part. */
+
+.page .read-progress {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 50;
+  --x-progress-border-radius: 0;
+  --x-progress-track-color: transparent;
+  --x-progress-fill-color: linear-gradient(
+    90deg,
+    var(--x-color-primary, #2563eb),
+    var(--x-color-secondary, #64748b),
+    var(--x-color-tertiary, #94a3b8)
+  );
+  --x-transition-duration: 0.15s;
+  --x-transition-easing: linear;
+}
+
+.page .read-progress::part(track) {
+  height: 3px;
 }
 
 /* The menu. Below 641 pixels, which is `wide-from` in the app, the navbar shows its brand and
