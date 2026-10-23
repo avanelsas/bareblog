@@ -4,8 +4,8 @@
    The state holds where the top of the blog is, as `:root`, what the page was told, the
    `:site` and its own `:page` or a `:problem`, and
    under `:local` what is the page's own: what the reader chose, which is the text to search
-   for, a tag, a date and a theme preset, whether the menu and the palette are open, and what
-   the page knows of its keyboard.
+   for, a tag, a date and a theme preset, whether the menu and the palette are open, how far
+   the reader has scrolled through the page, and what the page knows of its keyboard.
 
    A message goes through `step`, and `shown` says what the page then shows: a notice, the view
    of the document, what the address asks for, and the preset to keep. An event, and what the
@@ -94,6 +94,18 @@
 (defn- close-palette [local _]
   (assoc local :palette? false))
 
+;; In thousandths, the line moves within a few pixels of scrolling on a long post, and the
+;; page is shown again at most a thousand times on the way down.
+(defn read-share
+  "How far a window that has scrolled `scrolled` pixels has come through a page that it can
+   scroll `room` pixels, from 0 to 1, or nil when there is no room to scroll."
+  [scrolled room]
+  (when (pos? room)
+    (-> (/ (double scrolled) room) (max 0.0) (min 1.0) (* 1000) Math/round (/ 1000.0))))
+
+(defn- read-to [local share]
+  (assoc local :read share))
+
 (def ^:private local-steps
   "What each meaning of a message does to what is local to the page."
   {:search        search
@@ -107,7 +119,8 @@
    :open-menu     open-menu
    :close-menu    close-menu
    :open-palette  open-palette
-   :close-palette close-palette})
+   :close-palette close-palette
+   :read          read-to})
 
 (defn step
   "The state after `message`, which is a meaning and an optional argument. A message that

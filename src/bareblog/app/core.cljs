@@ -25,6 +25,7 @@
             [baredom.exports.x-image :as x-image]
             [baredom.exports.x-navbar :as x-navbar]
             [baredom.exports.x-pagination :as x-pagination]
+            [baredom.exports.x-progress :as x-progress]
             [baredom.exports.x-scroll-parallax :as x-scroll-parallax]
             [baredom.exports.x-scroll-stack :as x-scroll-stack]
             [baredom.exports.x-search-field :as x-search-field]
@@ -53,6 +54,7 @@
    "x-image"        x-image/init
    "x-navbar"       x-navbar/init
    "x-pagination"   x-pagination/init
+   "x-progress"     x-progress/init
    "x-scroll-parallax" x-scroll-parallax/init
    "x-scroll-stack" x-scroll-stack/init
    "x-search-field" x-search-field/init
@@ -89,11 +91,24 @@
 
 ;; Bringing what is outside the app to what the state shows. Each writes only where it differs.
 
+;; The colours of the theme are on the page, so the document behind it, which a window pulled
+;; past an end shows, takes the colour of the page. It is read after each render, and again when
+;; the system turns light or dark, since the theme then repaints without one.
+(defn- colour-document!
+  "Gives the document behind the page the background colour of the page, where it differs."
+  []
+  (when-some [page (.querySelector js/document ".page")]
+    (let [colour (.-backgroundColor (js/getComputedStyle page))
+          ^js style (.. js/document -documentElement -style)]
+      (when (not= colour (.-backgroundColor style))
+        (set! (.-backgroundColor style) colour)))))
+
 (defn- show-view!
   "Brings the document to the page view `view`."
   [view]
   (register-components! view)
   (render/render! js/document view)
+  (colour-document!)
   (.removeAttribute (.-documentElement js/document) loading)
   (js/performance.mark shown-mark))
 
@@ -146,11 +161,21 @@
   (js/console.error error)
   (render/notice! js/document (str "This page could not be shown. " (ex-message error))))
 
-(defn- show-or-report! [shown]
+(defn- or-report!
+  "Shows `shown` by `show`, and an error that it throws in the page."
+  [show shown]
   (try
-    (show! shown)
+    (show shown)
     (catch :default error
       (report! error))))
+
+;; How far the reader has read changes the view and nothing else, many times a second. So it
+;; brings the document to the view alone: no notice, address, preset or mark on the timeline.
+(defn- show-reading!
+  "Brings the document to the view that `state/shown` gave, after the reader scrolled."
+  [{:keys [view]}]
+  (when view
+    (render/render! js/document view)))
 
 ;; Messages.
 
@@ -171,7 +196,12 @@
 
 (def ^:private step-and-show!
   "A function of a message: it puts the state after the message in the atom, and shows it."
-  (events/dispatcher page-state state/step state/shown show-or-report!))
+  (events/dispatcher page-state state/step state/shown (partial or-report! show!)))
+
+(def ^:private step-and-show-reading!
+  "A function of a message of how far the reader has read: it puts the state after the message
+   in the atom, and shows the view."
+  (events/dispatcher page-state state/step state/shown (partial or-report! show-reading!)))
 
 (defn- changes?
   "True when `message` changes the state of this page."
@@ -186,6 +216,13 @@
     (set! (.-href js/location) to)
     (when (changes? message)
       (step-and-show! message))))
+
+(defn- read!
+  "Lets how far the reader has read, `share`, change the state. A share that does not is dropped."
+  [share]
+  (let [message [:read share]]
+    (when (changes? message)
+      (step-and-show-reading! message))))
 
 (defn- detail-page [_origin ^js event]
   (.. event -detail -page))
@@ -318,14 +355,55 @@
   [^js frame]
   (.postMessage (.-contentWindow frame) live/height-request "*"))
 
+;; How far the reader has read is how far the window has scrolled through the whole page. The
+;; page grows after it is shown, as its pictures come in and as the author edits it, so that is
+;; measured again whenever the window scrolls, the window changes, or the page does. It is
+;; measured once a frame at most, and only on a page that shows the line.
+
+(defonce ^{:private true :doc "True while a measure of how far the reader has read waits for a frame."}
+  measuring?
+  (atom false))
+
+(defn- read-so-far
+  "How far the window has scrolled through the page, or nil when it fits."
+  []
+  (state/read-share (.-scrollY js/window)
+                    (- (.. js/document -documentElement -scrollHeight) (.-innerHeight js/window))))
+
+(defn- measure-reading!
+  "Tells the page how far the reader has read, where it shows the line."
+  []
+  (when (compare-and-set! measuring? false true)
+    (js/requestAnimationFrame
+     (fn [_time]
+       (reset! measuring? false)
+       (when (.querySelector js/document "x-progress.read-progress")
+         (read! (read-so-far)))))))
+
+(defn- follow-reading!
+  "Measures how far the reader has read whenever the window scrolls or changes, or the page
+   changes its height."
+  []
+  (.addEventListener js/window "scroll" #(measure-reading!) #js {:passive true})
+  (.addEventListener js/window "resize" #(measure-reading!))
+  (.observe (js/ResizeObserver. #(measure-reading!)) (.-body js/document)))
+
+(defn- colour-with-system!
+  "Colours the document behind the page again whenever the system turns light or dark."
+  []
+  (.addEventListener (js/matchMedia "(prefers-color-scheme: dark)")
+                     "change"
+                     (fn [_event] (colour-document!))))
+
 (defn- listen-to-window!
-  "Listens for the key that opens the palette, for the window becoming wide or narrow, and for
-   the height that a live frame tells, and asks each live frame for it."
+  "Turns what the window and the system do into messages and writes."
   []
   (.addEventListener js/document "keydown" #(open-palette-by-key! %))
   (.addEventListener js/window "message" #(fit-live-frame! %))
   (run! ask-height! (live-frames))
-  (close-menu-with-window!))
+  (close-menu-with-window!)
+  (follow-reading!)
+  (colour-with-system!))
 
 (defonce ^{:private true :doc "True once the events of the document are turned into messages."}
   listening?
@@ -442,7 +520,7 @@
 
 ;; After a reload of the code in development, the page shows its state again with the new code.
 (defn ^:dev/after-load reload! []
-  (show-or-report! (state/shown @page-state)))
+  (or-report! show! (state/shown @page-state)))
 
 (defn init
   "Takes what the reader chose before from the address and the browser, fetches the data of
