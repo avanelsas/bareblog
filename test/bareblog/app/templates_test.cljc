@@ -246,6 +246,18 @@
         {:keys [order by-key]} (get-in node [:lists :entries])]
     (map (comp :item by-key) order)))
 
+(deftest gradient-titles-test
+  (doseq [[template-name row-name] [[:journal "post"] [:journal "standalone"] [:journal "entries"]
+                                    [:magazine "entries"] [:longform "entries"] [:longform "post"]]
+          :let [node (templates/row-node (get-in (templates/named template-name) [:lists :main]) row-name)
+                row  (or (get-in node [:lists :entries :row :split]) (:split node))]]
+    (testing (str template-name " " row-name ": a title is filled with a gradient when the view says so")
+      (is (true? (:gradient (attrs-of row {:gradient-titles? true} "x-typography.title"))))
+      (is (false? (:gradient (attrs-of row {:gradient-titles? false} "x-typography.title"))))))
+  (testing "longform: a title over the first picture of a post is not filled with a gradient"
+    (let [post (:split (templates/row-node (get-in (templates/named :longform) [:lists :main]) "post"))]
+      (is (false? (:gradient (attrs-of post {:gradient-titles? true :picture "a.png"} "x-typography.title")))))))
+
 (deftest magazine-test
   (let [entries (get-in (templates/named :magazine) [:lists :main :rows "entries"])
         card    (get-in entries [:lists :entries :row :split])
@@ -489,7 +501,8 @@
       (is (= (conj (set shell) "x-badge") (tags-of (:archive pages)))))
     (testing (str template-name ": the page of a post has those of its blocks, at any depth")
       (is (= (-> (set shell)
-                 (into ["x-badge" "x-code" "x-image" "x-progress" "x-table" "x-table-cell" "x-table-row" "x-toc"])
+                 (into ["x-badge" "x-code" "x-image" "x-progress" "x-table" "x-table-cell" "x-table-row" "x-toc"
+                       "x-typography"])
                  (into (post-elements template-name)))
              (tags-of (:post pages))))))
   (testing "a home page of entries has its page numbers"

@@ -128,10 +128,20 @@
    draft
    [:ul {:class "tags" :data-x-part "tags"}]])
 
-(def post-header
-  "The header of a post: its title, its date, whether it is a draft, and its tags."
+(defn- titled
+  "The title `heading`, filled with a gradient where the hole `gradient` says so, by default the
+   fact `:gradient-titles?`."
+  ([heading]
+   (titled :gradient-titles? heading))
+  ([gradient heading]
+   [:x-typography {:class "title" :gradient gradient} heading]))
+
+(defn post-header-with
+  "The header of a post: its title, its date, whether it is a draft, and its tags. The hole
+   `gradient` says whether its title is filled with a gradient."
+  [gradient]
   [:header {:class "post-header"}
-   [:h1 :title]
+   (titled gradient [:h1 :title])
    meta-line])
 
 ;; The line says no more than the scrollbar does, so it is hidden from assistive technology.
@@ -153,7 +163,7 @@
 
 (defn post-page
   "The node of the page of a post, named `node-name`, whose article opens with `header`: an
-   element that holds `post-header`."
+   element that holds a header from `post-header-with`."
   [node-name header]
   {:split (template/split
            node-name
@@ -173,7 +183,7 @@
 
 (def post
   "The page of a post."
-  (post-page :post post-header))
+  (post-page :post (post-header-with :gradient-titles?)))
 
 (def cover
   "The first picture of a post, across the top of a card."
@@ -183,7 +193,7 @@
 (def card-text
   "What a card says of a post: its title, as the link to it, its date and tags, and its summary."
   [:div {:class "card-text"}
-   [:h2 [:a {:href :href} :title]]
+   (titled [:h2 [:a {:href :href} :title]])
    meta-line
    [:p {:class "summary"} :summary]])
 
@@ -192,7 +202,7 @@
   {:split (template/split
            :entry
            [:li {:class "entry"}
-            [:h2 [:a {:href :href} :title]]
+            (titled [:h2 [:a {:href :href} :title]])
             meta-line
             [:div {:class "abstract"}
              [:img {:class "thumbnail" :src :picture :alt "" :loading "lazy" :hidden no-picture?}]
@@ -362,7 +372,7 @@
            [:x-gaussian-blur {:class "standalone-backdrop" :speed "14" :size "20" :count "6" :opacity "0.6"}
             [:article {:class "post standalone"}
              [:header {:class "post-header"}
-              [:h1 :title]
+              (titled [:h1 :title])
               [:div {:class "meta"}
                [:x-badge {:class "draft" :text (:unpublished words) :variant "warning" :hidden published-page?}]]]
              [:div {:class "post-blocks" :data-x-part "blocks"}]]])

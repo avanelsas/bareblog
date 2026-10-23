@@ -33,12 +33,18 @@
   [{:keys [picture]}]
   (if picture "hero with-picture" "hero"))
 
+(defn- gradient-title?
+  "Whether the title of a post is filled with a gradient: never over its picture, where it is
+   white."
+  [{:keys [gradient-titles? picture]}]
+  (boolean (and gradient-titles? (not picture))))
+
 ;; The picture moves at half the speed of the page, and the title at the speed of the page.
 (def ^:private hero
   "The opening of a post: its first picture, behind its title, date and tags."
   [:x-scroll-parallax {:class hero-class}
    [:img {:class "hero-picture" :src :picture :alt "" :data-speed "0.5" :hidden pages/no-picture?}]
-   [:div {:class "hero-text" :data-speed "1"} pages/post-header]])
+   [:div {:class "hero-text" :data-speed "1"} (pages/post-header-with gradient-title?)]])
 
 (def template
   "The node of the whole document."

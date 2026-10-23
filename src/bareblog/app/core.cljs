@@ -36,6 +36,7 @@
             [baredom.exports.x-table-row :as x-table-row]
             [baredom.exports.x-toc :as x-toc]
             [baredom.exports.x-theme :as x-theme]
+            [baredom.exports.x-typography :as x-typography]
             [baredom.requests :as requests]
             [baremirror.alpha.events :as events]
             [cljs.reader :as reader]))
@@ -65,7 +66,8 @@
    "x-table-cell"   x-table-cell/init
    "x-table-row"    x-table-row/init
    "x-toc"          x-toc/init
-   "x-theme"        x-theme/init})
+   "x-theme"        x-theme/init
+   "x-typography"   x-typography/init})
 
 (def ^:private loading
   "The attribute that `index.html` gives the document until the page shows its data. BareDOM's

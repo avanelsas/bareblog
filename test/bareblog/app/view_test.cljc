@@ -93,7 +93,7 @@
     (testing "an entry shows the title, the date, the summary and the address of its post, and
               its picture at the address of its file"
       (is (= {:title "Third" :date "2026-03-01" :href "/c/" :draft? false :summary "Three."
-              :picture "/c/tram.png" :front? true :first-picture? true}
+              :picture "/c/tram.png" :front? true :first-picture? true :gradient-titles? false}
              (first (row-items node :entries)))))
     (testing "the entries of the first page are on the front, and those of any other page are not"
       (is (every? :front? (row-items node :entries)))
@@ -384,13 +384,33 @@
             {:id "contact" :label "Contact" :keywords [] :value "/contact/" :page? true}]
            (drop 3 (get-in (view/page "/" with-pages {:page {:kind :archive}} {}) [:item :commands]))))))
 
+(defn- gradient-titles
+  "Whether `site` fills the title of the post that `post` tells, of the page that `about` tells,
+   and of each entry of the list that `home` tells."
+  [post about home site]
+  (into [(:gradient-titles? (:item (second (shown site post))))
+         (:gradient-titles? (:item (second (shown site about))))]
+        (map :gradient-titles?)
+        (row-items (second (shown site home)) :entries)))
+
+(deftest gradient-titles-test
+  (let [filled (assoc-in with-pages [:blog :gradient-titles] true)
+        post   {:page {:kind :post :folder "c"} :text {:folder "c" :title "Third" :blocks []}}
+        about  {:page {:kind :standalone :folder "about"} :text {:folder "about" :title "About" :blocks []}}
+        home   {:page {:kind :home :number 1}}
+        titles (partial gradient-titles post about home)]
+    (testing "the titles of a post, of a page and of the entries of a list are filled when the settings say so"
+      (is (every? true? (titles filled))))
+    (testing "and are not filled when they say nothing"
+      (is (every? false? (titles with-pages))))))
+
 (deftest standalone-test
   (let [about {:page {:kind :standalone :folder "about"} :text {:folder "about" :title "About" :blocks [one two]}}
         page  (view/page "/" with-pages about {})
         [k node] (let [{:keys [order by-key]} (get-in page [:lists :main])] [(first order) (by-key (first order))])]
     (testing "a page of the author shows its title and its text, and no date, tags or other post"
       (is (= "standalone" k))
-      (is (= {:title "About" :unpublished? false} (:item node)))
+      (is (= {:title "About" :unpublished? false :gradient-titles? false} (:item node)))
       (is (= [:blocks] (keys (:lists node))))
       (is (= [one two] (mapv (get-in node [:lists :blocks :by-key]) (get-in node [:lists :blocks :order])))))
     (testing "a page that is not published says so"
