@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: The tag names the version in package.json
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          WRITTEN="$(node -p "require('./package.json').version")"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          if [ "$WRITTEN" != "$VERSION" ]; then
+            echo "::error::The tag is ${GITHUB_REF_NAME}, and package.json says ${WRITTEN}."
+            exit 1
+          fi
+
+      - name: Notes from the changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v v="$VERSION" '
+            index($0, "## [" v "]") == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::CHANGELOG.md has no section ## [${VERSION}]."
+            exit 1
+          fi
+          PREVIOUS="$(git describe --tags --abbrev=0 --match 'v[0-9]*' "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          if [ -n "$PREVIOUS" ]; then
+            printf '\n**Full changelog:** https://github.com/%s/compare/%s...%s\n' \
+              "$GITHUB_REPOSITORY" "$PREVIOUS" "$GITHUB_REF_NAME" >> notes.md
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: DeLaGuardo/setup-clojure@13.4
+        with:
+          bb: latest
+          clj-kondo: latest
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: bb test
+
+      - name: Lint
+        run: clj-kondo --lint src test
+
+      - name: Build the app
+        run: npx shadow-cljs release app
+
+      - name: GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: BareBlog ${{ steps.version.outputs.version }}
+          body_path: notes.md
