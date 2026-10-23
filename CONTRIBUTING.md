@@ -21,3 +21,6 @@ ones above it in this list, and none below it:
 
 The tests are in `test/bareblog/`, in the same folders. A test holds this table to the code.
 `clj-kondo --lint src test` is clean before a commit.
+
+A change comes in as a pull request from a branch, and CI runs on it. How a version is
+released is in [RELEASING.md](RELEASING.md).
