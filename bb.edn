@@ -1,7 +1,7 @@
 {:paths ["src" "test"]
  ;; The same release that shadow-cljs.edn, package.json and app.live name. Here it gives the
  ;; tests BareMirror's pure template functions, and BareDOM's request events to read.
- :deps  {com.github.avanelsas/baredom {:mvn/version "4.11.0"}}
+ :deps  {com.github.avanelsas/baredom {:mvn/version "4.14.0"}}
  :tasks
  {test  {:doc      "Run the tests of the pure code."
          :requires ([bareblog.test-runner])

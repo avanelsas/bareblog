@@ -191,6 +191,17 @@
       (is (= #{"a.newer" "x-progress.read-progress"}
              (hidden site {:page {:kind :post :folder "b"} :text {:folder "b" :title "Second" :blocks []}}))))))
 
+(deftest contents-test
+  (doseq [template-name (keys templates/by-name)
+          :let          [node   (templates/row-node (get-in (templates/named template-name) [:lists :main]) "post")
+                         els    (elements (:fixed (:split node)))
+                         toc    (first (for [[tag attrs] els :when (= :x-toc tag)] attrs))
+                         target (for [[_ attrs] els :when (= (:for toc) (:id attrs))] attrs)]]
+    (testing (str template-name ": the contents of a post read its blocks part, under their label")
+      (is (some? toc))
+      (is (= ["blocks"] (map :data-x-part target)))
+      (is (= (:content pages/words) (:label toc))))))
+
 (deftest menu-test
   (let [journal (templates/named :journal)
         written (fn [choice] (template/writes (:split journal) (:item (view/page "/" site (:home pages) choice))))
@@ -478,7 +489,7 @@
       (is (= (conj (set shell) "x-badge") (tags-of (:archive pages)))))
     (testing (str template-name ": the page of a post has those of its blocks, at any depth")
       (is (= (-> (set shell)
-                 (into ["x-badge" "x-code" "x-image" "x-progress" "x-table" "x-table-cell" "x-table-row"])
+                 (into ["x-badge" "x-code" "x-image" "x-progress" "x-table" "x-table-cell" "x-table-row" "x-toc"])
                  (into (post-elements template-name)))
              (tags-of (:post pages))))))
   (testing "a home page of entries has its page numbers"
