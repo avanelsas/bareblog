@@ -384,6 +384,18 @@
             {:id "contact" :label "Contact" :keywords [] :value "/contact/" :page? true}]
            (drop 3 (get-in (view/page "/" with-pages {:page {:kind :archive}} {}) [:item :commands]))))))
 
+(deftest navbar-colors-test
+  (testing "the document says the colours drift behind the navbar when the settings say so"
+    (is (true? (:navbar-colors? (:item (view/page "/" (assoc-in site [:blog :navbar-colors] true)
+                                                  {:page {:kind :home :number 1}} {})))))
+    (is (false? (:navbar-colors? (:item (view/page "/" site {:page {:kind :home :number 1}} {})))))))
+
+(deftest page-colors-test
+  (testing "the document says the colours lie behind the page when the settings say so"
+    (is (true? (:page-colors? (:item (view/page "/" (assoc-in site [:blog :page-colors] true)
+                                                {:page {:kind :home :number 1}} {})))))
+    (is (false? (:page-colors? (:item (view/page "/" site {:page {:kind :home :number 1}} {})))))))
+
 (defn- gradient-titles
   "Whether `site` fills the title of the post that `post` tells, of the page that `about` tells,
    and of each entry of the list that `home` tells."

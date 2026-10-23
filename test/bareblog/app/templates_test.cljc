@@ -258,6 +258,22 @@
     (let [post (:split (templates/row-node (get-in (templates/named :longform) [:lists :main]) "post"))]
       (is (false? (:gradient (attrs-of post {:gradient-titles? true :picture "a.png"} "x-typography.title")))))))
 
+(deftest navbar-colors-test
+  (doseq [template-name (keys templates/by-name)
+          :let          [split (:split (templates/named template-name))
+                         item  (:item (view/page "/" (site-of template-name) (:home pages) {}))]]
+    (testing (str template-name ": the band of the navbar says it shows the colours when the view says so")
+      (is (true? (:data-colors (attrs-of split (assoc item :navbar-colors? true) "x-gaussian-blur.navbar-band"))))
+      (is (false? (:data-colors (attrs-of split (assoc item :navbar-colors? false) "x-gaussian-blur.navbar-band")))))))
+
+(deftest page-colors-test
+  (doseq [template-name (keys templates/by-name)
+          :let          [split (:split (templates/named template-name))
+                         item  (:item (view/page "/" (site-of template-name) (:home pages) {}))]]
+    (testing (str template-name ": the colours behind the page say they show when the view says so")
+      (is (true? (:data-colors (attrs-of split (assoc item :page-colors? true) "x-gaussian-blur.page-colors"))))
+      (is (false? (:data-colors (attrs-of split (assoc item :page-colors? false) "x-gaussian-blur.page-colors")))))))
+
 (deftest magazine-test
   (let [entries (get-in (templates/named :magazine) [:lists :main :rows "entries"])
         card    (get-in entries [:lists :entries :row :split])
@@ -479,11 +495,12 @@
 
 (def ^:private shell-elements
   "The custom elements of the document of each blog template, on a page that shows nothing."
-  {:journal  ["x-container" "x-drawer" "x-navbar" "x-search-field" "x-select" "x-theme"]
-   :notebook ["x-badge" "x-command-palette" "x-container" "x-navbar" "x-select" "x-sidebar" "x-theme"]
-   :magazine ["x-container" "x-drawer" "x-navbar" "x-search-field" "x-select" "x-theme"]
-   :longform ["x-container" "x-drawer" "x-navbar" "x-search-field" "x-select" "x-theme"]
-   :diary    ["x-container" "x-drawer" "x-navbar" "x-search-field" "x-select" "x-theme"]})
+  {:journal  ["x-container" "x-drawer" "x-gaussian-blur" "x-navbar" "x-search-field" "x-select" "x-theme"]
+   :notebook ["x-badge" "x-command-palette" "x-container" "x-gaussian-blur" "x-navbar" "x-select" "x-sidebar"
+              "x-theme"]
+   :magazine ["x-container" "x-drawer" "x-gaussian-blur" "x-navbar" "x-search-field" "x-select" "x-theme"]
+   :longform ["x-container" "x-drawer" "x-gaussian-blur" "x-navbar" "x-search-field" "x-select" "x-theme"]
+   :diary    ["x-container" "x-drawer" "x-gaussian-blur" "x-navbar" "x-search-field" "x-select" "x-theme"]})
 
 (def ^:private post-elements
   "The custom elements that the page of a post has in a blog template, besides those of its

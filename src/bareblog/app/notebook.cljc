@@ -60,6 +60,7 @@
                 :notebook
                 [:x-theme {:preset :preset}
                  [:div {:class "page notebook"}
+                  pages/page-colors
                   (pages/navbar search-button)
                   [:x-command-palette {:label       (:search pages/words)
                                        :placeholder (:search pages/words)

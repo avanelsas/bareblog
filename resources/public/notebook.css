@@ -6,6 +6,13 @@
   --notebook-navbar-height: 4rem;
 }
 
+/* The band sticks, not the navbar, whose sticky part fills a host of its own height. */
+.notebook .navbar-band {
+  position: sticky;
+  top: 0;
+  z-index: var(--x-navbar-z-index, 40);
+}
+
 .notebook .columns {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

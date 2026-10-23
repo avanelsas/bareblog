@@ -43,6 +43,12 @@
              " ;; colours of the theme. Only true fills them."
              (str " :gradient-titles  " (pr-str site/default-gradient-titles))
              ""
+             " ;; The colours of the theme, drifting behind the navbar. Only true shows them."
+             (str " :navbar-colors    " (pr-str site/default-navbar-colors))
+             ""
+             " ;; The colours of the theme, still, behind the whole page. Only true shows them."
+             (str " :page-colors      " (pr-str site/default-page-colors))
+             ""
              " ;; The logo in the navbar, in place of the title: an SVG, PNG, JPEG, GIF or WebP"
              " ;; beside this file. One name is the logo in both modes of the theme. A map gives one"
              " ;; for each, and the one under :dark is shown when the theme is dark."

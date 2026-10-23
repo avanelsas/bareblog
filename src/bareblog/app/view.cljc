@@ -408,6 +408,8 @@
                     :tag                (chosen-tag told)
                     :blog-title         (:title blog)
                     :powered-by-footer? (site/powered-by-footer? blog)
+                    :navbar-colors?     (site/navbar-colors? blog)
+                    :page-colors?       (site/page-colors? blog)
                     :home               root
                     :archive            (address/archive root)
                     :feed               (address/feed root)})
