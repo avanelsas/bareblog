@@ -22,6 +22,17 @@
     (doseq [settings [{} {:powered-by-footer true} {:powered-by-footer false}]]
       (is (empty? (site/settings-problems settings))))))
 
+(deftest gradient-titles-test
+  (testing "the titles are filled only when the settings say true"
+    (is (site/gradient-titles? {:gradient-titles true}))
+    (is (not-any? site/gradient-titles? [{} {:gradient-titles false} {:gradient-titles "yes"}])))
+  (testing "a value that is not true or false is named as a problem"
+    (is (= ["blog.edn gives \"yes\" as its :gradient-titles, which is true or false."]
+           (site/settings-problems {:gradient-titles "yes"}))))
+  (testing "true, false or nothing is no problem"
+    (doseq [settings [{} {:gradient-titles true} {:gradient-titles false}]]
+      (is (empty? (site/settings-problems settings))))))
+
 (deftest days-test
   (testing "the days of the posts are each day once, oldest first, and a post with no date has none"
     (is (= ["2026-10-02" "2026-10-12"]

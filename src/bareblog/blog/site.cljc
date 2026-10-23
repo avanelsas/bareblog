@@ -64,18 +64,30 @@
   [settings]
   (not (false? (:powered-by-footer settings))))
 
-(defn- footer-problems
-  "What is wrong with how `settings` say whether a page ends with the footer, as texts."
+(def default-gradient-titles
+  "What a new blog writes in its settings for the gradient of its titles, which is what a blog
+   that says nothing of it gets."
+  false)
+
+(defn gradient-titles?
+  "Whether the settings `settings` fill the titles of the posts and the pages, also in a list,
+   with a gradient of the colours of the theme."
   [settings]
-  (when-some [value (:powered-by-footer settings)]
+  (true? (:gradient-titles settings)))
+
+(defn- yes-or-no-problems
+  "What is wrong with how `settings` give the setting `k`, which is true or false, as texts."
+  [settings k]
+  (when-some [value (get settings k)]
     (when-not (boolean? value)
-      [(str layout/settings-file " gives " (pr-str value) " as its :powered-by-footer, which is "
-            "true or false.")])))
+      [(str layout/settings-file " gives " (pr-str value) " as its " k ", which is true or false.")])))
 
 (defn settings-problems
   "What is wrong with the settings `settings`, as texts."
   [settings]
-  (concat (footer-problems settings) (pictures/settings-problems settings)))
+  (concat (yes-or-no-problems settings :powered-by-footer)
+          (yes-or-no-problems settings :gradient-titles)
+          (pictures/settings-problems settings)))
 
 (defn site
   "The data that every page loads, from the settings of the blog and the entries of its posts.

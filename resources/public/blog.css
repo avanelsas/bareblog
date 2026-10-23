@@ -118,6 +118,16 @@ body {
   display: none;
 }
 
+/* The contents reach down to a gap above the foot of the window. A longer list scrolls, with no
+   scrollbar, and x-toc keeps the heading the reader is at in view. */
+.post-toc::part(nav) {
+  max-height: calc(100dvh - var(--x-toc-sticky-top) - var(--x-space-lg, 1rem));
+}
+
+.post-toc::part(body) {
+  scrollbar-width: none;
+}
+
 /* What a post shows of itself, on its page and in a list. */
 
 .meta {
@@ -171,9 +181,10 @@ body {
   margin-bottom: calc(var(--x-space-xl, 1.5rem) * 1.75);
 }
 
+/* The title grows with the window, from 1.5rem on a phone to 2.25rem at about 1250 pixels. */
 .entry h2 {
   margin: 0 0 var(--x-space-xs, 0.25rem);
-  font-size: 1.5rem;
+  font-size: clamp(1.5rem, 1rem + 1.6vw, 2.25rem);
   line-height: 1.3;
 }
 
@@ -317,15 +328,44 @@ body {
   font-size: var(--x-font-size-sm, 0.875rem);
 }
 
+/* A title filled with a gradient is as wide as its text, since the gradient spans its heading. */
+.title[gradient] > :is(h1, h2) {
+  width: fit-content;
+}
+
+/* The gradient of the title of a post or a page moves once through its text as the page opens.
+   It runs out and back over twice the width of the title, so the title shows the colours of a
+   title in a list, and the move ends as it began. */
+.post-header .title[gradient] {
+  --x-typography-gradient: linear-gradient(90deg, var(--x-color-primary), var(--x-color-secondary),
+    var(--x-color-tertiary), var(--x-color-secondary), var(--x-color-primary));
+}
+
+.post-header .title[gradient] > h1 {
+  background-size: 200% 100%;
+  animation: title-gradient 2s ease-in-out;
+}
+
+@keyframes title-gradient {
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .post-header .title[gradient] > h1 {
+    animation: none;
+  }
+}
+
 /* A post. */
 
 .post-header {
   margin-bottom: calc(var(--x-space-xl, 1.5rem) * 1.5);
 }
 
+/* The title grows with the window, from 2.5rem on a phone to 4rem at about 1200 pixels. */
 .post-header h1 {
   margin: 0 0 var(--x-space-sm, 0.5rem);
-  font-size: 2.5rem;
+  font-size: clamp(2.5rem, 1.5rem + 3.3vw, 4rem);
   font-weight: var(--x-font-weight-bold, 700);
   line-height: 1.2;
   letter-spacing: -0.02em;

@@ -81,3 +81,8 @@
 .longform .hero.with-picture .post-header .tags a {
   color: rgba(255, 255, 255, 0.85);
 }
+
+/* x-typography gives a title the colour of the text, and one over the picture is white. */
+.longform .hero.with-picture .title {
+  --x-typography-color: #fff;
+}

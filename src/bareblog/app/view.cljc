@@ -73,12 +73,13 @@
   [{:keys [title date href draft?]}]
   {:title title :date (site/day date) :href href :draft? (boolean draft?)})
 
-(defn- entry-row [root front? first-picture? {:keys [folder summary picture tags] :as entry}]
+(defn- entry-row [{:keys [root blog]} front? first-picture? {:keys [folder summary picture tags] :as entry}]
   [folder {:item  (assoc (listed entry)
-                         :summary        summary
-                         :picture        picture
-                         :front?         front?
-                         :first-picture? first-picture?)
+                         :summary          summary
+                         :picture          picture
+                         :front?           front?
+                         :first-picture?   first-picture?
+                         :gradient-titles? (site/gradient-titles? blog))
            :lists {:tags (tag-rows root tags)}}])
 
 (defn- first-pictures
@@ -97,11 +98,11 @@
    `:front?` says that it is the first page of the home page, with nothing chosen, and `:date`
    is the date that the reader chose. The list also knows the days of the posts of `site`, and
    the language of the blog."
-  [{:keys [root blog] :as site} {:keys [entries tags chosen-tag front?] :as listing}]
+  [{:keys [blog] :as site} {:keys [entries tags chosen-tag front?] :as listing}]
   {:item  (merge {:heading nil :number 1 :pages 1 :filtered? false :count (count entries)
                   :date nil :days (site/post-days site) :language (site/language blog)}
                  (select-keys listing [:heading :number :pages :filtered? :date]))
-   :lists {:entries  (rows (map (partial entry-row root (boolean front?))
+   :lists {:entries  (rows (map (partial entry-row site (boolean front?))
                                 (first-pictures entries)
                                 entries))
            :all-tags (rows (map (partial chosen-row chosen-tag) tags))}})
@@ -263,11 +264,12 @@
   (if shown
     {:key   "post"
      :named {:kind :post :name title}
-     :node  {:item  (merge {:title   title
-                            :date    (site/day date)
-                            :draft?  (marked? (:posts site) folder :draft?)
-                            :picture (:src (first (text/pictures shown)))
-                            :read    (:read local)}
+     :node  {:item  (merge {:title            title
+                            :date             (site/day date)
+                            :draft?           (marked? (:posts site) folder :draft?)
+                            :picture          (:src (first (text/pictures shown)))
+                            :read             (:read local)
+                            :gradient-titles? (site/gradient-titles? (:blog site))}
                            (neighbours site folder))
              :lists {:tags   (tag-rows (:root site) tags)
                      :blocks (block-rows blocks)}}}
@@ -279,7 +281,9 @@
   (if shown
     {:key   "standalone"
      :named {:kind :standalone :name title}
-     :node  {:item  {:title title :unpublished? (marked? (:pages site) folder :unpublished?)}
+     :node  {:item  {:title            title
+                     :unpublished?     (marked? (:pages site) folder :unpublished?)
+                     :gradient-titles? (site/gradient-titles? (:blog site))}
              :lists {:blocks (block-rows blocks)}}}
     (not-found site)))
 

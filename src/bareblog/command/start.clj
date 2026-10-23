@@ -39,6 +39,10 @@
              " ;; The line \"Powered by BareBlog\" at the bottom of every page. false leaves it out."
              (str " :powered-by-footer " (pr-str site/default-powered-by-footer))
              ""
+             " ;; The titles of the posts and the pages, also in a list, filled with a gradient of the"
+             " ;; colours of the theme. Only true fills them."
+             (str " :gradient-titles  " (pr-str site/default-gradient-titles))
+             ""
              " ;; The logo in the navbar, in place of the title: an SVG, PNG, JPEG, GIF or WebP"
              " ;; beside this file. One name is the logo in both modes of the theme. A map gives one"
              " ;; for each, and the one under :dark is shown when the theme is dark."
