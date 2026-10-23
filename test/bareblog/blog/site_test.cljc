@@ -33,6 +33,24 @@
     (doseq [settings [{} {:gradient-titles true} {:gradient-titles false}]]
       (is (empty? (site/settings-problems settings))))))
 
+(deftest navbar-colors-test
+  (testing "the colours drift behind the navbar only when the settings say true"
+    (is (site/navbar-colors? {:navbar-colors true}))
+    (is (not-any? site/navbar-colors? [{} {:navbar-colors false} {:navbar-colors "yes"}])))
+  (testing "a value that is not true or false is named as a problem, and true or false is none"
+    (is (= ["blog.edn gives \"yes\" as its :navbar-colors, which is true or false."]
+           (site/settings-problems {:navbar-colors "yes"})))
+    (is (empty? (site/settings-problems {:navbar-colors true})))))
+
+(deftest page-colors-test
+  (testing "the colours lie behind the page only when the settings say true"
+    (is (site/page-colors? {:page-colors true}))
+    (is (not-any? site/page-colors? [{} {:page-colors false} {:page-colors "yes"}])))
+  (testing "a value that is not true or false is named as a problem, and true or false is none"
+    (is (= ["blog.edn gives \"yes\" as its :page-colors, which is true or false."]
+           (site/settings-problems {:page-colors "yes"})))
+    (is (empty? (site/settings-problems {:page-colors true})))))
+
 (deftest days-test
   (testing "the days of the posts are each day once, oldest first, and a post with no date has none"
     (is (= ["2026-10-02" "2026-10-12"]

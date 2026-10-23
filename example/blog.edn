@@ -26,6 +26,14 @@
  ;; of the theme. Only true fills them. When left out: false.
  :gradient-titles  true
 
+ ;; The colours of the theme, drifting behind the navbar. Only true shows them. When left
+ ;; out: false.
+ :navbar-colors    true
+
+ ;; The colours of the theme, still, behind the whole page. Only true shows them. When left
+ ;; out: false.
+ :page-colors      true
+
  ;; The logo in the navbar, in place of the title, which it can hold in a font of its own:
  ;; an SVG, PNG, JPEG, GIF or WebP beside this file. One name is the logo in both modes of
  ;; the theme. A map gives one for each, and the one under :dark is shown when the theme is
