@@ -215,3 +215,30 @@
   (testing "a tag does not start with an underscore"
     (is (nil? (reader/tags "#_draft")))
     (is (nil? (reader/tags "#a #_b")))))
+
+(deftest tag-names-test
+  (testing "a tag is written with its mark, and a space as an underscore"
+    (is (= "#web_components" (reader/written-tag "web components")))
+    (is (= "#x-code" (reader/written-tag "x-code"))))
+  (testing "what an author names a tag is read as a tag is read"
+    (is (= "web components" (reader/tag-named " web_components ")))
+    (is (= "a b" (reader/tag-named "a__b"))))
+  (testing "a tag can be written when it is read back as itself"
+    (is (every? reader/tag? ["travel" "web components" "c++" "BareDOM"]))
+    (is (not-any? reader/tag? ["" "a#b" "two#"]))))
+
+(deftest retagged-test
+  (let [text "# T\n\nText[^a] with #inline.\n\n#travel #two_words  #baredom\n\n[^a]: A note.\n"]
+    (testing "the paragraph of tags is written with the new tags, and the rest of the text stays"
+      (is (= "# T\n\nText[^a] with #inline.\n\n#travel #two_words #BareDOM\n\n[^a]: A note.\n"
+             (reader/retagged text ["travel" "two words" "BareDOM"]))))
+    (testing "a paragraph of tags over more lines becomes one line"
+      (is (= "Text.\n\n#a #c\n" (reader/retagged "Text.\n\n#a\n#b\n" ["a" "c"]))))
+    (testing "a text that names a tag twice is retagged with each tag once"
+      (is (= "Text.\n\n#a #b\n" (reader/retagged "Text.\n\n#a #b #a\n" ["a" "b"]))))
+    (testing "the line of tags ends as the lines of a text with a carriage return do"
+      (is (= "# T\r\n\r\nText.\r\n\r\n#a #c\r\n" (reader/retagged "# T\r\n\r\nText.\r\n\r\n#a #b\r\n" ["a" "c"]))))
+    (testing "a text with no paragraph of tags is not retagged"
+      (is (nil? (reader/retagged "Text with #travel.\n" ["travel"]))))
+    (testing "tags that would be read as other tags are not written"
+      (is (nil? (reader/retagged text ["travel" "a#b"]))))))
