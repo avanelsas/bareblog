@@ -3,6 +3,7 @@
   (:require [bareblog.blog.address :as address]
             [bareblog.blog.shape :as shape]
             [bareblog.blog.site :as site]
+            [bareblog.blog.tags :as tags]
             [bareblog.blog.wire :as wire]
             [bareblog.blog.layout :as layout]
             [bareblog.written.feed :as feed]
@@ -22,9 +23,13 @@
        "in it, or of dots alone, cannot name a directory."))
 
 (defn problems
-  "What is wrong with the blog in `site` as a blog that is written out as files, as texts."
-  [site]
-  (map pageless (filter pageless-tag? (site/tags site))))
+  "What is wrong with the blog in `site` as a blog that is written out as files, as texts.
+   `published` holds the folders of its posts that are as they were published."
+  ([site]
+   (problems site #{}))
+  ([site published]
+   (concat (map pageless (filter pageless-tag? (site/tags site)))
+           (tags/problems (:posts site) published))))
 
 (defn pages
   "Every page of the blog in `site`: the pages of the home page, the page of each tag that can

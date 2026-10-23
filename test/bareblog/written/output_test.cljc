@@ -45,7 +45,14 @@
   (testing "a tag that cannot have a page is something wrong with the blog, said once"
     (is (= 1 (count (output/problems {:posts [{:tags ["a/b"]} {:tags ["a/b" "ok"]}]}))))
     (is (re-find #"a/b" (first (output/problems {:posts [{:tags ["a/b"]}]}))))
-    (is (empty? (output/problems site)))))
+    (is (empty? (output/problems site))))
+  (testing "a tag written in more than one way is something wrong with the blog"
+    (is (re-find #"\"Travel\" in b and \"travel\" in a are one tag"
+                 (first (output/problems {:posts [{:folder "a" :tags ["travel"]} {:folder "b" :tags ["Travel"]}]})))))
+  (testing "a spelling as it was published is said as that"
+    (is (re-find #"as it was published"
+                 (first (output/problems {:posts [{:folder "a" :tags ["travel"]} {:folder "b" :tags ["Travel"]}]}
+                                         #{"a"}))))))
 
 (deftest awkward-tags-test
   (testing "a tag that cannot have a page gets none"

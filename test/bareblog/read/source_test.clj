@@ -315,3 +315,18 @@
             (is (= :standalone (get-in (source/read-page blog {:kind :post :folder "about"}) [:page :kind]))))
           (testing "its page is that of a folder that is not there"
             (is (nil? (source/read-page blog {:kind :post :folder "new-idea"})))))))))
+
+(deftest kept-tags-test
+  (example/with-copy {}
+    (fn [dir]
+      (fs/create-dirs (fs/path dir "docs"))
+      (spit (fs/file dir "docs" "site.edn")
+            (pr-str {:blog {} :posts [{:folder "every-kind" :title "Every kind" :tags ["Travel"]}]}))
+      (let [blog (assoc (source/published dir (source/read-settings dir))
+                        :read #{"a-week-in-lisbon"} :as-published #{"every-kind"})]
+        (testing "a tag of a post that is read is held to the tags of the posts as they were published"
+          (is (= [(str "The tags \"Travel\" in every-kind (as it was published) and \"travel\" in a-week-in-lisbon "
+                       "are one tag written in different ways, and cannot each have a page. Write them one way "
+                       "with: bareblog tags rename \"travel\" \"Travel\", and publish them together with: "
+                       "bareblog publish --all")]
+                 (source/read-problems blog))))))))
