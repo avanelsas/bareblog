@@ -393,13 +393,12 @@
   "A page of the author that is no post: its title and its text."
   {:split (template/split
            :standalone
-           [:x-gaussian-blur {:class "standalone-backdrop" :speed "14" :size "20" :count "6" :opacity "0.6"}
-            [:article {:class "post standalone"}
-             [:header {:class "post-header"}
-              (titled [:h1 :title])
-              [:div {:class "meta"}
-               [:x-badge {:class "draft" :text (:unpublished words) :variant "warning" :hidden published-page?}]]]
-             [:div {:class "post-blocks" :data-x-part "blocks"}]]])
+           [:article {:class "post standalone"}
+            [:header {:class "post-header"}
+             (titled [:h1 :title])
+             [:div {:class "meta"}
+              [:x-badge {:class "draft" :text (:unpublished words) :variant "warning" :hidden published-page?}]]]
+            [:div {:class "post-blocks" :data-x-part "blocks"}]])
    :lists {:blocks {:part "blocks" :row block}}})
 
 (def page-rows

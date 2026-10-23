@@ -392,7 +392,10 @@
       (is (true? (badge-hidden? template-name "contact"))))
     (testing (str template-name ": a page is named by its title in the title of the document")
       (is (= "About · Bare notes"
-             (:title (view/page "/" (site-of template-name) (:standalone pages) {})))))))
+             (:title (view/page "/" (site-of template-name) (:standalone pages) {})))))
+    (testing (str template-name ": a page opens with its article, as a post does, with no backdrop of its own")
+      (is (= :article (first (:fixed (:split (templates/row-node (get-in (templates/named template-name) [:lists :main])
+                                                                 "standalone")))))))))
 
 (defn- home-links
   "The elements in the tree `tree` that lead to the home page."

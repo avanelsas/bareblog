@@ -678,22 +678,6 @@ body {
   font-size: var(--x-font-size-base, 1rem);
 }
 
-/* The blurred backdrop behind a page of the author. */
-
-.standalone-backdrop {
-  --x-gaussian-blur-border-radius: var(--x-radius-lg, 1rem);
-  margin: var(--x-space-xl, 1.5rem) 0;
-}
-
-.standalone-backdrop::part(backdrop) {
-  top: 20%;
-}
-
-.standalone-backdrop .post {
-  padding-left: calc(var(--x-space-xl, 1.5rem) * 1.5);
-  padding-right: calc(var(--x-space-xl, 1.5rem) * 1.5);
-}
-
 /* A live block: the frame that runs the code, above the code, in one panel. */
 
 .live {
