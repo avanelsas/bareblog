@@ -84,6 +84,40 @@ body {
   line-height: 1.7;
 }
 
+/* The contents of a post stand beside its text where the column holds both: 42rem of text, a
+   gap of 2.25rem and 14rem of contents, and Notebook's margin of 1.5rem. The text keeps its width,
+   and the pair stands where the text stands alone. The contents stick within the row, which is
+   as tall as the text. */
+.post-layout {
+  display: flex;
+  container: post / inline-size;
+}
+
+.post-layout > .post {
+  flex: 0 1 42rem;
+  min-width: 0;
+}
+
+.post-toc {
+  display: none;
+}
+
+@container post (min-width: 60rem) {
+  .post-layout:has(> .post-toc:not([data-empty])) > .post {
+    margin-right: 0;
+  }
+
+  .post-toc {
+    display: block;
+    flex: 0 0 14rem;
+    margin: calc(var(--x-space-xl, 1.5rem) * 2) auto 0 calc(var(--x-space-xl, 1.5rem) * 1.5);
+  }
+}
+
+.post-toc[data-empty] {
+  display: none;
+}
+
 /* What a post shows of itself, on its page and in a list. */
 
 .meta {

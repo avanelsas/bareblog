@@ -15,6 +15,7 @@
    :page-numbers "Pages"
    :page        "Page"
    :others      "Other posts"
+   :content     "Content"
    :no-date     "No date"
    :no-posts    "There are no posts yet."
    :search      "Search"
@@ -145,21 +146,28 @@
                 :aria-hidden "true"
                 :hidden      not-reading?}])
 
+;; x-toc gives each heading it lists an id from its text, so the post's blocks need none.
+(def contents
+  "The headings of the text of a post, as links that mark the one the reader is at."
+  [:x-toc {:class "post-toc" :for "post-text" :label (:content words) :sticky true}])
+
 (defn post-page
-  "The node of the page of a post, named `node-name`, which opens with `header`: an element that
-   holds `post-header`."
+  "The node of the page of a post, named `node-name`, whose article opens with `header`: an
+   element that holds `post-header`."
   [node-name header]
   {:split (template/split
            node-name
-           [:article {:class "post"}
-            read-progress
-            header
-            [:div {:class "post-blocks" :data-x-part "blocks"}]
-            [:nav {:class "neighbours" :aria-label (:others words)}
-             [:a {:class "newer" :rel "next" :href (comp :href :newer) :hidden no-newer?}
-              (comp :title :newer)]
-             [:a {:class "older" :rel "prev" :href (comp :href :older) :hidden no-older?}
-              (comp :title :older)]]])
+           [:div {:class "post-layout"}
+            [:article {:class "post"}
+             read-progress
+             header
+             [:div {:class "post-blocks" :id "post-text" :data-x-part "blocks"}]
+             [:nav {:class "neighbours" :aria-label (:others words)}
+              [:a {:class "newer" :rel "next" :href (comp :href :newer) :hidden no-newer?}
+               (comp :title :newer)]
+              [:a {:class "older" :rel "prev" :href (comp :href :older) :hidden no-older?}
+               (comp :title :older)]]]
+            contents])
    :lists {:tags   {:part "tags" :row tag}
            :blocks {:part "blocks" :row block}}})
 

@@ -2,7 +2,7 @@
 ;; The BareDOM version is named here, in bb.edn, in package.json and in app.live. A test holds
 ;; them to each other.
 {:source-paths ["src"]
- :dependencies [[com.github.avanelsas/baredom "4.11.0"]]
+ :dependencies [[com.github.avanelsas/baredom "4.14.0"]]
  :builds       {:app {:target     :esm
                       :output-dir "resources/public/js"
                       :modules    {:app {:init-fn bareblog.app.core/init}}}}}

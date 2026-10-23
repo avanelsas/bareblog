@@ -115,6 +115,15 @@
   margin: 0 auto 0 var(--x-space-xl, 1.5rem);
 }
 
+/* The headings of a post, and a heading that the reader jumps to, stay below the navbar. */
+.notebook .post-toc {
+  --x-toc-sticky-top: calc(var(--notebook-navbar-height) + var(--x-space-lg, 1rem));
+}
+
+.notebook .post-blocks :is(h2, h3) {
+  scroll-margin-top: var(--notebook-navbar-height);
+}
+
 /* Below 641 pixels, which is `wide-from` in the app, the sidebar is a panel. */
 
 @media (max-width: 640px) {

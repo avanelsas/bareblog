@@ -34,6 +34,7 @@
             [baredom.exports.x-table :as x-table]
             [baredom.exports.x-table-cell :as x-table-cell]
             [baredom.exports.x-table-row :as x-table-row]
+            [baredom.exports.x-toc :as x-toc]
             [baredom.exports.x-theme :as x-theme]
             [baredom.requests :as requests]
             [baremirror.alpha.events :as events]
@@ -63,6 +64,7 @@
    "x-table"        x-table/init
    "x-table-cell"   x-table-cell/init
    "x-table-row"    x-table-row/init
+   "x-toc"          x-toc/init
    "x-theme"        x-theme/init})
 
 (def ^:private loading
