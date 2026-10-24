@@ -6,6 +6,20 @@
   margin: 0 auto;
 }
 
+/* A post opens on its cover, above its title, as its card does. */
+.magazine .opening {
+  display: flex;
+  flex-direction: column;
+}
+
+.magazine .post-cover {
+  order: -1;
+}
+
+.magazine .post-cover x-image {
+  border-radius: var(--x-radius-lg, 1rem);
+}
+
 .magazine .entries {
   max-width: none;
 }

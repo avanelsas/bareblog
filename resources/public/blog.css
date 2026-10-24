@@ -440,6 +440,21 @@ body {
   content: "\00a0\2192";
 }
 
+/* The cover of a post stands as a photo in its text does. */
+.post-cover {
+  margin: 0 0 var(--x-space-xl, 1.5rem);
+}
+
+.post-cover[hidden] {
+  display: none;
+}
+
+.post-cover x-image {
+  display: block;
+  border-radius: var(--x-radius-md, 0.75rem);
+  overflow: hidden;
+}
+
 .post-blocks > * {
   margin: 0 0 var(--x-space-xl, 1.5rem);
 }

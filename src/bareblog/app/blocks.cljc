@@ -74,7 +74,7 @@
 (defn- heading [{:keys [level content]}]
   (into [(keyword (str "h" level))] (children content)))
 
-(defn- ratio
+(defn ratio
   "The width and the height as `x-image` takes them, or nil when one is not known."
   [{:keys [width height]}]
   (when (and width height)

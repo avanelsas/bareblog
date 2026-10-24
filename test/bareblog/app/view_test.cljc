@@ -32,6 +32,12 @@
   (let [{:keys [order by-key]} (get-in node [:lists list-name])]
     (mapv (comp :item by-key) order)))
 
+(defn- block-list
+  "The blocks of `node`, in order."
+  [node]
+  (let [{:keys [order by-key]} (get-in node [:lists :blocks])]
+    (mapv by-key order)))
+
 (deftest document-test
   (let [page (view/page "/" site {:page {:kind :archive}} {})]
     (testing "the page names the blog template and the language of the blog"
@@ -264,12 +270,16 @@
     (testing "a tag that is named twice shows once"
       (is (= [{:name "travel" :href "/tags/travel/"}] (row-items node :tags))))
     (testing "the blocks are in the order of the post, each under its key"
-      (is (= [one two] (mapv (get-in node [:lists :blocks :by-key]) (get-in node [:lists :blocks :order]))))))
-  (testing "the page of a post has the address of its first picture, or none"
-    (is (= "/c/tram.jpg"
-           (:picture (:item (post-node "c" {:title  "Third"
-                                            :blocks [one {:kind :photo :src "/c/tram.jpg"}]})))))
-    (is (nil? (:picture (:item (post-node "c" {:title "Third" :blocks [one two]}))))))
+      (is (= [one two] (block-list node)))))
+  (let [tram {:kind :photo :src "/c/tram.jpg" :alt "A tram" :width 1200 :height 800}]
+    (testing "a photo that opens a post is its cover, and not one of its blocks"
+      (let [node (post-node "c" {:title "Third" :blocks [tram one]})]
+        (is (= tram (:cover (:item node))))
+        (is (= [one] (block-list node)))))
+    (testing "a post that opens with text has no cover, and keeps its photos among its blocks"
+      (let [node (post-node "c" {:title "Third" :blocks [one tram]})]
+        (is (nil? (:cover (:item node))))
+        (is (= [one tram] (block-list node))))))
   (testing "the page of a post has how far the reader has read it, or nothing when it fits"
     (is (= 0.4 (:read (:item (post-node "a" {:title "First" :blocks []} {:read 0.4})))))
     (is (nil? (:read (:item (post-node "a" {:title "First" :blocks []}))))))
@@ -424,7 +434,7 @@
       (is (= "standalone" k))
       (is (= {:title "About" :unpublished? false :gradient-titles? false} (:item node)))
       (is (= [:blocks] (keys (:lists node))))
-      (is (= [one two] (mapv (get-in node [:lists :blocks :by-key]) (get-in node [:lists :blocks :order])))))
+      (is (= [one two] (block-list node))))
     (testing "a page that is not published says so"
       (is (true? (get-in (view/page "/" with-pages {:page {:kind :standalone :folder "contact"}
                                                     :text {:folder "contact" :title "Contact" :blocks []}} {})

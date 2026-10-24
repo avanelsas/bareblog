@@ -41,7 +41,7 @@
   display: block;
 }
 
-.longform .hero.with-picture {
+.longform .hero.with-cover {
   position: relative;
   margin-bottom: calc(var(--x-space-xl, 1.5rem) * 1.5);
   border-radius: var(--x-radius-lg, 1rem);
@@ -60,11 +60,11 @@
   display: none;
 }
 
-.longform .hero.with-picture .hero-text {
+.longform .hero.with-cover .hero-text {
   position: relative;
 }
 
-.longform .hero.with-picture .post-header {
+.longform .hero.with-cover .post-header {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -77,12 +77,12 @@
   color: #fff;
 }
 
-.longform .hero.with-picture .post-header .meta,
-.longform .hero.with-picture .post-header .tags a {
+.longform .hero.with-cover .post-header .meta,
+.longform .hero.with-cover .post-header .tags a {
   color: rgba(255, 255, 255, 0.85);
 }
 
 /* x-typography gives a title the colour of the text, and one over the picture is white. */
-.longform .hero.with-picture .title {
+.longform .hero.with-cover .title {
   --x-typography-color: #fff;
 }

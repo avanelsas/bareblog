@@ -151,11 +151,15 @@
            (template/writes split (:item shown))))))
 
 (deftest hidden-test
-  (let [reading    {:read 0.4}
-        empty-site (assoc site :posts [])
-        two-pages  (assoc-in site [:blog :per-page] 1)
-        older      {:folder "0" :title "Zero" :date "2024-01-01"}
-        newer      {:folder "c" :title "Third" :date "2027-01-01"}]
+  (let [reading     {:read 0.4}
+        empty-site  (assoc site :posts [])
+        two-pages   (assoc-in site [:blog :per-page] 1)
+        older       {:folder "0" :title "Zero" :date "2024-01-01"}
+        newer       {:folder "c" :title "Third" :date "2027-01-01"}
+        post-of     (fn [folder title blocks]
+                      {:page {:kind :post :folder folder} :text {:folder folder :title title :blocks blocks}})
+        second-post (post-of "b" "Second" [{:kind :photo :src "b.jpg"}])
+        first-post  (post-of "a" "First" [{:kind :photo :src "a.jpg"}])]
     (testing "a home page on one page hides its heading, the way back to all posts, the text for
               no posts and its page numbers"
       (is (= #{"div.heading" "button.clear" "p.empty" "x-pagination"} (hidden site (:home pages)))))
@@ -173,23 +177,17 @@
       (is (= #{"p.empty"} (hidden site (:archive pages))))
       (is (= #{} (hidden empty-site (:archive pages)))))
     (testing "the page of a draft with a newer and an older post hides nothing"
-      (is (= #{} (hidden (update site :posts (partial into [newer]))
-                         {:page {:kind :post :folder "b"} :text {:folder "b" :title "Second" :blocks []}}
-                         reading))))
+      (is (= #{} (hidden (update site :posts (partial into [newer])) second-post reading))))
     (testing "the page of the newest post, a draft, hides the link to a newer one"
-      (is (= #{"a.newer"} (hidden site {:page {:kind :post :folder "b"} :text {:folder "b" :title "Second" :blocks []}}
-                                  reading))))
+      (is (= #{"a.newer"} (hidden site second-post reading))))
     (testing "the page of a published post with both neighbours hides the badge of a draft"
-      (is (= #{"x-badge.draft"} (hidden (update site :posts conj older)
-                                        {:page {:kind :post :folder "a"} :text {:folder "a" :title "First" :blocks []}}
-                                        reading))))
+      (is (= #{"x-badge.draft"} (hidden (update site :posts conj older) first-post reading))))
     (testing "the page of the oldest post hides the link to an older one too"
-      (is (= #{"x-badge.draft" "a.older"}
-             (hidden site {:page {:kind :post :folder "a"} :text {:folder "a" :title "First" :blocks []}}
-                     reading))))
+      (is (= #{"x-badge.draft" "a.older"} (hidden site first-post reading))))
     (testing "the page of a post that fits in the window hides the line of how far it is read"
-      (is (= #{"a.newer" "x-progress.read-progress"}
-             (hidden site {:page {:kind :post :folder "b"} :text {:folder "b" :title "Second" :blocks []}}))))))
+      (is (= #{"a.newer" "x-progress.read-progress"} (hidden site second-post))))
+    (testing "the page of a post with no cover hides the place of its cover"
+      (is (= #{"a.newer" "figure.post-cover"} (hidden site (post-of "b" "Second" []) reading))))))
 
 (deftest contents-test
   (doseq [template-name (keys templates/by-name)
@@ -254,9 +252,9 @@
     (testing (str template-name " " row-name ": a title is filled with a gradient when the view says so")
       (is (true? (:gradient (attrs-of row {:gradient-titles? true} "x-typography.title"))))
       (is (false? (:gradient (attrs-of row {:gradient-titles? false} "x-typography.title"))))))
-  (testing "longform: a title over the first picture of a post is not filled with a gradient"
+  (testing "longform: a title over the cover of a post is not filled with a gradient"
     (let [post (:split (templates/row-node (get-in (templates/named :longform) [:lists :main]) "post"))]
-      (is (false? (:gradient (attrs-of post {:gradient-titles? true :picture "a.png"} "x-typography.title")))))))
+      (is (false? (:gradient (attrs-of post {:gradient-titles? true :cover {:src "a.png"}} "x-typography.title")))))))
 
 (deftest navbar-colors-test
   (doseq [template-name (keys templates/by-name)
@@ -295,19 +293,33 @@
   (let [longform (templates/named :longform)
         deck     (get-in longform [:lists :main :rows "entries"])
         post     (:split (get-in longform [:lists :main :rows "post"]))
-        hero     (fn [picture] (attrs-of post {:title "A post" :picture picture} "x-scroll-parallax"))]
+        hero     (fn [cover] (attrs-of post {:title "A post" :cover cover} "x-scroll-parallax"))
+        tram     {:src "/a/tram.jpg" :alt "A tram"}]
     (testing "a list of posts is a deck of cards, which a reader is told is a list"
       (is (= "x-scroll-stack.deck" (named-part (:fixed (:split deck)) "entries")))
       (is (= "list" (some (fn [[tag attrs]] (when (= :x-scroll-stack tag) (:role attrs)))
                           (elements (:fixed (:split deck)))))))
-    (testing "a post opens on its first picture, which moves slower than its title"
-      (is (= "hero with-picture" (:class (hero "/a/tram.jpg"))))
-      (is (= {:src "/a/tram.jpg" :hidden false}
-             (select-keys (attrs-of post {:picture "/a/tram.jpg"} "img.hero-picture") [:src :hidden])))
+    (testing "a post opens on its cover, which moves slower than its title"
+      (is (= "hero with-cover" (:class (hero tram))))
+      (is (= {:src "/a/tram.jpg" :alt "A tram" :hidden false}
+             (select-keys (attrs-of post {:cover tram} "img.hero-picture") [:src :alt :hidden])))
       (is (= ["0.5" "1"] (keep (comp :data-speed second) (elements (:fixed post))))))
-    (testing "a post with no picture opens on its title alone"
+    (testing "a post with no cover opens on its title alone, and shows no cover below it"
       (is (= "hero" (:class (hero nil))))
-      (is (true? (:hidden (attrs-of post {:picture nil} "img.hero-picture")))))))
+      (is (true? (:hidden (attrs-of post {:cover nil} "img.hero-picture"))))
+      (is (not-any? (comp #{"post-cover"} :class second) (elements (:fixed post)))))))
+
+(deftest post-cover-test
+  (doseq [template-name (remove #{:longform} (keys templates/by-name))
+          :let          [main (get-in (templates/named template-name) [:lists :main])
+                         post (:split (templates/row-node main "post"))
+                         tram {:src "/a/tram.jpg" :alt "A tram" :width 1200 :height 800}]]
+    (testing (str template-name ": a post shows its cover, with its alt text and its ratio")
+      (is (= {:src "/a/tram.jpg" :alt "A tram" :ratio "1200:800"}
+             (select-keys (attrs-of post {:cover tram} "x-image") [:src :alt :ratio])))
+      (is (false? (:hidden (attrs-of post {:cover tram} "figure.post-cover")))))
+    (testing (str template-name ": a post with no cover hides its place")
+      (is (true? (:hidden (attrs-of post {:cover nil} "figure.post-cover")))))))
 
 (deftest diary-test
   (let [entries  (:split (get-in (templates/named :diary) [:lists :main :rows "entries"]))
