@@ -62,6 +62,15 @@ BareBlog works out the rest:
 
 The line of tags is not shown, and a `#word` anywhere else is just text.
 
+A tag is one tag in any case, and with a dash, an underscore or a space between its words:
+`#BareDOM`, `#baredom` and `#bare_dom` are the same tag. Write it one way in every post. A
+publish stops while a tag is written in more than one way, and the preview says which.
+
+`bareblog tags` lists every tag, with how many posts and pages have it, and each tag that is
+written in more than one way. `bareblog tags rename baredom BareDOM` writes a tag anew in every
+post, draft and page. It shows what changes and asks first. Publish the posts it changed with
+`bareblog publish --all`.
+
 What a post can hold, from headings to live HTML, is shown in the example post
 [`every-kind/post.md`](./example/posts/every-kind/post.md).
 
