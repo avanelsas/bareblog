@@ -1,6 +1,7 @@
 (ns bareblog.command.start-test
   (:require [babashka.fs :as fs]
             [babashka.process :as process]
+            [bareblog.blog.layout :as layout]
             [bareblog.blog.shape :as shape]
             [bareblog.blog.site :as site]
             [bareblog.command.start :as start]
@@ -101,6 +102,13 @@
     (is (re-find #"before you publish" (start/settings-text "My blog")))
     (is (not-any? (edn/read-string (start/settings-text "My blog")) [:author :address]))))
 
+(deftest readme-text-test
+  (testing "the README names the folders and the files of a blog as the blog has them"
+    (is (every? #(str/includes? start/readme-text (str "`" % "/`"))
+                (conj layout/written-dirs layout/output-dir)))
+    (is (every? #(str/includes? start/readme-text (str "`" % "`"))
+                (conj layout/text-files layout/settings-file)))))
+
 (deftest init-test
   (with-empty-dir
     (fn [dir]
@@ -113,6 +121,8 @@
           (is (= all-ignored (slurp (fs/file dir ".gitignore"))))
           (is (git/top? dir))
           (is (= "It is a git repository now." (:said made))))
+        (testing "a new blog has a README of how BareBlog writes and publishes it"
+          (is (= start/readme-text (slurp (fs/file dir "README.md")))))
         (testing "a directory that is a blog already is left as it is"
           (spit (fs/file dir "blog.edn") "{:title \"Mine\"}")
           (is (re-find #"already" (:problem (start/blog! dir "Another"))))
@@ -124,13 +134,16 @@
         (let [made (start/blog! dir "My blog")]
           (is (re-find #"holds other things" (:problem made)))
           (is (= ["notes.txt"] (map fs/file-name (fs/list-dir dir))))))))
-  (testing "a repository that holds other things becomes a blog, and what git keeps out stays"
+  (testing "a repository that holds other things becomes a blog, and its README and what git
+            keeps out stay"
     (with-empty-dir
       (fn [dir]
         (git/init! dir)
         (spit (fs/file dir "README.md") "# Mine")
         (spit (fs/file dir ".gitignore") ".DS_Store\n")
-        (is (= "It is a git repository already." (:said (start/blog! dir "My blog"))))
+        (is (= "It is a git repository already. Its README.md was there already, and is left as it is."
+               (:said (start/blog! dir "My blog"))))
+        (is (= "# Mine" (slurp (fs/file dir "README.md"))))
         (is (source/blog? dir))
         (is (= ".DS_Store\ndrafts/\n._*\n" (slurp (fs/file dir ".gitignore")))))))
   (testing "a directory inside another repository gets none of its own, and the author is told"

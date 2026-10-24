@@ -33,6 +33,17 @@ ln -s "$PWD/bin/bareblog" ~/.local/bin/bareblog
 The last two lines put the `bareblog` command on your path. `~/.local/bin` has to be on your
 path for that. Any other directory that is on it works as well.
 
+## Update
+
+```
+bareblog version
+bareblog update
+```
+
+`bareblog update` shows what changed since your version, asks, and brings BareBlog to its
+latest release. A published blog keeps the version it was published with: run
+`bareblog publish --all` in it to put the new one live.
+
 ## See what a post can hold
 
 BareBlog comes with an example blog. Look at it before you write your own:
@@ -106,6 +117,7 @@ build that GitHub starts fails.
 | Change a setting, or a picture such as the logo | Edit `blog.edn` or replace the picture, then `bareblog publish --all` |
 | Add a page that is no post, such as About | `bareblog new --page "About"`, write it, then `bareblog publish about` |
 | See every tag, or write one tag one way | `bareblog tags`, then `bareblog tags rename baredom "BareDOM"` and `bareblog publish --all` |
+| Use the latest release of BareBlog | `bareblog update`, then `bareblog publish --all` |
 
 Publishing one post reads only that post from disk. An unfinished edit in another post stays on
 your machine.

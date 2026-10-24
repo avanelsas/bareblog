@@ -124,6 +124,40 @@
                      ""]
                     (output/publishing-steps git/branch))))
 
+(def readme-text
+  "The text of the README of a new blog: how BareBlog writes and publishes it."
+  "# Writing this blog
+
+This blog is made with [BareBlog](https://github.com/avanelsas/bareblog).
+
+## Where things go
+
+- `posts/`: the published posts, a folder each with `post.md` and its pictures
+- `drafts/`: posts that are not published yet. Git keeps them out.
+- `pages/`: pages that are no posts, such as About, a folder each with `page.md`
+- `blog.edn`: the settings of the blog
+- `docs/`: the published blog, written by BareBlog. Do not edit it.
+
+## Commands
+
+| You want to | Do this |
+|---|---|
+| Write a new post | `bareblog new \"A title\"`, then write in `drafts/a-title/post.md` |
+| Add a page, such as About | `bareblog new --page \"About\"` |
+| See the blog, drafts included | `bareblog preview` |
+| Publish a post, or a change to one | `bareblog publish <folder>` |
+| Publish everything again | `bareblog publish --all` |
+| See every tag, or write one tag one way | `bareblog tags`, `bareblog tags rename old \"new\"` |
+| Use the latest release of BareBlog | `bareblog update`, then `bareblog publish --all` |
+
+`bareblog help` lists every command. How a post is written is in BareBlog's
+[guide](https://github.com/avanelsas/bareblog/blob/main/GUIDE.md).
+")
+
+(def ^:private readme-kept
+  "What an author is told of a README that was there before the blog."
+  (str "Its " layout/readme-file " was there already, and is left as it is."))
+
 (defn first-text
   "What a post or a page with the title `title` starts as: its `:folder`, and the `:text` that
    it holds. A title that gives no name for a folder gives a `:problem`."
@@ -165,26 +199,31 @@
         {:said "It is a git repository now."}))))
 
 (defn- write-blog!
-  "Writes the settings of a blog with the title `title` in `dir`, its folders, and what git
-   keeps out."
+  "Writes the settings of a blog with the title `title` in `dir`, its folders, what git keeps
+   out, and its README when it has none."
   [dir title]
-  (let [ignore (fs/file dir ".gitignore")]
+  (let [ignore (fs/file dir ".gitignore")
+        readme (fs/file dir layout/readme-file)]
     (spit (fs/file dir layout/settings-file) (settings-text title))
     (run! #(fs/create-dirs (fs/path dir %)) layout/written-dirs)
-    (spit ignore (with-ignored (if (fs/exists? ignore) (slurp ignore) "")))))
+    (spit ignore (with-ignored (if (fs/exists? ignore) (slurp ignore) "")))
+    (when-not (fs/exists? readme)
+      (spit readme readme-text))))
 
 (defn blog!
   "Makes the directory `dir` a blog with the title `title`: a git repository, with its
-   settings, its folders, and what a blog keeps out of git. Gives what it did about the
-   repository, under `:said`. Gives a `:problem`, and writes nothing, when the directory is a
-   blog already or cannot be a repository."
+   settings, its folders, what a blog keeps out of git, and a README. Gives what it did about
+   the repository and the README, under `:said`. Gives a `:problem`, and writes nothing, when
+   the directory is a blog already or cannot be a repository."
   [dir title]
   (if (source/blog? dir)
     {:problem (str "There is a " layout/settings-file " in " dir " already.")}
-    (let [made (repository! dir)]
-      (when-not (:problem made)
-        (write-blog! dir title))
-      made)))
+    (let [made  (repository! dir)
+          kept? (fs/exists? (fs/file dir layout/readme-file))]
+      (if (:problem made)
+        made
+        (do (write-blog! dir title)
+            (cond-> made kept? (update :said str " " readme-kept)))))))
 
 (defn- write-text!
   "Writes `text` as the text of `folder` in the directory `in` of the blog in `dir`."

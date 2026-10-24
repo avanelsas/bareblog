@@ -3,6 +3,16 @@
 All notable changes to BareBlog are listed here. Until 1.0.0, a release may change the
 settings, the layout of a blog and the commands.
 
+## [Unreleased]
+
+### Added
+
+- **`bareblog update`** shows what changed since the installed version, asks, and brings
+  BareBlog to its latest release. A blog shows the new version once it is published again.
+  `bareblog version` says which version is installed.
+- **A README for a new blog.** `bareblog init` writes a `README.md` with where things go and
+  the commands that write and publish the blog. A `README.md` that is there already is kept.
+
 ## [0.3.0] - 2026-10-24
 
 BareBlog needs BareDOM 4.15.0.

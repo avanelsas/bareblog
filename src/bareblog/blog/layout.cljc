@@ -3,6 +3,8 @@
 
 (def settings-file "blog.edn")
 
+(def readme-file "README.md")
+
 (def posts-dir "posts")
 
 (def drafts-dir "drafts")

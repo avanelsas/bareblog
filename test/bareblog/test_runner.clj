@@ -32,7 +32,8 @@
     bareblog.publish.run-test
     bareblog.command.cli-test
     bareblog.command.start-test
-    bareblog.command.tags-test])
+    bareblog.command.tags-test
+    bareblog.command.update-test])
 
 (defn run
   "Runs every test namespace. The process ends with 1 when a test fails."

@@ -6,12 +6,7 @@
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]))
 
-(defn- run
-  "What `command` says and ends with for the blog in `dir`, with `answer` to its question."
-  [command dir answer & args]
-  (let [said (atom [])
-        exit (apply command {:say (partial swap! said conj) :ask (constantly answer)} dir args)]
-    {:exit exit :said @said}))
+(def ^:private run example/run-command)
 
 (defn- text-of [dir place]
   (slurp (fs/file dir place)))
