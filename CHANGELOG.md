@@ -3,7 +3,11 @@
 All notable changes to BareBlog are listed here. Until 1.0.0, a release may change the
 settings, the layout of a blog and the commands.
 
-## [Unreleased]
+## [0.4.0] - 2026-10-24
+
+BareBlog needs BareDOM 4.15.0. BareBlog 0.3.0 and before have no `bareblog update`: update to
+0.4.0 once by hand, in the directory of BareBlog, with `git fetch --tags`, `git checkout v0.4.0`,
+`npm ci` and `npx shadow-cljs release app`.
 
 ### Added
 
