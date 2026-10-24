@@ -33,6 +33,17 @@ ln -s "$PWD/bin/bareblog" ~/.local/bin/bareblog
 The last two lines put the `bareblog` command on your path. `~/.local/bin` has to be on your
 path for that. Any other directory that is on it works as well.
 
+## Update
+
+```
+bareblog version
+bareblog update
+```
+
+`bareblog update` shows what changed since your version, asks, and brings BareBlog to its
+latest release. A published blog keeps the version it was published with: run
+`bareblog publish --all` in it to put the new one live.
+
 ## See what a post can hold
 
 BareBlog comes with an example blog. Look at it before you write your own:

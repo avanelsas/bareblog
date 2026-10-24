@@ -21,7 +21,10 @@
              "                 --yes            with a yes to every question"
              "bareblog tags                     every tag, and each written in more than one way"
              "bareblog tags rename old \"new\"    a tag, in every post and page"
-             "              --yes               with a yes to the question"]))
+             "              --yes               with a yes to the question"
+             "bareblog version                  the version of BareBlog"
+             "bareblog update                   BareBlog, brought to its latest release"
+             "                --yes             with a yes to the question"]))
 
 (def default-port 8080)
 
@@ -81,6 +84,11 @@
 
 (defn- asks-nothing [_args]
   {})
+
+(defn- asks-update [args]
+  (if (every? #{yes} args)
+    {:yes? (boolean (seq args))}
+    {:refuse "Give nothing, or --yes: bareblog update"}))
 
 ;; The doing. Each function below gives the number that the process ends with.
 
@@ -148,6 +156,13 @@
       ((requiring-resolve 'bareblog.command.tags/rename!) how dir from to)
       ((requiring-resolve 'bareblog.command.tags/list!) how dir))))
 
+;; The version and an update are asked for by name, as a publish is.
+(defn- run-version! [{:keys [home]} _asked]
+  ((requiring-resolve 'bareblog.command.update/version!) {:say println} home))
+
+(defn- run-update! [{:keys [home]} {:keys [yes?]}]
+  ((requiring-resolve 'bareblog.command.update/update!) {:say println :ask (if yes? say-yes! ask!)} home))
+
 (defn- run-help! [_where _asked]
   (println usage)
   0)
@@ -161,6 +176,8 @@
    "preview" {:asks asks-preview :run run-preview! :in-a-blog? true}
    "publish" {:asks asks-publish :run run-publish! :in-a-blog? true}
    "tags"    {:asks asks-tags :run run-tags! :in-a-blog? true}
+   "version" {:asks asks-nothing :run run-version!}
+   "update"  {:asks asks-update :run run-update!}
    "help"    {:asks asks-nothing :run run-help!}})
 
 (defn asked

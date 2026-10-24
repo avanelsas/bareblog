@@ -48,6 +48,12 @@
     (is (every? (comp some? :refuse cli/asked)
                 [["tags" "rename"] ["tags" "rename" "a"] ["tags" "rename" "a" "b" "c"] ["tags" "list"]
                  ["tags" "--yes"]])))
+  (testing "the version is asked for, and an update with or without a yes to its question"
+    (is (= {:command "version"} (cli/asked ["version"])))
+    (is (= {:command "update" :yes? false} (cli/asked ["update"])))
+    (is (= {:command "update" :yes? true} (cli/asked ["update" "--yes"]))))
+  (testing "an update with anything else is refused"
+    (is (some? (:refuse (cli/asked ["update" "main"])))))
   (testing "no command, and help, ask for how the command is used"
     (is (= {:command "help"} (cli/asked [])))
     (is (= {:command "help"} (cli/asked ["help"]))))

@@ -17,7 +17,7 @@ ones above it in this list, and none below it:
 | `read/` | From a directory to data: Markdown to blocks, and a blog from its folders |
 | `preview/` | The local server, and what tells an open page that a file changed |
 | `publish/` | From data to pages on GitHub: the plan of a publish, the saved pages, git |
-| `command/` | The `bareblog` command, and what `init` and `new` make |
+| `command/` | The `bareblog` command, what `init` and `new` make, and BareBlog brought to its latest release |
 
 The tests are in `test/bareblog/`, in the same folders. A test holds this table to the code.
 `clj-kondo --lint src test` is clean before a commit.

@@ -1,6 +1,6 @@
 (ns bareblog.example
   "A directory to change in a test: one with nothing in it, or a copy of the example blog,
-   with its settings, its posts, its drafts and its pages."
+   with its settings, its posts, its drafts and its pages. And what a command says there."
   (:require [babashka.fs :as fs]
             [bareblog.blog.pictures :as pictures]
             [clojure.edn :as edn]))
@@ -63,6 +63,13 @@
       (check (str target))
       (finally
         (delete-dir! target)))))
+
+(defn run-command
+  "What `command` says and ends with, run for `where` and `args` with `answer` to its question."
+  [command where answer & args]
+  (let [said (atom [])
+        exit (apply command {:say (partial swap! said conj) :ask (constantly answer)} where args)]
+    {:exit exit :said @said}))
 
 (defn with-empty-dir
   "What `check` gives for a directory with nothing in it. It is gone afterwards."
