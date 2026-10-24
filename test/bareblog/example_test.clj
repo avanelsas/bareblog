@@ -24,15 +24,17 @@
       (is (not (contains? kinds :unknown))))))
 
 (defn- keep-writing!
-  "Writes a file in the directory `dir` every few milliseconds, for `ms` milliseconds, as git
-   does when it keeps its house in a process of its own."
+  "Writes a file in the directory `dir` and removes the one before it every few milliseconds,
+   for `ms` milliseconds, as git does when it keeps its house in a process of its own."
   [dir ms]
-  (let [until (+ (System/currentTimeMillis) ms)]
-    (fs/create-dirs (fs/path dir ".git" "objects"))
+  (let [until   (+ (System/currentTimeMillis) ms)
+        objects (fs/path dir ".git" "objects")]
+    (fs/create-dirs objects)
     (loop [n 0]
       (when (< (System/currentTimeMillis) until)
         (try
-          (spit (fs/file dir ".git" "objects" (str n)) "x")
+          (spit (fs/file objects (str n)) "x")
+          (fs/delete-if-exists (fs/path objects (str (dec n))))
           (catch java.io.IOException _))
         (Thread/sleep 2)
         (recur (inc n))))))
