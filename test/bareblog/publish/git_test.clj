@@ -11,7 +11,7 @@
   (example/with-empty-dir
     (fn [dir]
       (git/init! dir)
-      (doseq [[k v] {"user.name" "A test" "user.email" "test@example.com" "commit.gpgsign" "false"}]
+      (doseq [[k v] example/git-settings]
         (process/shell {:dir dir :out :string} "git" "config" k v))
       (check dir))))
 
