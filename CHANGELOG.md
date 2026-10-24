@@ -10,6 +10,8 @@ settings, the layout of a blog and the commands.
 - **`bareblog update`** shows what changed since the installed version, asks, and brings
   BareBlog to its latest release. A blog shows the new version once it is published again.
   `bareblog version` says which version is installed.
+- **A README for a new blog.** `bareblog init` writes a `README.md` with where things go and
+  the commands that write and publish the blog. A `README.md` that is there already is kept.
 
 ## [0.3.0] - 2026-10-24
 
