@@ -7,6 +7,15 @@
 
 (def dir "example")
 
+(def git-settings
+  "The settings of a git repository that a test commits in: who commits, and no housekeeping of
+   git in a process of its own."
+  {"user.name"        "A test"
+   "user.email"       "test@example.com"
+   "commit.gpgsign"   "false"
+   "gc.auto"          "0"
+   "maintenance.auto" "false"})
+
 (defn- little-end [n]
   [(bit-and n 0xff) (bit-shift-right n 8)])
 
@@ -28,19 +37,19 @@
       (fs/copy (fs/path dir src) (fs/path target src)))
     (spit (fs/file target "blog.edn") (pr-str (merge own settings)))))
 
-;; A repository that a test made may still be written by git, in a process of its own that
-;; keeps its house after a commit. A directory that fills again as it is deleted is deleted again.
+;; A repository that a test made may still be changed by git, in a process of its own that keeps
+;; its house after a commit or a push. A file then comes or goes while the directory is deleted.
+;; The tests that commit turn that off, so this holds for a repository that does not.
 (defn- delete-dir!
-  "Deletes the directory `dir` and what it holds, trying again for a while when it is not empty
-   by the time it is deleted."
+  "Deletes the directory `dir` and what it holds, trying again for a while when what it holds
+   changes as it is deleted."
   [dir]
   (loop [tries-left 30]
     (when-not (try
                 (fs/delete-tree dir)
                 true
-                (catch java.nio.file.DirectoryNotEmptyException problem
-                  (when-not (pos? tries-left)
-                    (throw problem))))
+                (catch java.io.IOException problem
+                  (if (pos? tries-left) false (throw problem))))
       (Thread/sleep 100)
       (recur (dec tries-left)))))
 
