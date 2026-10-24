@@ -84,8 +84,7 @@
                      clear-button
                      [:ol {:class "sidebar-posts" :data-x-part "posts"}]]]
                    [:div {:class "content"}
-                    [:x-container {:as "main"}
-                     [:div {:data-x-part "main"}]]
+                    pages/main
                     pages/footer]]]])
    :lists      {:presets      {:part "presets" :row pages/preset}
                 :menu-presets {:part "menu-presets" :row pages/preset :of :presets}

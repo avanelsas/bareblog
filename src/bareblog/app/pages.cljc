@@ -410,6 +410,11 @@
             [:div {:class "post-blocks" :data-x-part "blocks"}]])
    :lists {:blocks {:part "blocks" :row block}}})
 
+(def main
+  "The column that holds the node of the page."
+  [:x-container {:as "main" :size "xl"}
+   [:div {:data-x-part "main"}]])
+
 (def page-rows
   "The node of each kind of page, by its key."
   {"post"       post
