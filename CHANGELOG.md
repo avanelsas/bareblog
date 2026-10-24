@@ -3,6 +3,30 @@
 All notable changes to BareBlog are listed here. Until 1.0.0, a release may change the
 settings, the layout of a blog and the commands.
 
+## [0.3.0] - 2026-10-24
+
+BareBlog needs BareDOM 4.15.0.
+
+### Added
+
+- **A cover for a post.** A photo on a line of its own that opens a post, right after its
+  title, is its cover. Each blog template shows it in its own place: under the title in
+  Journal, Notebook and Diary, above it in Magazine, and behind it in Longform. The text does
+  not show it again. A list and a link preview still show the first picture of a post.
+
+### Changed
+
+- **The text of a post is 750 pixels wide,** and the column of every page is wider, so the
+  headings of a post still stand beside its text. The lists keep their width.
+- **In Longform a post opens on its cover.** A post whose pictures come later in its text opens
+  on its title alone.
+- **A page of the author opens with its article,** as a post does, with no blurred backdrop of
+  its own. A blog that wants colours behind it uses `:page-colors`.
+
+### Fixed
+
+- **In Diary the page numbers stand under the list,** and not under the calendar.
+
 ## [0.2.0] - 2026-10-23
 
 BareBlog needs BareDOM 4.15.0.
