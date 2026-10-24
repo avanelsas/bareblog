@@ -120,7 +120,7 @@ A blog template decides what the blog looks like. The posts stay the same: switc
 | `:journal` | One reading column. The home page lists the posts, each with its first picture small beside its summary |
 | `:notebook` | A sidebar that lists every post by year, with the tags above it. The home page shows the newest post, and a command palette searches |
 | `:magazine` | The home page shows the posts as cards in a grid. The newest post with a picture leads, on a card twice as wide and twice as high |
-| `:longform` | The home page shows the posts as a deck of large cards, which pile up as the reader scrolls. A post opens on its first picture, with its title at the foot of it |
+| `:longform` | The home page shows the posts as a deck of large cards, which pile up as the reader scrolls. A post opens on its cover, with its title at the foot of it |
 | `:diary` | A calendar beside the list of posts. Only the days with a post can be picked. A day or a month shows its posts |
 
 ## More

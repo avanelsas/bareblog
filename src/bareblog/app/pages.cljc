@@ -48,6 +48,10 @@
 (def ^:private no-newer? (comp nil? :newer))
 (def ^:private no-older? (comp nil? :older))
 (def no-picture? (comp nil? :picture))
+(def no-cover? (comp nil? :cover))
+(def cover-src (comp :src :cover))
+(def cover-alt (comp :alt :cover))
+(def ^:private cover-ratio (comp blocks/ratio :cover))
 (def ^:private not-reading? (comp nil? :read))
 (def ^:private not-filtered? (complement :filtered?))
 (def ^:private no-footer? (complement :powered-by-footer?))
@@ -181,11 +185,16 @@
    :lists {:tags   {:part "tags" :row tag}
            :blocks {:part "blocks" :row block}}})
 
+(def ^:private post-cover
+  "The cover of a post."
+  [:figure {:class "post-cover" :hidden no-cover?}
+   [:x-image {:src cover-src :alt cover-alt :ratio cover-ratio}]])
+
 (def post
   "The page of a post."
-  (post-page :post (post-header-with :gradient-titles?)))
+  (post-page :post [:div {:class "opening"} (post-header-with :gradient-titles?) post-cover]))
 
-(def cover
+(def card-picture
   "The first picture of a post, across the top of a card."
   [:img {:class "cover" :src :picture :alt "" :loading "lazy" :hidden no-picture?}])
 
@@ -400,6 +409,11 @@
               [:x-badge {:class "draft" :text (:unpublished words) :variant "warning" :hidden published-page?}]]]
             [:div {:class "post-blocks" :data-x-part "blocks"}]])
    :lists {:blocks {:part "blocks" :row block}}})
+
+(def main
+  "The column that holds the node of the page."
+  [:x-container {:as "main" :size "xl"}
+   [:div {:data-x-part "main"}]])
 
 (def page-rows
   "The node of each kind of page, by its key."

@@ -38,7 +38,7 @@
                            :row-span span
                            :order    place}
             [:x-card {:class "card" :variant "outlined" :padding "none"}
-             pages/cover
+             pages/card-picture
              pages/card-text]])
    :lists {:tags {:part "tags" :row pages/tag}}})
 

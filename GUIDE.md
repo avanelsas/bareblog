@@ -58,7 +58,8 @@ BareBlog works out the rest:
 | The summary | The start of the first paragraph |
 | The tags | The last line, as `#travel #two_words`. An underscore is a space |
 | The date | The day you first publish the post. It cannot be written |
-| The picture in lists and link previews | The first picture of the post. A link preview takes the first PNG, JPEG or GIF |
+| The cover | A picture on a line of its own that opens the post, right after the title. Each blog template shows it in its own way, and not again in the text |
+| The picture in lists and link previews | The first picture of the post, which is its cover when it has one. A link preview takes the first PNG, JPEG or GIF |
 
 The line of tags is not shown, and a `#word` anywhere else is just text.
 

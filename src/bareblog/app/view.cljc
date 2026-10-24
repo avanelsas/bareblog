@@ -260,19 +260,20 @@
   [entries folder mark]
   (boolean (some (fn [entry] (and (= folder (:folder entry)) (mark entry))) entries)))
 
-(defn- post [{:keys [site local] {:keys [folder title date tags blocks] :as shown} :text}]
+(defn- post [{:keys [site local] {:keys [folder title date tags] :as shown} :text}]
   (if shown
-    {:key   "post"
-     :named {:kind :post :name title}
-     :node  {:item  (merge {:title            title
-                            :date             (site/day date)
-                            :draft?           (marked? (:posts site) folder :draft?)
-                            :picture          (:src (first (text/pictures shown)))
-                            :read             (:read local)
-                            :gradient-titles? (site/gradient-titles? (:blog site))}
-                           (neighbours site folder))
-             :lists {:tags   (tag-rows (:root site) tags)
-                     :blocks (block-rows blocks)}}}
+    (let [{:keys [cover blocks]} (text/split-cover shown)]
+      {:key   "post"
+       :named {:kind :post :name title}
+       :node  {:item  (merge {:title            title
+                              :date             (site/day date)
+                              :draft?           (marked? (:posts site) folder :draft?)
+                              :cover            cover
+                              :read             (:read local)
+                              :gradient-titles? (site/gradient-titles? (:blog site))}
+                             (neighbours site folder))
+               :lists {:tags   (tag-rows (:root site) tags)
+                       :blocks (block-rows blocks)}}})
     (not-found site)))
 
 ;; A page of the author that is no post is shown as its text alone: it has no date, no tags

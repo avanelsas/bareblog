@@ -132,6 +132,14 @@
   [post]
   (filter picture? (tree-seq coll? seq (:blocks post))))
 
+(defn split-cover
+  "The `:cover` of `post` and the `:blocks` after it. The cover is nil when no photo opens it."
+  [{:keys [blocks]}]
+  (let [[opening & after] blocks]
+    (if (= :photo (:kind opening))
+      {:cover opening :blocks (vec after)}
+      {:cover nil :blocks blocks})))
+
 (defn sources
   "The addresses in `post` of the files beside it that it shows, as they are written and as a
    set."

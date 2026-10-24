@@ -1,6 +1,6 @@
 (ns bareblog.app.longform
   "The Longform blog template: Journal, with the posts of a list as a deck of large cards that
-   pile up as the reader scrolls, and a post that opens on its first picture.
+   pile up as the reader scrolls, and a post that opens on its cover.
 
    See `bareblog.app.templates` for what a blog template is."
   (:require [bareblog.app.journal :as journal]
@@ -12,7 +12,7 @@
   {:split (template/split
            :longform-card
            [:article {:class "deck-card" :role "listitem"}
-            pages/cover
+            pages/card-picture
             pages/card-text])
    :lists {:tags {:part "tags" :row pages/tag}}})
 
@@ -29,21 +29,22 @@
                  card))
 
 (defn- hero-class
-  "The class of the opening of a post: one with a picture behind its title, or one without."
-  [{:keys [picture]}]
-  (if picture "hero with-picture" "hero"))
+  "The class of the opening of a post: one with its cover behind its title, or one without."
+  [{:keys [cover]}]
+  (if cover "hero with-cover" "hero"))
 
 (defn- gradient-title?
-  "Whether the title of a post is filled with a gradient: never over its picture, where it is
+  "Whether the title of a post is filled with a gradient: never over its cover, where it is
    white."
-  [{:keys [gradient-titles? picture]}]
-  (boolean (and gradient-titles? (not picture))))
+  [{:keys [gradient-titles? cover]}]
+  (boolean (and gradient-titles? (not cover))))
 
-;; The picture moves at half the speed of the page, and the title at the speed of the page.
+;; The cover moves at half the speed of the page, and the title at the speed of the page.
 (def ^:private hero
-  "The opening of a post: its first picture, behind its title, date and tags."
+  "The opening of a post: its cover, behind its title, date and tags."
   [:x-scroll-parallax {:class hero-class}
-   [:img {:class "hero-picture" :src :picture :alt "" :data-speed "0.5" :hidden pages/no-picture?}]
+   [:img {:class "hero-picture" :src pages/cover-src :alt pages/cover-alt :data-speed "0.5"
+          :hidden pages/no-cover?}]
    [:div {:class "hero-text" :data-speed "1"} (pages/post-header-with gradient-title?)]])
 
 (def template

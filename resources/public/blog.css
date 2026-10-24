@@ -16,6 +16,9 @@ body {
 }
 
 .page {
+  /* The text of a post is 750 pixels wide at the browser's own size of text. */
+  --post-width: 46.875rem;
+  --list-width: 42rem;
   min-height: 100vh;
   isolation: isolate;
   background: var(--x-color-bg, #fff);
@@ -124,23 +127,25 @@ body {
 .entries,
 .archive,
 .not-found {
-  max-width: 42rem;
+  max-width: var(--column-width, var(--list-width));
   padding: calc(var(--x-space-xl, 1.5rem) * 2) 0 calc(var(--x-space-xl, 1.5rem) * 4);
   font-size: var(--x-font-size-lg, 1.125rem);
   line-height: 1.7;
 }
 
-/* The contents of a post stand beside its text where the column holds both: 42rem of text, a
-   gap of 2.25rem and 14rem of contents, and Notebook's margin of 1.5rem. The text keeps its width,
-   and the pair stands where the text stands alone. The contents stick within the row, which is
-   as tall as the text. */
+.post {
+  --column-width: var(--post-width);
+}
+
+/* The contents stand beside the text from 65rem: --post-width, a gap of 2.25rem, 14rem of
+   contents and Notebook's margin of 1.5rem. A container query takes no custom property. */
 .post-layout {
   display: flex;
   container: post / inline-size;
 }
 
 .post-layout > .post {
-  flex: 0 1 42rem;
+  flex: 0 1 var(--post-width);
   min-width: 0;
 }
 
@@ -148,7 +153,7 @@ body {
   display: none;
 }
 
-@container post (min-width: 60rem) {
+@container post (min-width: 65rem) {
   .post-layout:has(> .post-toc:not([data-empty])) > .post {
     margin-right: 0;
   }
@@ -438,6 +443,21 @@ body {
 
 .neighbours .older::after {
   content: "\00a0\2192";
+}
+
+/* The cover of a post stands as a photo in its text does. */
+.post-cover {
+  margin: 0 0 var(--x-space-xl, 1.5rem);
+}
+
+.post-cover[hidden] {
+  display: none;
+}
+
+.post-cover x-image {
+  display: block;
+  border-radius: var(--x-radius-md, 0.75rem);
+  overflow: hidden;
 }
 
 .post-blocks > * {

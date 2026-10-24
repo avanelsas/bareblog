@@ -137,6 +137,21 @@
                                      {:kind :text :content ["Text."]}]}
                            "/a-post/")))))
 
+(deftest split-cover-test
+  (let [photo  {:kind :photo :src "harbour.jpg" :alt "The harbour"}
+        boats  (assoc photo :src "boats.jpg")
+        text   {:kind :text :content ["Text."]}
+        inline {:kind :text :content ["See " {:kind :image :src "map.png"}]}]
+    (testing "a photo that opens a post is its cover, and the blocks after it are the rest"
+      (is (= {:cover photo :blocks [text]} (text/split-cover {:blocks [photo text]})))
+      (is (= {:cover photo :blocks []} (text/split-cover {:blocks [photo]}))))
+    (testing "of two photos that open a post, the first is its cover"
+      (is (= {:cover photo :blocks [boats text]} (text/split-cover {:blocks [photo boats text]}))))
+    (testing "a post that opens with anything else has no cover, and keeps all its blocks"
+      (is (= {:cover nil :blocks [text photo]} (text/split-cover {:blocks [text photo]})))
+      (is (= {:cover nil :blocks [inline]} (text/split-cover {:blocks [inline]})))
+      (is (= {:cover nil :blocks []} (text/split-cover {:blocks []}))))))
+
 (deftest pictures-test
   (testing "the pictures of a post are its photos and the images inside its blocks, in order"
     (is (= ["harbour.jpg" "map.png"] (take 2 (map :src (text/pictures with-images))))))
