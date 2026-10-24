@@ -6,22 +6,40 @@
   margin: 0 auto;
 }
 
+/* The calendar and the list are two columns of the page that lists posts, so that the page
+   numbers stand under the list. The calendar stays in view beside the list, and stands above it
+   in a narrow window. Without a calendar the list has the whole width. */
 .diary .entries {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: calc(var(--x-space-xl, 1.5rem) * 1.5);
   max-width: 62rem;
   margin: 0 auto;
 }
 
-/* The calendar stays in view beside the list, and stands above it in a narrow window. */
+.diary .entries > * {
+  grid-column: 1 / -1;
+}
+
 .diary .days-and-posts {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: calc(var(--x-space-xl, 1.5rem) * 1.5);
+  display: contents;
 }
 
 .diary .calendar {
+  grid-column: 1;
   position: sticky;
   top: var(--x-space-xl, 1.5rem);
+}
+
+.diary .diary-entries,
+.diary .entries > x-pagination {
+  grid-column: 2;
+}
+
+.diary .entries:has(.calendar[hidden]) .diary-entries,
+.diary .entries:has(.calendar[hidden]) > x-pagination {
+  grid-column: 1 / -1;
 }
 
 .diary .calendar[hidden] {
@@ -35,12 +53,15 @@
 }
 
 @media (max-width: 760px) {
-  .diary .days-and-posts {
-    grid-template-columns: minmax(0, 1fr);
+  .diary .calendar,
+  .diary .diary-entries,
+  .diary .entries > x-pagination {
+    grid-column: 1 / -1;
   }
 
   .diary .calendar {
     position: static;
     justify-self: center;
+    margin-bottom: calc(var(--x-space-xl, 1.5rem) * 1.5);
   }
 }
