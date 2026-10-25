@@ -96,9 +96,9 @@
       (is (= [{:name "food" :chosen? false} {:name "travel" :chosen? false}] (row-items node :all-tags))))
     (testing "it shows the first posts of the list, as many as the blog asks for on a page"
       (is (= ["c" "b"] (get-in node [:lists :entries :order]))))
-    (testing "an entry shows the title, the date, the summary and the address of its post, and
-              its picture at the address of its file"
-      (is (= {:title "Third" :date "2026-03-01" :href "/c/" :draft? false :summary "Three."
+    (testing "an entry shows the folder, the title, the date, the summary and the address of its
+              post, and its picture at the address of its file"
+      (is (= {:folder "c" :title "Third" :date "2026-03-01" :href "/c/" :draft? false :summary "Three."
               :picture "/c/tram.png" :front? true :first-picture? true :gradient-titles? false}
              (first (row-items node :entries)))))
     (testing "the entries of the first page are on the front, and those of any other page are not"
@@ -261,9 +261,9 @@
 
 (deftest post-test
   (let [node (post-node "b" {:title "Second" :date "2026-02-01T08:00:00+01:00" :tags ["travel" "travel"] :blocks [one two]})]
-    (testing "the page of a post shows its title and its date, and that it is a draft"
-      (is (= {:title "Second" :date "2026-02-01" :draft? true}
-             (select-keys (:item node) [:title :date :draft?]))))
+    (testing "the page of a post shows its folder, its title and its date, and that it is a draft"
+      (is (= {:folder "b" :title "Second" :date "2026-02-01" :draft? true}
+             (select-keys (:item node) [:folder :title :date :draft?]))))
     (testing "it has the title and the address of the newer post and of the older one"
       (is (= {:newer {:title "Third" :href "/c/"} :older {:title "First" :href "/a/"}}
              (select-keys (:item node) [:newer :older]))))

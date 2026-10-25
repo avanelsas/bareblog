@@ -42,7 +42,7 @@
 ;; The cover moves at half the speed of the page, and the title at the speed of the page.
 (def ^:private hero
   "The opening of a post: its cover, behind its title, date and tags."
-  [:x-scroll-parallax {:class hero-class}
+  [:x-scroll-parallax {:class hero-class :style pages/cover-name-around}
    [:img {:class "hero-picture" :src pages/cover-src :alt pages/cover-alt :data-speed "0.5"
           :hidden pages/no-cover?}]
    [:div {:class "hero-text" :data-speed "1"} (pages/post-header-with gradient-title?)]])

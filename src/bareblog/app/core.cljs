@@ -113,6 +113,7 @@
   (register-components! view)
   (render/render! js/document view)
   (colour-document!)
+  (render/set-transitions! js/document)
   (.removeAttribute (.-documentElement js/document) loading)
   (js/performance.mark shown-mark))
 

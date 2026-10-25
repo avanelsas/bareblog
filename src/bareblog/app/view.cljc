@@ -75,6 +75,7 @@
 
 (defn- entry-row [{:keys [root blog]} front? first-picture? {:keys [folder summary picture tags] :as entry}]
   [folder {:item  (assoc (listed entry)
+                         :folder           folder
                          :summary          summary
                          :picture          picture
                          :front?           front?
@@ -265,7 +266,8 @@
     (let [{:keys [cover blocks]} (text/split-cover shown)]
       {:key   "post"
        :named {:kind :post :name title}
-       :node  {:item  (merge {:title            title
+       :node  {:item  (merge {:folder           folder
+                              :title            title
                               :date             (site/day date)
                               :draft?           (marked? (:posts site) folder :draft?)
                               :cover            cover

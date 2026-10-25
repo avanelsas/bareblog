@@ -60,6 +60,12 @@
   display: none;
 }
 
+/* The parallax moves the cover through its style, so the cover takes its name from the hero. */
+.longform .hero-picture {
+  view-transition-name: var(--cover-name);
+  view-transition-class: cover;
+}
+
 .longform .hero.with-cover .hero-text {
   position: relative;
 }

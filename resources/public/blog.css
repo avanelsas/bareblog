@@ -407,6 +407,22 @@ body {
   }
 }
 
+/* A page change. The picture and the title of a post move into the ones of the same name on
+   the next page, and the rest of the page fades. The app turns it on, in the head of a page
+   that has shown its data. */
+::view-transition-group(*) {
+  animation-duration: 0.3s;
+  animation-timing-function: ease-out;
+}
+
+/* A picture keeps its proportions while its frame becomes the one of the next page. */
+::view-transition-old(.cover),
+::view-transition-new(.cover) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* A post. */
 
 .post-header {

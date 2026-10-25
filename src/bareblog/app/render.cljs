@@ -146,6 +146,24 @@
       (some? text) (parts/set-text! (or shown (make-notice! document)) text)
       (some? shown) (.remove shown))))
 
+;; A browser animates a change of page when both pages ask for it as they first show. A saved
+;; page asks from its first frame, since its head holds the rule. A page that the app draws asks
+;; once it has shown its data, so its first frame, which is empty, takes no part.
+(def ^:private transitions-id "bareblog-transitions")
+
+(def ^:private transitions-rule
+  "The rule that animates a change of page, for a reader who does not ask for less motion."
+  "@media (prefers-reduced-motion: no-preference) { @view-transition { navigation: auto; } }")
+
+(defn set-transitions!
+  "Puts the rule that animates a change of page in the head of `document`, unless it is there."
+  [^js document]
+  (when-not (.getElementById document transitions-id)
+    (let [style (.createElement document "style")]
+      (.setAttribute style "id" transitions-id)
+      (set! (.-textContent style) transitions-rule)
+      (.append (.-head document) style))))
+
 (defn render!
   "Brings `document` to the page view `view`."
   [^js document {:keys [language title card favicon] :as view}]
