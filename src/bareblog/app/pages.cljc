@@ -60,6 +60,31 @@
 (def ^:private no-logo? (comp nil? logo-light))
 (def ^:private logo? (comp some? logo-light))
 
+;; A page change moves an element into the element of the same name on the next page, so the
+;; picture of a card grows into the cover of its post, and its title into the title. The class
+;; is what the stylesheet calls every element of the kind.
+(defn- named
+  "The name of the element `kind` of the post in the folder `folder`."
+  [kind folder]
+  (str kind "-" folder))
+
+(defn- transition-name
+  "The style that names the element `kind` of the post of `item`, on every page that shows it,
+   and gives it the class `kind`."
+  [kind {:keys [folder]}]
+  (str "view-transition-name: " (named kind folder) "; view-transition-class: " kind))
+
+(def ^:private cover-name (partial transition-name "cover"))
+(def ^:private title-name (partial transition-name "title"))
+
+;; A component that moves an element writes the style of that element, and a hole there would
+;; undo what it writes. Such an element takes its name from the element around it.
+(defn cover-name-around
+  "The style that hands the name of the cover of the post of `item` to what the element holds,
+   as `--cover-name`."
+  [{:keys [folder]}]
+  (str "--cover-name: " (named "cover" folder)))
+
 ;; BareMirror gives a property the value as it is. The tests read it as the data it was made from.
 (def as-js
   "Turns data into what a component that reads JavaScript is given."
@@ -145,7 +170,7 @@
    `gradient` says whether its title is filled with a gradient."
   [gradient]
   [:header {:class "post-header"}
-   (titled gradient [:h1 :title])
+   (titled gradient [:h1 {:style title-name} :title])
    meta-line])
 
 ;; The line says no more than the scrollbar does, so it is hidden from assistive technology.
@@ -187,7 +212,7 @@
 
 (def ^:private post-cover
   "The cover of a post."
-  [:figure {:class "post-cover" :hidden no-cover?}
+  [:figure {:class "post-cover" :style cover-name :hidden no-cover?}
    [:x-image {:src cover-src :alt cover-alt :ratio cover-ratio}]])
 
 (def post
@@ -196,13 +221,14 @@
 
 (def card-picture
   "The first picture of a post, across the top of a card."
-  [:img {:class "cover" :src :picture :alt "" :loading "lazy" :hidden no-picture?}])
+  [:img {:class "cover" :src :picture :alt "" :loading "lazy" :style cover-name
+         :hidden no-picture?}])
 
 ;; The link of the title covers the whole card, so the card is one link.
 (def card-text
   "What a card says of a post: its title, as the link to it, its date and tags, and its summary."
   [:div {:class "card-text"}
-   (titled [:h2 [:a {:href :href} :title]])
+   (titled [:h2 {:style title-name} [:a {:href :href} :title]])
    meta-line
    [:p {:class "summary"} :summary]])
 
@@ -211,10 +237,11 @@
   {:split (template/split
            :entry
            [:li {:class "entry"}
-            (titled [:h2 [:a {:href :href} :title]])
+            (titled [:h2 {:style title-name} [:a {:href :href} :title]])
             meta-line
             [:div {:class "abstract"}
-             [:img {:class "thumbnail" :src :picture :alt "" :loading "lazy" :hidden no-picture?}]
+             [:img {:class "thumbnail" :src :picture :alt "" :loading "lazy" :style cover-name
+                    :hidden no-picture?}]
              [:p {:class "summary"} :summary]]])
    :lists {:tags {:part "tags" :row tag}}})
 

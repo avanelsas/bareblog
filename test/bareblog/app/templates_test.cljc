@@ -304,6 +304,8 @@
       (is (= {:src "/a/tram.jpg" :alt "A tram" :hidden false}
              (select-keys (attrs-of post {:cover tram} "img.hero-picture") [:src :alt :hidden])))
       (is (= ["0.5" "1"] (keep (comp :data-speed second) (elements (:fixed post))))))
+    (testing "the parallax moves the cover through its style, so the hero hands the cover its name"
+      (is (= "--cover-name: cover-lisbon" (:style (attrs-of post {:folder "lisbon"} "x-scroll-parallax")))))
     (testing "a post with no cover opens on its title alone, and shows no cover below it"
       (is (= "hero" (:class (hero nil))))
       (is (true? (:hidden (attrs-of post {:cover nil} "img.hero-picture"))))
@@ -320,6 +322,29 @@
       (is (false? (:hidden (attrs-of post {:cover tram} "figure.post-cover")))))
     (testing (str template-name ": a post with no cover hides its place")
       (is (true? (:hidden (attrs-of post {:cover nil} "figure.post-cover")))))))
+
+(defn- styles
+  "The styles that `split` writes for `item`."
+  [split item]
+  (set (keep (comp :style :attrs second) (template/writes split item))))
+
+(def ^:private cover-style "view-transition-name: cover-lisbon; view-transition-class: cover")
+(def ^:private title-style "view-transition-name: title-lisbon; view-transition-class: title")
+
+(defn- main-row
+  "The node of the row `row-name` in the main part of the blog template `template-name`."
+  [template-name row-name]
+  (templates/row-node (get-in (templates/named template-name) [:lists :main]) row-name))
+
+(deftest transition-name-test
+  (doseq [template-name (keys templates/by-name)
+          :let          [entry (get-in (main-row template-name "entries") [:lists :entries :row :split])]]
+    (testing (str template-name ": a post in a list names its picture and its title by its folder")
+      (is (= #{cover-style title-style} (styles entry {:folder "lisbon"})))))
+  (doseq [template-name (remove #{:longform} (keys templates/by-name))
+          :let          [post (:split (main-row template-name "post"))]]
+    (testing (str template-name ": the page of a post gives its cover and its title the same names")
+      (is (= #{cover-style title-style} (styles post {:folder "lisbon"}))))))
 
 (deftest diary-test
   (let [entries  (:split (get-in (templates/named :diary) [:lists :main :rows "entries"]))
