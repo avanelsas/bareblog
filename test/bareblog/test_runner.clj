@@ -8,6 +8,7 @@
     bareblog.blog.address-test
     bareblog.blog.days-test
     bareblog.blog.pictures-test
+    bareblog.blog.series-test
     bareblog.blog.shape-test
     bareblog.blog.site-test
     bareblog.blog.tags-test
@@ -31,6 +32,7 @@
     bareblog.publish.plan-test
     bareblog.publish.run-test
     bareblog.command.cli-test
+    bareblog.command.series-test
     bareblog.command.start-test
     bareblog.command.tags-test
     bareblog.command.update-test])

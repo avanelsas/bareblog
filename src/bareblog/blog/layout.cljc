@@ -5,6 +5,11 @@
 
 (def readme-file "README.md")
 
+(def series-file
+  "The file beside the settings that holds the series of the blog, which only `bareblog series`
+   writes."
+  "series.edn")
+
 (def posts-dir "posts")
 
 (def drafts-dir "drafts")

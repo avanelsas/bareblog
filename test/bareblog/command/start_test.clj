@@ -107,7 +107,7 @@
     (is (every? #(str/includes? start/readme-text (str "`" % "/`"))
                 (conj layout/written-dirs layout/output-dir)))
     (is (every? #(str/includes? start/readme-text (str "`" % "`"))
-                (conj layout/text-files layout/settings-file)))))
+                (conj layout/text-files layout/settings-file layout/series-file)))))
 
 (deftest init-test
   (with-empty-dir

@@ -259,6 +259,27 @@
    (second (shown "/" site {:page {:kind :post :folder folder} :text (assoc post :folder folder)}
                   local))))
 
+(deftest post-series-test
+  (let [site   (assoc site :series {"Trip" ["a" "b" "c"]})
+        node   (fn [folder]
+                 (second (shown site {:page {:kind :post :folder folder}
+                                      :text {:folder folder :title "x" :blocks []}})))]
+    (testing "a post shows the series it is a part of: its name, its number, the count and the
+              next part"
+      (is (= {:name "Trip" :number 2 :count 3 :next {:title "Third" :href "/c/"}}
+             (:series (:item (node "b"))))))
+    (testing "the parts are in the order of the series, marked as read, being read, or to come"
+      (is (= [{:title "First" :href "/a/" :number 1 :current? false :read? true}
+              {:title "Second" :href "/b/" :number 2 :current? true :read? false}
+              {:title "Third" :href "/c/" :number 3 :current? false :read? false}]
+             (row-items (node "b") :parts))))
+    (testing "the last part has no next part"
+      (is (nil? (:next (:series (:item (node "c"))))))))
+  (testing "a post in no series shows none, and no parts"
+    (let [node (post-node "a" {:title "x" :blocks []})]
+      (is (nil? (:series (:item node))))
+      (is (= [] (row-items node :parts))))))
+
 (deftest post-test
   (let [node (post-node "b" {:title "Second" :date "2026-02-01T08:00:00+01:00" :tags ["travel" "travel"] :blocks [one two]})]
     (testing "the page of a post shows its folder, its title and its date, and that it is a draft"

@@ -6,6 +6,7 @@
   (:require [bareblog.app.card :as card]
             [bareblog.app.templates :as templates]
             [bareblog.blog.address :as address]
+            [bareblog.blog.series :as series]
             [bareblog.blog.shape :as shape]
             [bareblog.blog.site :as site]
             [bareblog.blog.text :as text]
@@ -261,9 +262,34 @@
   [entries folder mark]
   (boolean (some (fn [entry] (and (= folder (:folder entry)) (mark entry))) entries)))
 
+(defn- part-row
+  "The part of a series that stands `i`th from 0, in a series of which the post in `folder` is
+   the `number`th from 1."
+  [number folder i {:keys [title href] part :folder}]
+  [part {:item {:title    title
+                :href     href
+                :number   (inc i)
+                :current? (= folder part)
+                :read?    (< (inc i) number)}}])
+
+(defn- series-item
+  "What the post shows of `in-series`, the series it is a part of: its name, where the post
+   stands in it, and the next part."
+  [{series-name :name :keys [parts number next]}]
+  {:name   series-name
+   :number number
+   :count  (count parts)
+   :next   (some-> next (select-keys [:title :href]))})
+
+(defn- part-rows
+  "The parts of `in-series`, the series that the post in `folder` is a part of, or none."
+  [folder {:keys [parts number] :as in-series}]
+  (rows (when in-series (map-indexed (partial part-row number folder) parts))))
+
 (defn- post [{:keys [site local] {:keys [folder title date tags] :as shown} :text}]
   (if shown
-    (let [{:keys [cover blocks]} (text/split-cover shown)]
+    (let [{:keys [cover blocks]} (text/split-cover shown)
+          in-series              (series/of-post (:series site) (:posts site) folder)]
       {:key   "post"
        :named {:kind :post :name title}
        :node  {:item  (merge {:folder           folder
@@ -271,11 +297,13 @@
                               :date             (site/day date)
                               :draft?           (marked? (:posts site) folder :draft?)
                               :cover            cover
+                              :series           (some-> in-series series-item)
                               :read             (:read local)
                               :gradient-titles? (site/gradient-titles? (:blog site))}
                              (neighbours site folder))
                :lists {:tags   (tag-rows (:root site) tags)
-                       :blocks (block-rows blocks)}}})
+                       :blocks (block-rows blocks)
+                       :parts  (part-rows folder in-series)}}})
     (not-found site)))
 
 ;; A page of the author that is no post is shown as its text alone: it has no date, no tags

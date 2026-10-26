@@ -18,6 +18,7 @@
             [baredom.exports.x-calendar :as x-calendar]
             [baredom.exports.x-card :as x-card]
             [baredom.exports.x-code :as x-code]
+            [baredom.exports.x-collapse :as x-collapse]
             [baredom.exports.x-command-palette :as x-command-palette]
             [baredom.exports.x-container :as x-container]
             [baredom.exports.x-drawer :as x-drawer]
@@ -36,6 +37,8 @@
             [baredom.exports.x-table-row :as x-table-row]
             [baredom.exports.x-toc :as x-toc]
             [baredom.exports.x-theme :as x-theme]
+            [baredom.exports.x-timeline :as x-timeline]
+            [baredom.exports.x-timeline-item :as x-timeline-item]
             [baredom.exports.x-typography :as x-typography]
             [baredom.requests :as requests]
             [baremirror.alpha.events :as events]
@@ -49,6 +52,7 @@
    "x-calendar"     x-calendar/init
    "x-card"         x-card/init
    "x-code"            x-code/init
+   "x-collapse"        x-collapse/init
    "x-command-palette" x-command-palette/init
    "x-container"    x-container/init
    "x-drawer"       x-drawer/init
@@ -67,6 +71,8 @@
    "x-table-row"    x-table-row/init
    "x-toc"          x-toc/init
    "x-theme"        x-theme/init
+   "x-timeline"     x-timeline/init
+   "x-timeline-item" x-timeline-item/init
    "x-typography"   x-typography/init})
 
 (def ^:private loading

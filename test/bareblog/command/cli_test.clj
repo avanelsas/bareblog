@@ -48,6 +48,14 @@
     (is (every? (comp some? :refuse cli/asked)
                 [["tags" "rename"] ["tags" "rename" "a"] ["tags" "rename" "a" "b" "c"] ["tags" "list"]
                  ["tags" "--yes"]])))
+  (testing "the series are listed, or one is named with its posts, or with none to remove it"
+    (is (= {:command "series"} (cli/asked ["series"])))
+    (is (= {:command "series" :series-name "Trip" :named ["The start" "end"] :yes? false}
+           (cli/asked ["series" "--name" "Trip" "The start" "end"])))
+    (is (= {:command "series" :series-name "Trip" :named [] :yes? true} (cli/asked ["series" "--name" "Trip" "--yes"]))))
+  (testing "a series without --name and its name is refused"
+    (is (every? (comp some? :refuse cli/asked)
+                [["series" "Trip"] ["series" "--name"] ["series" "--yes"] ["series" "--nam" "Trip"]])))
   (testing "the version is asked for, and an update with or without a yes to its question"
     (is (= {:command "version"} (cli/asked ["version"])))
     (is (= {:command "update" :yes? false} (cli/asked ["update"])))

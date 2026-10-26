@@ -55,7 +55,7 @@
     (is (= {:read            #{"b"}
             :as-published    #{"a" "about"}
             :dates           {"b" "2026-02-01" "a" "2025-01-01" "about" "2026-01-15"}
-            :paths           ["posts/b" "docs"]
+            :paths           ["posts/b" "series.edn" "docs"]
             :message         "Publish b"
             :pictures-in "docs"}
            (one published "b" {:in-posts? true}))))
@@ -67,28 +67,28 @@
   (testing "a new post that is among the posts already is not moved"
     (is (not (contains? (one published "c" {:in-posts? true}) :move))))
   (testing "a removal reads nothing, names what is removed, and commits the folder that went"
-    (is (= {:removed #{"a"} :read #{} :as-published #{"b" "about"} :paths ["posts/a" "docs"] :message "Remove a"}
+    (is (= {:removed #{"a"} :read #{} :as-published #{"b" "about"} :paths ["posts/a" "series.edn" "docs"] :message "Remove a"}
            (select-keys (one published "a" {:in-drafts? true})
                         [:removed :read :as-published :paths :message]))))
   (testing "a name that is nowhere is refused, and nothing else is planned"
     (is (= [:refuse] (keys (one published "zebra" {}))))
     (is (re-find #"nothing named zebra" (:refuse (one published "zebra" {})))))
   (testing "a page is read from the pages, is not moved, and gets today as the day it is first published"
-    (is (= {:read #{"contact"} :as-published #{"a" "b" "about"} :paths ["pages/contact" "docs"]
+    (is (= {:read #{"contact"} :as-published #{"a" "b" "about"} :paths ["pages/contact" "series.edn" "docs"]
             :message "Publish contact" :pictures-in "docs"
             :dates {"contact" today "b" "2026-02-01" "a" "2025-01-01" "about" "2026-01-15"}}
            (one published "contact" {:in-pages? true})))
-    (is (= ["pages/about" "docs"] (:paths (one published "about" {:in-pages? true})))))
+    (is (= ["pages/about" "series.edn" "docs"] (:paths (one published "about" {:in-pages? true})))))
   (testing "a published page whose folder is now among the posts is published as a post, keeps
             the day it was first published, and the place it left is committed too"
-    (is (= {:read #{"about"} :paths ["posts/about" "pages/about" "docs"] :message "Publish about"
+    (is (= {:read #{"about"} :paths ["posts/about" "pages/about" "series.edn" "docs"] :message "Publish about"
             :dates {"about" "2026-01-15" "b" "2026-02-01" "a" "2025-01-01"}}
            (select-keys (one published "about" {:in-posts? true}) [:read :paths :message :dates])))
     (is (not (contains? (one published "about" {:in-posts? true}) :removed))))
   (testing "a published post whose folder is now among the pages is published as a page"
-    (is (= ["pages/a" "posts/a" "docs"] (:paths (one published "a" {:in-pages? true})))))
+    (is (= ["pages/a" "posts/a" "series.edn" "docs"] (:paths (one published "a" {:in-pages? true})))))
   (testing "a published page with no folder among the pages is removed, from the pages"
-    (is (= {:removed #{"about"} :read #{} :paths ["pages/about" "docs"] :message "Remove about"}
+    (is (= {:removed #{"about"} :read #{} :paths ["pages/about" "series.edn" "docs"] :message "Remove about"}
            (select-keys (one published "about" {}) [:removed :read :paths :message]))))
   (testing "what is no name of a post folder is refused, wherever it leads"
     (doseq [folder ["../docs" "a/b" "Bad Name" ".git" "tags" ""]]
@@ -104,15 +104,15 @@
     (is (= {:read         #{"a" "b" "c" "about"}
             :as-published #{}
             :dates        {"a" "2025-01-01" "b" "2026-02-01" "c" today "about" "2026-01-15"}
-            :paths        ["blog.edn" "docs" "posts/a" "pages/about" "posts/b" "posts/c"]
+            :paths        ["blog.edn" "series.edn" "docs" "posts/a" "pages/about" "posts/b" "posts/c"]
             :message      "Publish the whole blog"}
            (all published {} {:posts #{"a" "b" "c"} :pages #{"about"}} #{}))))
   (testing "an edit that is held back is taken as published, and its folder is not committed"
-    (is (= {:read #{"a"} :as-published #{"b" "about"} :paths ["blog.edn" "docs" "posts/a"]}
+    (is (= {:read #{"a"} :as-published #{"b" "about"} :paths ["blog.edn" "series.edn" "docs" "posts/a"]}
            (select-keys (all published {} {:posts #{"a" "b"} :pages #{"about"}} #{"b" "about"})
                         [:read :as-published :paths]))))
   (testing "what was published and has no folder any more is removed, a post or a page"
-    (is (= {:removed #{"a" "about"} :read #{"b"} :paths ["blog.edn" "docs" "posts/a" "pages/about" "posts/b"]}
+    (is (= {:removed #{"a" "about"} :read #{"b"} :paths ["blog.edn" "series.edn" "docs" "posts/a" "pages/about" "posts/b"]}
            (select-keys (all published {} {:posts #{"b"} :pages #{}} #{}) [:removed :read :paths]))))
   (testing "nothing is removed when everything that was published has its folder"
     (is (not (contains? (all published {} {:posts #{"a" "b"} :pages #{"about"}} #{}) :removed))))
@@ -124,7 +124,7 @@
   (testing "a published page whose folder is now among the posts is read as a post, and both
             places are committed"
     (let [planned (all published {} {:posts #{"a" "b" "about"} :pages #{}} #{})]
-      (is (= ["blog.edn" "docs" "posts/a" "posts/about" "pages/about" "posts/b"] (:paths planned)))
+      (is (= ["blog.edn" "series.edn" "docs" "posts/a" "posts/about" "pages/about" "posts/b"] (:paths planned)))
       (is (= "2026-01-15" (get-in planned [:dates "about"])))
       (is (not (contains? planned :removed)))))
   (testing "a blog that was never published reads every folder, each dated today"
@@ -132,15 +132,15 @@
            (:dates (all nil {} {:posts #{"a" "b"} :pages #{"about"}} #{})))))
   (testing "the link preview that the settings name is committed beside them, and a name that
             is no link preview is not"
-    (is (= ["blog.edn" "link-preview.jpg" "docs"]
+    (is (= ["blog.edn" "link-preview.jpg" "series.edn"]
            (take 3 (:paths (all published {:link-preview "link-preview.jpg"} {:posts #{} :pages #{}} #{})))))
-    (is (= ["blog.edn" "docs"]
+    (is (= ["blog.edn" "series.edn"]
            (take 2 (:paths (all published {:link-preview "../x.jpg"} {:posts #{} :pages #{}} #{}))))))
   (testing "every picture that the settings name is committed beside them, once"
-    (is (= ["blog.edn" "logo.svg" "logo-dark.svg" "icon.svg" "docs"]
+    (is (= ["blog.edn" "logo.svg" "logo-dark.svg" "icon.svg" "series.edn"]
            (take 5 (:paths (all published {:logo {:light "logo.svg" :dark "logo-dark.svg"} :favicon "icon.svg"}
                                 {:posts #{} :pages #{}} #{})))))
-    (is (= ["blog.edn" "logo.svg" "docs"]
+    (is (= ["blog.edn" "logo.svg" "series.edn"]
            (take 3 (:paths (all published {:logo "logo.svg" :favicon "logo.svg"} {:posts #{} :pages #{}} #{})))))))
 
 (deftest questions-test

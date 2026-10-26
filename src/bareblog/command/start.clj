@@ -136,6 +136,7 @@ This blog is made with [BareBlog](https://github.com/avanelsas/bareblog).
 - `drafts/`: posts that are not published yet. Git keeps them out.
 - `pages/`: pages that are no posts, such as About, a folder each with `page.md`
 - `blog.edn`: the settings of the blog
+- `series.edn`: the series of posts, written by `bareblog series`
 - `docs/`: the published blog, written by BareBlog. Do not edit it.
 
 ## Commands
@@ -148,6 +149,8 @@ This blog is made with [BareBlog](https://github.com/avanelsas/bareblog).
 | Publish a post, or a change to one | `bareblog publish <folder>` |
 | Publish everything again | `bareblog publish --all` |
 | See every tag, or write one tag one way | `bareblog tags`, `bareblog tags rename old \"new\"` |
+| See every series, or make or change one | `bareblog series`, `bareblog series --name \"A series\" \"A post\" \"Another post\"` |
+| Remove a series, and keep its posts | `bareblog series --name \"A series\"` |
 | Use the latest release of BareBlog | `bareblog update`, then `bareblog publish --all` |
 
 `bareblog help` lists every command. How a post is written is in BareBlog's
