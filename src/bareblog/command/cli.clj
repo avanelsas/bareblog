@@ -22,6 +22,13 @@
              "bareblog tags                     every tag, and each written in more than one way"
              "bareblog tags rename old \"new\"    a tag, in every post and page"
              "              --yes               with a yes to the question"
+             "bareblog series                   every series, with its parts in order"
+             "bareblog series --name \"A series\" \"A post\" \"Another post\""
+             "                                  makes a series, or replaces it, of these"
+             "                                  posts in this order, by title or folder"
+             "bareblog series --name \"A series\""
+             "                                  removes the series, and keeps its posts"
+             "                --yes             with a yes to the question"
              "bareblog version                  the version of BareBlog"
              "bareblog update                   BareBlog, brought to its latest release"
              "                --yes             with a yes to the question"]))
@@ -81,6 +88,16 @@
       (empty? args)                                    {}
       (and (= "rename" what) from to (empty? more))    {:rename [from to] :yes? yes?}
       :else {:refuse "Give a tag and its new name, in quotes: bareblog tags rename old \"new\""})))
+
+(def ^:private name-flag "--name")
+
+(defn- asks-series [args]
+  (let [[what series-name & named] (remove #{yes} args)
+        yes?                       (boolean (some #{yes} args))]
+    (cond
+      (empty? args)                             {}
+      (and (= name-flag what) series-name)      {:series-name series-name :named (vec named) :yes? yes?}
+      :else {:refuse "Name the series and its posts: bareblog series --name \"A series\" \"A post\" \"Another post\""})))
 
 (defn- asks-nothing [_args]
   {})
@@ -156,6 +173,13 @@
       ((requiring-resolve 'bareblog.command.tags/rename!) how dir from to)
       ((requiring-resolve 'bareblog.command.tags/list!) how dir))))
 
+;; The series are changed by name, as the tags are.
+(defn- run-series! [{:keys [dir]} {:keys [series-name named yes?]}]
+  (let [how {:say println :ask (if yes? say-yes! ask!)}]
+    (if series-name
+      ((requiring-resolve 'bareblog.command.series/make!) how dir series-name named)
+      ((requiring-resolve 'bareblog.command.series/list!) how dir))))
+
 ;; The version and an update are asked for by name, as a publish is.
 (defn- run-version! [{:keys [home]} _asked]
   ((requiring-resolve 'bareblog.command.update/version!) {:say println} home))
@@ -176,6 +200,7 @@
    "preview" {:asks asks-preview :run run-preview! :in-a-blog? true}
    "publish" {:asks asks-publish :run run-publish! :in-a-blog? true}
    "tags"    {:asks asks-tags :run run-tags! :in-a-blog? true}
+   "series"  {:asks asks-series :run run-series! :in-a-blog? true}
    "version" {:asks asks-nothing :run run-version!}
    "update"  {:asks asks-update :run run-update!}
    "help"    {:asks asks-nothing :run run-help!}})

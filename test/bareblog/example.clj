@@ -28,10 +28,11 @@
 
 (defn- copy-to!
   "Copies what an author wrote of the example blog into the directory `target`, with
-   `settings` put over its settings, and the pictures beside them."
+   `settings` put over its settings, the pictures beside them, and its series."
   [target settings]
   (doseq [posts ["posts" "drafts" "pages"]]
     (fs/copy-tree (fs/path dir posts) (fs/path target posts)))
+  (fs/copy (fs/path dir "series.edn") (fs/path target "series.edn"))
   (let [own (edn/read-string (slurp (fs/file dir "blog.edn")))]
     (doseq [src (distinct (map :src (pictures/named own)))]
       (fs/copy (fs/path dir src) (fs/path target src)))

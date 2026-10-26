@@ -151,7 +151,8 @@
            (template/writes split (:item shown))))))
 
 (deftest hidden-test
-  (let [reading     {:read 0.4}
+  (let [site        (assoc site :series {"Trip" ["c" "b" "a" "0"]})
+        reading     {:read 0.4}
         empty-site  (assoc site :posts [])
         two-pages   (assoc-in site [:blog :per-page] 1)
         older       {:folder "0" :title "Zero" :date "2024-01-01"}
@@ -182,8 +183,12 @@
       (is (= #{"a.newer"} (hidden site second-post reading))))
     (testing "the page of a published post with both neighbours hides the badge of a draft"
       (is (= #{"x-badge.draft"} (hidden (update site :posts conj older) first-post reading))))
-    (testing "the page of the oldest post hides the link to an older one too"
-      (is (= #{"x-badge.draft" "a.older"} (hidden site first-post reading))))
+    (testing "the page of the oldest post hides the link to an older one too, and as the last part
+              of its series the link to the next part"
+      (is (= #{"x-badge.draft" "a.older" "a.series-next"} (hidden site first-post reading))))
+    (testing "the page of a post in no series hides the series"
+      (is (= #{"a.newer" "x-card.series-group" "a.series-next"}
+             (hidden (dissoc site :series) second-post reading))))
     (testing "the page of a post that fits in the window hides the line of how far it is read"
       (is (= #{"a.newer" "x-progress.read-progress"} (hidden site second-post))))
     (testing "the page of a post with no cover hides the place of its cover"
@@ -345,6 +350,26 @@
           :let          [post (:split (main-row template-name "post"))]]
     (testing (str template-name ": the page of a post gives its cover and its title the same names")
       (is (= #{cover-style title-style} (styles post {:folder "lisbon"}))))))
+
+(deftest series-test
+  (let [post (:split (main-row :journal "post"))
+        part (get-in (main-row :journal "post") [:lists :parts :row :split])
+        item {:series {:name "Trip" :number 2 :count 3 :next {:title "Third" :href "/c/"}}}]
+    (testing "the series of a post folds over its parts, with its name and where the post stands"
+      (is (= "Trip \u00b7 Part 2 of 3" (:header (attrs-of post item "x-collapse.series")))))
+    (testing "beside it is the next part, by its title, and the last part has none"
+      (is (= {:href "/c/" :hidden false :aria-label "Next part: Third"}
+             (select-keys (attrs-of post item "a.series-next") [:href :hidden :aria-label])))
+      (is (= "Third" (text-of post item "a.series-next")))
+      (is (true? (:hidden (attrs-of post (assoc-in item [:series :next] nil) "a.series-next")))))
+    (testing "a part is a step on the path of the series: read, being read, or to come"
+      (is (= {:label "Part 2" :status "active"}
+             (select-keys (attrs-of part {:number 2 :current? true} "x-timeline-item") [:label :status])))
+      (is (= "complete" (:status (attrs-of part {:read? true} "x-timeline-item"))))
+      (is (= "pending" (:status (attrs-of part {} "x-timeline-item")))))
+    (testing "the link of the part that is being read says it is the page"
+      (is (= "page" (:aria-current (attrs-of part {:current? true} "a"))))
+      (is (nil? (:aria-current (attrs-of part {} "a")))))))
 
 (deftest diary-test
   (let [entries  (:split (get-in (templates/named :diary) [:lists :main :rows "entries"]))
@@ -558,10 +583,14 @@
       (is (= (conj (set shell) "x-badge") (tags-of (:archive pages)))))
     (testing (str template-name ": the page of a post has those of its blocks, at any depth")
       (is (= (-> (set shell)
-                 (into ["x-badge" "x-code" "x-image" "x-progress" "x-table" "x-table-cell" "x-table-row" "x-toc"
-                       "x-typography"])
+                 (into ["x-badge" "x-card" "x-code" "x-collapse" "x-image" "x-progress" "x-table"
+                       "x-table-cell" "x-table-row" "x-timeline" "x-toc" "x-typography"])
                  (into (post-elements template-name)))
              (tags-of (:post pages))))))
+  (testing "the page of a post in a series has the steps of the path of its parts"
+    (is (every? (templates/custom-elements (templates/named :journal)
+                                           (view/page "/" (assoc site :series {"Trip" ["a" "b"]}) (:post pages) {}))
+                ["x-timeline-item"])))
   (testing "a home page of entries has its page numbers"
     (is (contains? (templates/custom-elements (templates/named :journal) (view/page "/" site (:home pages) {}))
                    "x-pagination")))

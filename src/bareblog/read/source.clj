@@ -14,6 +14,7 @@
    each post and page, which is the moment it was first published."
   (:require [babashka.fs :as fs]
             [bareblog.blog.address :as address]
+            [bareblog.blog.series :as series]
             [bareblog.blog.shape :as shape]
             [bareblog.blog.site :as site]
             [bareblog.blog.text :as text]
@@ -82,14 +83,33 @@
   [{:keys [in]}]
   (= layout/pages-dir in))
 
+(defn- read-edn-file
+  "The value in the file `file-name` of the blog in the directory `dir`. Throws with the name of
+   the file when it cannot be read."
+  [dir file-name]
+  (try
+    (edn/read-string (slurp (fs/file dir file-name)))
+    (catch Exception problem
+      (throw (ex-info (str file-name ": " (.getMessage problem)) {} problem)))))
+
 (defn read-settings
   "The settings of the blog in the directory `dir`. Throws with the name of the file when it
    cannot be read."
   [dir]
-  (try
-    (edn/read-string (slurp (fs/file dir layout/settings-file)))
-    (catch Exception problem
-      (throw (ex-info (str layout/settings-file ": " (.getMessage problem)) {} problem)))))
+  (read-edn-file dir layout/settings-file))
+
+(defn read-series
+  "The series of the blog in the directory `dir`, which are none when it has no file of them.
+   Throws with the name of the file when it cannot be read."
+  [dir]
+  (if-not (fs/regular-file? (fs/file dir layout/series-file))
+    {}
+    (let [read (read-edn-file dir layout/series-file)]
+      (when-not (series/well-formed? read)
+        (throw (ex-info (str layout/series-file " is not as bareblog series writes it. Make the "
+                             "series anew with bareblog series.")
+                        {})))
+      read)))
 
 (defn- settings-of
   "The settings of `blog`: those it was given, or else those in its file."
@@ -355,21 +375,32 @@
   (when (seq as-published)
     (filter (comp as-published :folder) (get (read-published dir) k))))
 
+;; A series is checked against the posts and the drafts on disk, also when the blog is read for
+;; its readers, so that a part that is still a draft is no problem.
+(defn- series-problems
+  "What is wrong with `series`, the series of the blog in the directory `dir`, as texts."
+  [dir series]
+  (series/problems series (:posts (list-folders (preview dir)))))
+
 (defn read-problems
   "What is wrong with the posts and the pages that `blog` reads, as texts: with the files
-   they name, and with the tags of the posts, also beside those taken as they were published."
+   they name, with the tags of the posts, also beside those taken as they were published, and
+   with the series of the blog."
   [blog]
   (let [read (read-entries (with-published blog) (list-dirs blog))
         kept (read-kept blog :posts)]
     (concat (mapcat :problems read)
             (output/problems {:posts (concat (map :entry (remove :page? read)) kept)}
-                             (into #{} (map :folder) kept)))))
+                             (into #{} (map :folder) kept))
+            (series-problems (:dir blog) (read-series (:dir blog))))))
 
 (defn read-site
-  "What every page of `blog` loads, with what is wrong with the blog."
+  "What every page of `blog` loads, with what is wrong with the blog. Its `:series` hold the
+   parts that are among its posts."
   [blog]
   (let [blog     (with-published blog)
         settings (settings-of blog)
+        series   (read-series (:dir blog))
         dirs     (list-dirs blog)
         read     (read-entries blog dirs)
         found    (read-pictures blog settings)
@@ -377,10 +408,13 @@
                                 (concat (map :entry (remove :page? read)) (read-kept blog :posts))
                                 (concat (folder-problems dirs) (mapcat :problems read)
                                         (site/settings-problems settings)
-                                        (picture-problems blog settings found)))
-                     (site/with-pages (concat (map :entry (filter :page? read)) (read-kept blog :pages))))]
+                                        (picture-problems blog settings found)
+                                        (series-problems (:dir blog) series)))
+                     (site/with-pages (concat (map :entry (filter :page? read)) (read-kept blog :pages))))
+        shown    (series/shown series (:posts site))]
     (cond-> (site/with-problems site (output/problems site))
-      (seq found) (assoc :pictures found))))
+      (seq found) (assoc :pictures found)
+      (seq shown) (assoc :series shown))))
 
 ;; What is taken as it was published has its files from where they were published. The
 ;; output directory is still there while new pages are written beside it.

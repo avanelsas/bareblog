@@ -106,14 +106,14 @@
       (cond-> {:read         read
                :as-published (disj (into posts pages) folder)
                :dates        (dates published read now)
-               :paths        (conj (paths where folder) layout/output-dir)
+               :paths        (conj (paths where folder) layout/series-file layout/output-dir)
                :message      (str (if (= :remove what) "Remove " "Publish ") folder)}
         published                                                  (assoc :pictures-in layout/output-dir)
         (= :remove what)                                           (assoc :removed #{folder})
         (and (= :new what) (not page?) (not (:in-posts? where))) (assoc :move folder)))))
 
 ;; A picture that is not there is a problem of the blog, and git commits nothing for a path
-;; with nothing under it.
+;; with nothing under it. The series go with every publish, since only a command writes them.
 (defn- settings-paths
   "The paths of the settings `settings`: their file, and the pictures they name."
   [settings]
@@ -141,7 +141,7 @@
     (cond-> {:read         read
              :as-published (set held-back)
              :dates        (dates published read now)
-             :paths        (into (conj (settings-paths settings) layout/output-dir)
+             :paths        (into (conj (settings-paths settings) layout/series-file layout/output-dir)
                                  (mapcat (fn [folder] (paths (where folder) folder)))
                                  (sort (set/union read removed)))
              :message      "Publish the whole blog"}

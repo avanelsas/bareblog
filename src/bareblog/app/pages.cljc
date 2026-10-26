@@ -16,6 +16,10 @@
    :page        "Page"
    :others      "Other posts"
    :content     "Content"
+   :part        "Part"
+   :of          "of"
+   :in-series   "In this series"
+   :next-part   "Next part"
    :no-date     "No date"
    :no-posts    "There are no posts yet."
    :search      "Search"
@@ -190,6 +194,49 @@
   "The headings of the text of a post, as links that mark the one the reader is at."
   [:x-toc {:class "post-toc" :for "post-text" :label (:content words) :sticky true}])
 
+(defn- part-label [{:keys [number]}]
+  (str (:part words) " " number))
+
+(defn- part-status
+  "Where a part stands on the path of its series: read, the one being read, or still to come."
+  [{:keys [current? read?]}]
+  (cond current? "active" read? "complete" :else "pending"))
+
+(defn- current-page [{:keys [current?]}]
+  (when current? "page"))
+
+(def ^:private series-part
+  "A part of a series, as a step on its path, with its title as the link to it."
+  {:split (template/split
+           :series-part
+           [:x-timeline-item {:label part-label :status part-status}
+            [:a {:href :href :aria-current current-page} :title]])})
+
+(defn- series-header
+  "The name of the series of a post, and where the post stands in it."
+  [{{series-name :name n :count :keys [number]} :series}]
+  (str series-name " \u00b7 " (:part words) " " number " " (:of words) " " n))
+
+(def ^:private no-series? (comp nil? :series))
+(def ^:private next-part (comp :next :series))
+(def ^:private no-next? (comp nil? next-part))
+
+(defn- next-label [item]
+  (str (:next-part words) ": " (:title (next-part item))))
+
+;; The series stands at the foot of a post, beside the other posts, so that a reader at the end
+;; of a part chooses between the two. It opens on every part, and the next one is beside it.
+(def ^:private series-group
+  "The series that the post is a part of: where the post stands in it, folded over every part
+   in order, and the link to the next part, which the last part has none of."
+  [:x-card {:class "series-group" :variant "elevated" :radius "lg" :padding "md" :hidden no-series?}
+   [:p {:class "foot-label"} (:in-series words)]
+   [:div {:class "series-line"}
+    [:x-collapse {:class "series" :header series-header}
+     [:x-timeline {:slot "content" :data-x-part "parts"}]]
+    [:a {:class "series-next" :href (comp :href next-part) :aria-label next-label :hidden no-next?}
+     (comp :title next-part)]]])
+
 (defn post-page
   "The node of the page of a post, named `node-name`, whose article opens with `header`: an
    element that holds a header from `post-header-with`."
@@ -201,14 +248,18 @@
              read-progress
              header
              [:div {:class "post-blocks" :id "post-text" :data-x-part "blocks"}]
-             [:nav {:class "neighbours" :aria-label (:others words)}
-              [:a {:class "newer" :rel "next" :href (comp :href :newer) :hidden no-newer?}
-               (comp :title :newer)]
-              [:a {:class "older" :rel "prev" :href (comp :href :older) :hidden no-older?}
-               (comp :title :older)]]]
+             [:footer {:class "post-foot"}
+              series-group
+              [:nav {:class "foot-group neighbours" :aria-label (:others words)}
+               [:p {:class "foot-label"} (:others words)]
+               [:a {:class "newer" :rel "next" :href (comp :href :newer) :hidden no-newer?}
+                (comp :title :newer)]
+               [:a {:class "older" :rel "prev" :href (comp :href :older) :hidden no-older?}
+                (comp :title :older)]]]]
             contents])
    :lists {:tags   {:part "tags" :row tag}
-           :blocks {:part "blocks" :row block}}})
+           :blocks {:part "blocks" :row block}
+           :parts  {:part "parts" :row series-part}}})
 
 (def ^:private post-cover
   "The cover of a post."

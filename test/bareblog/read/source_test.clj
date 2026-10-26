@@ -330,3 +330,29 @@
                        "with: bareblog tags rename \"travel\" \"Travel\", and publish them together with: "
                        "bareblog publish --all")]
                  (source/read-problems blog))))))))
+
+(deftest series-test
+  (example/with-copy {}
+    (fn [dir]
+      (testing "the author sees every part of a series, a draft too"
+        (is (= {"Getting to know BareBlog" ["hello-bareblog" "every-kind" "a-new-idea"]}
+               (:series (source/read-site (source/preview dir))))))
+      (testing "a reader sees the parts that are published, and a draft joins once it is"
+        (is (= {"Getting to know BareBlog" ["hello-bareblog" "every-kind"]}
+               (:series (source/read-site (source/published dir (source/read-settings dir)))))))
+      (testing "a part whose folder is gone stops a publish, and is said to the author"
+        (fs/move (fs/path dir "posts" "every-kind") (fs/path dir "posts" "every-block"))
+        (let [problem (str "The series \"Getting to know BareBlog\" names every-kind, which is no post "
+                           "or draft. Keep the series without it with: bareblog series --name \"Getting "
+                           "to know BareBlog\" hello-bareblog a-new-idea. A post that was renamed goes in "
+                           "its place, by its new folder or title.")]
+          (is (= [problem] (source/read-problems (source/published dir (source/read-settings dir)))))
+          (is (some #{problem} (:problems (source/read-site (source/preview dir)))))))
+      (testing "a blog with no series has none"
+        (fs/delete (fs/path dir "series.edn"))
+        (is (= {} (source/read-series dir)))
+        (is (nil? (:series (source/read-site (source/preview dir))))))
+      (testing "a file of series that is not as the command writes it is said"
+        (spit (fs/file dir "series.edn") "{\"A\" \"start\"}")
+        (is (thrown-with-msg? Exception #"series.edn is not as bareblog series writes it"
+                              (source/read-series dir)))))))

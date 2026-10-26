@@ -26,9 +26,9 @@
   "The files of the blog at `root` that a page is made from."
   [root]
   (filter fs/regular-file?
-          (cons (fs/path root layout/settings-file)
-                (mapcat #(fs/glob % "**")
-                        (filter fs/directory? (map (partial fs/path root) layout/written-dirs))))))
+          (concat [(fs/path root layout/settings-file) (fs/path root layout/series-file)]
+                  (mapcat #(fs/glob % "**")
+                          (filter fs/directory? (map (partial fs/path root) layout/written-dirs))))))
 
 (defn- read-stamp
   "The stamp of the blog at `root`."

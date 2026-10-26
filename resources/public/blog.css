@@ -438,14 +438,41 @@ body {
   letter-spacing: -0.02em;
 }
 
-.neighbours {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--x-space-xl, 1.5rem);
+/* The foot of a post: the other posts, and the series that the post is a part of. Each group
+   is named when the foot holds both, so that a reader sees the two ways to go on. */
+.post-foot {
+  display: grid;
+  gap: var(--x-space-lg, 1rem);
   margin-top: calc(var(--x-space-xl, 1.5rem) * 2);
   padding-top: var(--x-space-lg, 1rem);
   border-top: var(--x-border-width, 1px) solid var(--x-color-border, #d0d7de);
   font-size: var(--x-font-size-sm, 0.875rem);
+}
+
+.foot-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--x-space-sm, 0.5rem) var(--x-space-xl, 1.5rem);
+}
+
+.foot-label {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--x-color-text-muted, #666);
+  font-size: var(--x-font-size-xs, 0.75rem);
+  font-weight: var(--x-font-weight-semibold, 600);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.neighbours .foot-label {
+  display: none;
+}
+
+.post-foot:has(.series-group:not([hidden])) .neighbours .foot-label {
+  display: block;
 }
 
 .neighbours .newer::before {
@@ -457,8 +484,60 @@ body {
   text-align: right;
 }
 
-.neighbours .older::after {
+.neighbours .older::after,
+.series-next::after {
   content: "\00a0\2192";
+}
+
+/* The series is a card of its own, so that it reads as the other way on. In a wide window it
+   stands out a little past the text on both sides. */
+.series-group .foot-label {
+  margin-bottom: var(--x-space-sm, 0.5rem);
+}
+
+@media (min-width: 641px) {
+  .series-group {
+    margin-inline: calc(var(--x-space-lg, 1rem) * -1);
+  }
+}
+
+/* The series folds over its parts, drawn with the text of the page and no box of its own. */
+.series-line {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--x-space-sm, 0.5rem) var(--x-space-xl, 1.5rem);
+}
+
+x-collapse.series {
+  flex: 1 1 18rem;
+  --x-collapse-border: none;
+  --x-collapse-bg: transparent;
+  --x-collapse-trigger-bg: transparent;
+  --x-collapse-trigger-bg-hover: transparent;
+  --x-collapse-trigger-padding: 0;
+  --x-collapse-trigger-color: var(--x-color-text, #111);
+  --x-collapse-content-padding: var(--x-space-md, 0.75rem) 0 0;
+  --x-collapse-font-size: inherit;
+  --x-collapse-font-weight: inherit;
+}
+
+x-collapse.series::part(trigger) {
+  justify-content: flex-start;
+  gap: var(--x-space-sm, 0.5rem);
+  cursor: pointer;
+}
+
+x-collapse.series::part(chevron) {
+  order: -1;
+  font-size: 0.75em;
+}
+
+.series-next {
+  margin-left: auto;
+  text-align: right;
 }
 
 /* The cover of a post stands as a photo in its text does. */

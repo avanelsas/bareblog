@@ -75,6 +75,32 @@ post, draft and page. It shows what changes and asks first. Publish the posts it
 What a post can hold, from headings to live HTML, is shown in the example post
 [`every-kind/post.md`](./example/posts/every-kind/post.md).
 
+## A series
+
+A series is posts that are read in an order, such as the days of a trip. At the foot of each
+part, beside the newer and older post, the series shows with its name and which part it is,
+and a link to the next part. It opens on every part, as links.
+
+```
+bareblog series --name "A week in Lisbon" "The start" "The food" the-end
+```
+
+This makes the series, or replaces it, with the posts in this order. A post is named by its
+title or by its folder. The command shows the series and asks first. The posts do not change:
+`bareblog series` keeps the series in `series.edn`, beside `blog.edn`, and only it writes
+that file.
+
+| You want to | Do this |
+|---|---|
+| See every series | `bareblog series` |
+| Add a part, or change the order | Run `bareblog series --name` again, with every part in the new order |
+| Remove a series | `bareblog series --name "A week in Lisbon"`, with no posts. The posts stay |
+
+A series goes live with the next publish of any post. A part that is still a draft is in the
+series once it is published. A post is in one series at most, and the command refuses a post
+that another series has. A publish stops while a series names a folder that is no post or
+draft, and says the command that mends it.
+
 ## A page
 
 A folder in `pages/` is a page of its own, such as About. It has a link at the top of every
