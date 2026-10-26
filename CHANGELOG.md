@@ -3,6 +3,35 @@
 All notable changes to BareBlog are listed here. Until 1.0.0, a release may change the
 settings, the layout of a blog and the commands.
 
+## [0.6.0] - 2026-10-26
+
+BareBlog needs BareDOM 4.15.0.
+
+### Added
+
+- **The Essay blog template.** A post opens on its cover across the window, with its title
+  over the foot of it. Its contents are in the left margin, and its notes stand beside their
+  lines in the right one, where a landscape photo reaches too. In a narrower window the
+  contents are above the text, and in a narrow one the notes are footnotes. A list shows each
+  post under its cover. Set it with `:template :essay`.
+- **A font of the blog's own.** `bareblog font "Name"` fetches a family from Google Fonts into
+  `fonts/`, with its licence, and sets `:font` in `blog.edn`. Every reader sees it in the
+  running text of posts and lists. `bareblog font` says which font the blog has, and
+  `bareblog font --none` goes back to the theme's font. A `:font` with no folder is shown to a
+  reader who has it installed.
+- **A block rises into place.** A photo, code, a table, a quote or a live block rises once as
+  it enters the window, in a browser that can start an animation on scroll, and not for a
+  reader who asks for less motion.
+
+### Changed
+
+- **Lines are shorter.** The text of a post is 624 pixels wide, about 70 letters to a line.
+- **Links and muted text keep their contrast** against the background of every theme.
+- **Text in dark mode is less bright,** with a little more room between its lines and letters.
+- **A photo narrower than a landscape is shown at its own size,** never enlarged, never taller
+  than most of the window, and in the middle of the text. A landscape photo is as wide as
+  before.
+
 ## [0.5.0] - 2026-10-26
 
 BareBlog needs BareDOM 4.15.0.
