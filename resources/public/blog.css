@@ -23,17 +23,47 @@ body {
   min-height: 100vh;
   isolation: isolate;
   background: var(--x-color-bg, #fff);
-  color: var(--x-color-text, #111);
+  color: var(--text-color);
   font-family: var(--x-font-family, system-ui, sans-serif);
+  /* The lightness of links and muted text, bounded so that each theme of BareDOM reads at 4.5:1
+     or more on its page. A colour within the bounds is kept. */
+  --lightness-min: 0;
+  --lightness-max: 0.52;
+  --link-color: oklch(from var(--x-color-primary, #2563eb)
+    clamp(var(--lightness-min), l, var(--lightness-max)) c h);
+  --link-hover-color: oklch(from var(--x-color-primary-hover, #1d4ed8)
+    clamp(var(--lightness-min), l, var(--lightness-max)) c h);
+  --muted-color: oklch(from var(--x-color-text-muted, #666)
+    clamp(var(--lightness-min), l, var(--lightness-max)) c h);
+  --text-lightness-max: 1;
+  --text-color: oklch(from var(--x-color-text, #111) min(l, var(--text-lightness-max)) c h);
+}
+
+/* Light text on a dark page spreads into its background. The text is a little less bright, is
+   smoothed in grey, which draws its strokes thinner, and its paragraphs have a little more room. */
+@media (prefers-color-scheme: dark) {
+  .page {
+    --lightness-min: 0.63;
+    --lightness-max: 1;
+    --text-lightness-max: 0.9;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* The components of BareDOM read the text colour of the theme. A property cannot be defined from
+   itself, so the page gives its own to each child. */
+.page > * {
+  --x-color-text: var(--text-color);
 }
 
 .page a {
-  color: var(--x-color-primary, #2563eb);
+  color: var(--link-color);
   text-underline-offset: 0.15em;
 }
 
 .page a:hover {
-  color: var(--x-color-primary-hover, #1d4ed8);
+  color: var(--link-hover-color);
 }
 
 .page [hidden] {
@@ -119,7 +149,7 @@ body {
 
 .page .nav-link {
   margin-left: var(--x-space-lg, 1rem);
-  color: var(--x-color-text-muted, #666);
+  color: var(--muted-color);
   font-size: var(--x-font-size-sm, 0.875rem);
   text-decoration: none;
 }
@@ -194,7 +224,7 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--x-space-sm, 0.5rem);
-  color: var(--x-color-text-muted, #666);
+  color: var(--muted-color);
   font-size: var(--x-font-size-sm, 0.875rem);
 }
 
@@ -253,7 +283,7 @@ body {
 }
 
 .entry h2 a:hover {
-  color: var(--x-color-primary, #2563eb);
+  color: var(--link-color);
 }
 
 .entry .abstract {
@@ -294,7 +324,7 @@ body {
   margin-top: calc(var(--x-space-xl, 1.5rem) * 2);
   padding: var(--x-space-lg, 1rem) var(--x-space-lg, 1rem) var(--x-space-xl, 1.5rem);
   border-top: var(--x-border-width, 1px) solid var(--x-color-border, #d0d7de);
-  color: var(--x-color-text-muted, #666);
+  color: var(--muted-color);
   font-size: var(--x-font-size-sm, 0.875rem);
   text-align: center;
 }
@@ -305,7 +335,7 @@ body {
 }
 
 .site-footer a:hover {
-  color: var(--x-color-primary, #2563eb);
+  color: var(--link-color);
 }
 
 /* The face of a card, which the blog templates with cards share: the first picture of a post,
@@ -349,7 +379,7 @@ body {
 
 .card-text h2 a:hover,
 .card-text h2 a:focus-visible {
-  color: var(--x-color-primary, #2563eb);
+  color: var(--link-color);
 }
 
 .card-text .tags a {
@@ -383,7 +413,7 @@ body {
 }
 
 .archive-row .date {
-  color: var(--x-color-text-muted, #666);
+  color: var(--muted-color);
   font-size: var(--x-font-size-sm, 0.875rem);
 }
 
@@ -489,7 +519,7 @@ body {
 .foot-label {
   flex-basis: 100%;
   margin: 0;
-  color: var(--x-color-text-muted, #666);
+  color: var(--muted-color);
   font-size: var(--x-font-size-xs, 0.75rem);
   font-weight: var(--x-font-weight-semibold, 600);
   letter-spacing: 0.08em;
@@ -595,6 +625,14 @@ x-collapse.series::part(chevron) {
   text-wrap: pretty;
 }
 
+@media (prefers-color-scheme: dark) {
+  .post-blocks p,
+  .post-blocks li {
+    line-height: 1.75;
+    letter-spacing: 0.01em;
+  }
+}
+
 .post-blocks h1,
 .post-blocks h2,
 .post-blocks h3,
@@ -645,7 +683,7 @@ x-collapse.series::part(chevron) {
   margin-right: 0;
   padding-left: var(--x-space-xl, 1.5rem);
   border-left: 3px solid var(--x-color-border, #d0d7de);
-  color: var(--x-color-text-muted, #666);
+  color: var(--muted-color);
 }
 
 .post-blocks blockquote > :last-child,
@@ -691,7 +729,7 @@ x-collapse.series::part(chevron) {
 .footnotes {
   padding-top: var(--x-space-lg, 1rem);
   border-top: var(--x-border-width, 1px) solid var(--x-color-border, #d0d7de);
-  color: var(--x-color-text-muted, #666);
+  color: var(--muted-color);
   font-size: var(--x-font-size-sm, 0.875rem);
 }
 
@@ -705,7 +743,7 @@ x-collapse.series::part(chevron) {
 }
 
 .empty {
-  color: var(--x-color-text-muted, #666);
+  color: var(--muted-color);
 }
 
 /* What the reader chooses: the search, the theme, a tag. */
@@ -741,7 +779,7 @@ x-collapse.series::part(chevron) {
   border: var(--x-border-width, 1px) solid var(--x-color-border, #d0d7de);
   border-radius: var(--x-radius-full, 9999px);
   background: transparent;
-  color: var(--x-color-text-muted, #666);
+  color: var(--muted-color);
   font: inherit;
   font-size: var(--x-font-size-sm, 0.875rem);
   cursor: pointer;
