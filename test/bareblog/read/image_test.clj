@@ -94,16 +94,16 @@
 
 (deftest svg-test
   (testing "the width and height of the svg element"
-    (is (= {:width 120.0 :height 80.0}
+    (is (= {:width 120.0 :height 80.0 :vector? true}
            (image/size (file "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"80px\"></svg>")))))
   (testing "with no width and height, the size of the viewBox"
-    (is (= {:width 800.0 :height 450.0}
+    (is (= {:width 800.0 :height 450.0 :vector? true}
            (image/size (file "<?xml version=\"1.0\"?>\n<svg viewBox=\"0 0 800 450\" role=\"img\"><path stroke-width=\"3\"/></svg>")))))
   (testing "a width that is no number of pixels is not a width"
-    (is (= {:width 16.0 :height 9.0}
+    (is (= {:width 16.0 :height 9.0 :vector? true}
            (image/size (file "<svg width=\"100%\" height=\"100%\" viewBox=\"0 0 16 9\"></svg>")))))
   (testing "the numbers of a viewBox may have commas between them"
-    (is (= {:width 10.5 :height 4.0} (image/size (file "<svg viewBox='0,0,10.5,4'></svg>")))))
+    (is (= {:width 10.5 :height 4.0 :vector? true} (image/size (file "<svg viewBox='0,0,10.5,4'></svg>")))))
   (testing "an svg element with neither has no size"
     (is (nil? (image/size (file "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"))))))
 

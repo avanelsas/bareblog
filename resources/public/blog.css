@@ -682,6 +682,13 @@ x-collapse.series::part(chevron) {
   overflow: hidden;
 }
 
+/* A photo narrower than a landscape is never wider than its own pixels, nor taller than most of
+   the window. One whose size is not known is as wide as the text. */
+.post-blocks figure:not(.landscape) x-image {
+  width: min(100%, var(--photo-width, 100%), calc(70svh * var(--photo-ratio, infinity)));
+  margin-inline: auto;
+}
+
 .post-blocks img {
   max-width: 100%;
   height: auto;

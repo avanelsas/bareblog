@@ -68,11 +68,17 @@
     (is (= [:figure [:x-image {:src "harbour.svg" :alt "The harbour at dawn"}]]
            (blocks/template (:photo examples)))))
   (testing "a photo with a size holds its place with a ratio"
-    (is (= [:figure [:x-image {:src "harbour.svg" :alt "The harbour at dawn" :ratio "600:450"}]]
-           (blocks/template (assoc (:photo examples) :width 600 :height 450)))))
+    (is (= [:x-image {:src "harbour.svg" :alt "The harbour at dawn" :ratio "600:450"}]
+           (peek (blocks/template (assoc (:photo examples) :width 600 :height 450))))))
+  (testing "a photo with a size has it on its figure"
+    (is (= [:figure {:style "--photo-width: 600px; --photo-ratio: 600 / 450"}]
+           (pop (blocks/template (assoc (:photo examples) :width 600 :height 450))))))
+  (testing "a vector has no width of its own, only its shape"
+    (is (= [:figure {:style "--photo-ratio: 30 / 40"}]
+           (pop (blocks/template (assoc (:photo examples) :width 30 :height 40 :vector? true))))))
   (testing "a photo of 3 by 2 or wider is a landscape"
-    (is (= [:figure {:class "landscape"} [:x-image {:src "harbour.svg" :alt "The harbour at dawn" :ratio "600:400"}]]
-           (blocks/template (assoc (:photo examples) :width 600 :height 400))))
+    (is (= "landscape"
+           (:class (second (blocks/template (assoc (:photo examples) :width 600 :height 400))))))
     (is (not (blocks/landscape? {:width 599 :height 400})))
     (is (not (blocks/landscape? {}))))
   (testing "an image with a size has its width and height"

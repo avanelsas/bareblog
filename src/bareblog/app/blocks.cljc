@@ -102,9 +102,17 @@
   [{:keys [width height]}]
   (boolean (and width height (>= (* 2 width) (* 3 height)))))
 
+(defn- size-style
+  "The size of the photo `block` as custom properties: its width in pixels, and its width to
+   its height. A vector has no width of its own. Nil when its size is not known."
+  [{:keys [width height vector?]}]
+  (when (and width height)
+    (str (when-not vector? (str "--photo-width: " width "px; "))
+         "--photo-ratio: " width " / " height)))
+
 (defn- photo [{:keys [src alt] :as block}]
   (element :figure
-           {:class (when (landscape? block) "landscape")}
+           {:class (when (landscape? block) "landscape") :style (size-style block)}
            [(element :x-image {:src src :alt alt :ratio (ratio block)} [])]))
 
 (defn- unknown [{:keys [text]}]
