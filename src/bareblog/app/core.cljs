@@ -99,19 +99,45 @@
   [view]
   (run! register! (templates/custom-elements (templates/named (:template view)) view)))
 
+(defn- read-stored
+  "What the browser keeps under `k`, or nil when it keeps nothing or lets nobody read."
+  [k]
+  (try
+    (.getItem js/localStorage k)
+    (catch :default _ nil)))
+
+(defn- store!
+  "Makes the browser keep `text` under `k`, where it differs. A browser that keeps nothing is
+   left alone."
+  [k text]
+  (try
+    (when (and text (not= text (.getItem js/localStorage k)))
+      (.setItem js/localStorage k text))
+    (catch :default _ nil)))
+
 ;; Bringing what is outside the app to what the state shows. Each writes only where it differs.
+
+(def ^:private dark-mode
+  "The media query of a system that is dark."
+  "(prefers-color-scheme: dark)")
+
+(defn- mode []
+  (if (.-matches (js/matchMedia dark-mode)) :dark :light))
 
 ;; The colours of the theme are on the page, so the document behind it, which a window pulled
 ;; past an end shows, takes the colour of the page. It is read after each render, and again when
-;; the system turns light or dark, since the theme then repaints without one.
+;; the system turns light or dark, since the theme then repaints without one. The browser keeps
+;; it, so that the next page starts in it, and not white, before its data is shown.
 (defn- colour-document!
-  "Gives the document behind the page the background colour of the page, where it differs."
+  "Gives the document behind the page the background colour of the page, where it differs, and
+   has the browser keep it for the mode the system is in."
   []
   (when-some [page (.querySelector js/document ".page")]
     (let [colour (.-backgroundColor (js/getComputedStyle page))
           ^js style (.. js/document -documentElement -style)]
       (when (not= colour (.-backgroundColor style))
-        (set! (.-backgroundColor style) colour)))))
+        (set! (.-backgroundColor style) colour))
+      (store! (wire/page-colours (mode)) colour))))
 
 (defn- show-view!
   "Brings the document to the page view `view`."
@@ -138,22 +164,6 @@
     (run! (partial set-param! (.-searchParams url)) asked)
     (when (not= (.-href url) (.-href js/location))
       (js/history.replaceState nil "" (.-href url)))))
-
-(defn- read-stored
-  "What the browser keeps under `k`, or nil when it keeps nothing or lets nobody read."
-  [k]
-  (try
-    (.getItem js/localStorage k)
-    (catch :default _ nil)))
-
-(defn- store!
-  "Makes the browser keep `text` under `k`, where it differs. A browser that keeps nothing is
-   left alone."
-  [k text]
-  (try
-    (when (and text (not= text (.getItem js/localStorage k)))
-      (.setItem js/localStorage k text))
-    (catch :default _ nil)))
 
 (defn- show!
   "Brings the page to what `state/shown` gave: the notice, the document, the address and the
@@ -402,7 +412,7 @@
 (defn- colour-with-system!
   "Colours the document behind the page again whenever the system turns light or dark."
   []
-  (.addEventListener (js/matchMedia "(prefers-color-scheme: dark)")
+  (.addEventListener (js/matchMedia dark-mode)
                      "change"
                      (fn [_event] (colour-document!))))
 
