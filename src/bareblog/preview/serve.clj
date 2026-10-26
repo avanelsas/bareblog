@@ -8,6 +8,7 @@
    what is wrong with it."
   (:require [babashka.fs :as fs]
             [bareblog.blog.address :as address]
+            [bareblog.blog.layout :as layout]
             [bareblog.blog.site :as site]
             [bareblog.blog.text :as text]
             [bareblog.blog.wire :as wire]
@@ -112,7 +113,17 @@
   "What each file at the top of a blog that is no file of the app serves."
   {wire/site-data {:serve :site}
    wire/feed      {:serve :feed}
+   wire/font      {:serve :font}
    wire/missing   {:serve :missing}})
+
+(def ^:private font-pattern
+  (re-pattern (str "/" layout/fonts-dir "/" folder "/" file)))
+
+(defn- font-route
+  "The file of a font that `path` names, or nil."
+  [path]
+  (when-some [[folder-name file-name] (found-by font-pattern path)]
+    {:serve :font-file :folder folder-name :file file-name}))
 
 (defn- file-route
   "What `path` serves when it is a file: of the site, of the app, or beside a post."
@@ -120,6 +131,7 @@
   (or (top-files (subs path 1))
       (when-some [[static] (found-by static-pattern path)]
         {:serve :static :file static})
+      (font-route path)
       (media-route path)))
 
 (defn below
@@ -174,18 +186,23 @@
 ;; The responses. Pure.
 
 (def ^:private content-types
-  {"html" "text/html; charset=utf-8"
-   "css"  "text/css; charset=utf-8"
-   "js"   "text/javascript; charset=utf-8"
-   "map"  "application/json"
-   "edn"  "application/edn; charset=utf-8"
-   "xml"  "application/atom+xml; charset=utf-8"
-   "svg"  "image/svg+xml"
-   "png"  "image/png"
-   "jpg"  "image/jpeg"
-   "jpeg" "image/jpeg"
-   "gif"  "image/gif"
-   "webp" "image/webp"})
+  {"html"  "text/html; charset=utf-8"
+   "css"   "text/css; charset=utf-8"
+   "js"    "text/javascript; charset=utf-8"
+   "map"   "application/json"
+   "edn"   "application/edn; charset=utf-8"
+   "xml"   "application/atom+xml; charset=utf-8"
+   "svg"   "image/svg+xml"
+   "png"   "image/png"
+   "jpg"   "image/jpeg"
+   "jpeg"  "image/jpeg"
+   "gif"   "image/gif"
+   "webp"  "image/webp"
+   "woff2" "font/woff2"
+   "woff"  "font/woff"
+   "ttf"   "font/ttf"
+   "otf"   "font/otf"
+   "txt"   "text/plain; charset=utf-8"})
 
 (def ^:private not-found
   {:status 404 :headers {"Content-Type" "text/plain; charset=utf-8"} :body "Not found."})
@@ -279,6 +296,24 @@
       not-found
       (fresh "xml" (feed/atom-feed root site)))))
 
+;; A page names the stylesheet of the font also when the settings cannot be read. It is then
+;; empty, and the page is told what is wrong in its data.
+(defn- read-served-font
+  "The stylesheet of the font of `blog`, or an empty one when its settings cannot be read."
+  [blog]
+  (try
+    (source/read-font-css blog)
+    (catch Exception _
+      "")))
+
+(defn- serve-font [{:keys [blog]} _found _request]
+  (fresh "css" (read-served-font blog)))
+
+(defn- serve-font-file [{:keys [blog]} {:keys [folder file]} _request]
+  (if-some [path (source/find-served-font-file blog folder file)]
+    (serve-file path)
+    not-found))
+
 (defn- serve-data [{:keys [blog site told]} {:keys [page]} _request]
   (if-some [data (or (get told page) (read-shown blog page site))]
     (fresh "edn" (pr-str data))
@@ -315,10 +350,13 @@
           [file (source/read-version path)])))
 
 (defn- read-document
-  "The response that sends the page of the app, for what is served."
+  "The response that sends the page of the app, for what is served. It names the stylesheet of
+   the font with a version, as it does the files of the app."
   [{:keys [app blog]} missing?]
-  (fresh "html" (document (slurp (fs/file app wire/index))
-                          {:root (:root blog) :missing? missing? :versions (read-versions app)})))
+  (let [versions (assoc (read-versions app)
+                        wire/font (source/version (.getBytes ^String (read-served-font blog) "UTF-8")))]
+    (fresh "html" (document (slurp (fs/file app wire/index))
+                            {:root (:root blog) :missing? missing? :versions versions}))))
 
 (defn- serve-page [served _found _request]
   (read-document served false))
@@ -337,16 +375,18 @@
 (def ^:private servers
   "The function that serves each thing a route can ask for, from what is served, what the
    route found and the request."
-  {:site     serve-site
-   :feed     serve-feed
-   :static   serve-static
-   :page     serve-page
-   :missing  serve-missing
-   :redirect serve-redirect
-   :data     serve-data
-   :changes  serve-changes
-   :media    serve-media
-   :nothing  serve-nothing})
+  {:site      serve-site
+   :feed      serve-feed
+   :font      serve-font
+   :font-file serve-font-file
+   :static    serve-static
+   :page      serve-page
+   :missing   serve-missing
+   :redirect  serve-redirect
+   :data      serve-data
+   :changes   serve-changes
+   :media     serve-media
+   :nothing   serve-nothing})
 
 (defn handler
   "The response to `request` of what `served` says is served. A path that is not under the top

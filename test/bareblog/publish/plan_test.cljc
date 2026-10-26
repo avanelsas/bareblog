@@ -104,15 +104,15 @@
     (is (= {:read         #{"a" "b" "c" "about"}
             :as-published #{}
             :dates        {"a" "2025-01-01" "b" "2026-02-01" "c" today "about" "2026-01-15"}
-            :paths        ["blog.edn" "series.edn" "docs" "posts/a" "pages/about" "posts/b" "posts/c"]
+            :paths        ["blog.edn" "fonts" "series.edn" "docs" "posts/a" "pages/about" "posts/b" "posts/c"]
             :message      "Publish the whole blog"}
            (all published {} {:posts #{"a" "b" "c"} :pages #{"about"}} #{}))))
   (testing "an edit that is held back is taken as published, and its folder is not committed"
-    (is (= {:read #{"a"} :as-published #{"b" "about"} :paths ["blog.edn" "series.edn" "docs" "posts/a"]}
+    (is (= {:read #{"a"} :as-published #{"b" "about"} :paths ["blog.edn" "fonts" "series.edn" "docs" "posts/a"]}
            (select-keys (all published {} {:posts #{"a" "b"} :pages #{"about"}} #{"b" "about"})
                         [:read :as-published :paths]))))
   (testing "what was published and has no folder any more is removed, a post or a page"
-    (is (= {:removed #{"a" "about"} :read #{"b"} :paths ["blog.edn" "series.edn" "docs" "posts/a" "pages/about" "posts/b"]}
+    (is (= {:removed #{"a" "about"} :read #{"b"} :paths ["blog.edn" "fonts" "series.edn" "docs" "posts/a" "pages/about" "posts/b"]}
            (select-keys (all published {} {:posts #{"b"} :pages #{}} #{}) [:removed :read :paths]))))
   (testing "nothing is removed when everything that was published has its folder"
     (is (not (contains? (all published {} {:posts #{"a" "b"} :pages #{"about"}} #{}) :removed))))
@@ -124,7 +124,7 @@
   (testing "a published page whose folder is now among the posts is read as a post, and both
             places are committed"
     (let [planned (all published {} {:posts #{"a" "b" "about"} :pages #{}} #{})]
-      (is (= ["blog.edn" "series.edn" "docs" "posts/a" "posts/about" "pages/about" "posts/b"] (:paths planned)))
+      (is (= ["blog.edn" "fonts" "series.edn" "docs" "posts/a" "posts/about" "pages/about" "posts/b"] (:paths planned)))
       (is (= "2026-01-15" (get-in planned [:dates "about"])))
       (is (not (contains? planned :removed)))))
   (testing "a blog that was never published reads every folder, each dated today"
@@ -132,15 +132,15 @@
            (:dates (all nil {} {:posts #{"a" "b"} :pages #{"about"}} #{})))))
   (testing "the link preview that the settings name is committed beside them, and a name that
             is no link preview is not"
-    (is (= ["blog.edn" "link-preview.jpg" "series.edn"]
+    (is (= ["blog.edn" "link-preview.jpg" "fonts"]
            (take 3 (:paths (all published {:link-preview "link-preview.jpg"} {:posts #{} :pages #{}} #{})))))
-    (is (= ["blog.edn" "series.edn"]
+    (is (= ["blog.edn" "fonts"]
            (take 2 (:paths (all published {:link-preview "../x.jpg"} {:posts #{} :pages #{}} #{}))))))
   (testing "every picture that the settings name is committed beside them, once"
-    (is (= ["blog.edn" "logo.svg" "logo-dark.svg" "icon.svg" "series.edn"]
+    (is (= ["blog.edn" "logo.svg" "logo-dark.svg" "icon.svg" "fonts"]
            (take 5 (:paths (all published {:logo {:light "logo.svg" :dark "logo-dark.svg"} :favicon "icon.svg"}
                                 {:posts #{} :pages #{}} #{})))))
-    (is (= ["blog.edn" "logo.svg" "series.edn"]
+    (is (= ["blog.edn" "logo.svg" "fonts"]
            (take 3 (:paths (all published {:logo "logo.svg" :favicon "logo.svg"} {:posts #{} :pages #{}} #{})))))))
 
 (deftest questions-test

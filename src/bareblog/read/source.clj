@@ -14,6 +14,7 @@
    each post and page, which is the moment it was first published."
   (:require [babashka.fs :as fs]
             [bareblog.blog.address :as address]
+            [bareblog.blog.font :as font]
             [bareblog.blog.series :as series]
             [bareblog.blog.shape :as shape]
             [bareblog.blog.site :as site]
@@ -268,11 +269,16 @@
   (cond-> (fs/path dir)
     pictures-in (fs/path pictures-in)))
 
+(defn version
+  "The version of the bytes `bytes`: the start of a digest of them."
+  [^bytes bytes]
+  (let [digest (.digest (MessageDigest/getInstance "SHA-256") bytes)]
+    (subs (format "%064x" (BigInteger. 1 digest)) 0 12)))
+
 (defn read-version
   "The version of the file at `path`: the start of a digest of what it holds."
   [path]
-  (let [digest (.digest (MessageDigest/getInstance "SHA-256") (fs/read-all-bytes path))]
-    (subs (format "%064x" (BigInteger. 1 digest)) 0 12)))
+  (version (fs/read-all-bytes path)))
 
 (defn- find-picture-file
   "The file of `picture` in the directory `in`, or nil."
@@ -346,6 +352,49 @@
         :when                    (nil? (get-in found at))]
     (picture-problem blog picture)))
 
+(defn find-font-dir
+  "The folder that holds the font of `blog`, as its settings or `settings` name it among its
+   fonts, or nil when they name none or it has no folder."
+  ([blog]
+   (find-font-dir blog (settings-of blog)))
+  ([blog settings]
+   (when-some [family (font/family settings)]
+     (let [dir (fs/path (pictures-dir blog) (font/folder family))]
+       (when (fs/directory? dir)
+         dir)))))
+
+(defn- find-faces-file
+  "The stylesheet of the faces of the font that `settings` name for `blog`, or nil."
+  [blog settings]
+  (when-some [dir (find-font-dir blog settings)]
+    (let [path (fs/path dir font/faces-file)]
+      (when (fs/regular-file? path)
+        path))))
+
+(defn read-font-css
+  "The stylesheet of the font of `blog`."
+  [blog]
+  (let [settings (settings-of blog)]
+    (font/stylesheet (font/family settings) (some-> (find-faces-file blog settings) fs/file slurp))))
+
+(defn find-served-font-file
+  "The file `file-name` in the folder `folder-name` among the fonts of `blog`, when that is
+   the folder of its font, or nil."
+  [blog folder-name file-name]
+  (when-some [dir (find-font-dir blog)]
+    (let [path (fs/path dir file-name)]
+      (when (and (= folder-name (str (fs/file-name dir))) (fs/regular-file? path))
+        path))))
+
+(defn- font-problems
+  "What is wrong with the font that `settings` name for `blog`, as texts: a folder of it that
+   holds no faces."
+  [blog settings]
+  (when (and (find-font-dir blog settings) (nil? (find-faces-file blog settings)))
+    (let [family (font/family settings)]
+      [(str (font/folder family) " holds no " font/faces-file ", so the font is not served. "
+            "Fetch it again with: bareblog font " (pr-str family))])))
+
 (defn- read-entry
   "The entry of the post or the page of `blog` in `source`, with whether it is a page, and
    what is wrong with it."
@@ -409,6 +458,7 @@
                                 (concat (folder-problems dirs) (mapcat :problems read)
                                         (site/settings-problems settings)
                                         (picture-problems blog settings found)
+                                        (font-problems blog settings)
                                         (series-problems (:dir blog) series)))
                      (site/with-pages (concat (map :entry (filter :page? read)) (read-kept blog :pages))))
         shown    (series/shown series (:posts site))]

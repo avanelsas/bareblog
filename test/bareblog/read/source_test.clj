@@ -262,6 +262,31 @@
               (is (string? before))
               (is (not= before (version))))))))))
 
+(deftest font-test
+  (example/with-copy {:font "Literata"}
+    (fn [dir]
+      (let [blog    (source/preview dir)
+            folder  (fs/path dir "fonts" "literata")
+            problem "fonts/literata holds no font.css, so the font is not served. Fetch it again with: bareblog font \"Literata\""]
+        (testing "a font without a folder only names itself, and is no problem"
+          (is (nil? (source/find-font-dir blog)))
+          (is (= ":root {\n  --font: \"Literata\";\n}\n" (source/read-font-css blog)))
+          (is (not-any? #{problem} (:problems (source/read-site blog)))))
+        (testing "a folder without the faces is a problem"
+          (fs/create-dirs folder)
+          (is (some #{problem} (:problems (source/read-site blog)))))
+        (testing "a folder with its faces is served"
+          (spit (fs/file folder "font.css") "@font-face { src: url(a.woff2); }")
+          (spit (fs/file folder "a.woff2") "the font")
+          (is (str/starts-with? (source/read-font-css blog) "@font-face { src: url(fonts/literata/a.woff2); }"))
+          (is (= (str (fs/path folder "a.woff2")) (str (source/find-served-font-file blog "literata" "a.woff2"))))
+          (is (nil? (source/find-served-font-file blog "lora" "a.woff2")))
+          (is (nil? (source/find-served-font-file blog "literata" "b.woff2"))))
+        (testing "a blog that takes its pictures from where they were published takes its font from there too"
+          (let [published (fs/create-dirs (fs/path dir "docs" "fonts" "literata"))]
+            (spit (fs/file published "font.css") "@font-face { src: url(published.woff2); }")
+            (is (str/includes? (source/read-font-css (assoc blog :pictures-in "docs")) "fonts/literata/published.woff2"))))))))
+
 (deftest served-picture-test
   (example/with-copy {:logo {:light "mark.svg" :dark "mark-dark.svg"}}
     (fn [dir]

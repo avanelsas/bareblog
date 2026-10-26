@@ -100,7 +100,11 @@
     (is (re-find #";; :author \"Your name\"" (start/settings-text "My blog")))
     (is (re-find #";; :address \"https://<you>" (start/settings-text "My blog")))
     (is (re-find #"before you publish" (start/settings-text "My blog")))
-    (is (not-any? (edn/read-string (start/settings-text "My blog")) [:author :address]))))
+    (is (not-any? (edn/read-string (start/settings-text "My blog")) [:author :address])))
+  (testing "they show how a blog gets a font, and name none"
+    (is (re-find #"bareblog font \"Literata\"" (start/settings-text "My blog")))
+    (is (re-find #";; :font \"Literata\"" (start/settings-text "My blog")))
+    (is (not (contains? (edn/read-string (start/settings-text "My blog")) :font)))))
 
 (deftest readme-text-test
   (testing "the README names the folders and the files of a blog as the blog has them"

@@ -72,8 +72,10 @@
           (is (= (map (partial output/file-of "/my-blog/") (output/pages site)) pages))
           (is (every? written pages))
           (is (every? written (keep (partial output/data-of "/my-blog/") (output/pages site)))))
-        (testing "the texts of the blog are there"
-          (is (every? written (keys (output/texts "/my-blog/" site)))))
+        (testing "the texts of the blog are there, with the stylesheet of a font, empty for a blog
+                  with none"
+          (is (every? written (keys (output/texts "/my-blog/" site))))
+          (is (= "" (slurp (fs/file docs "font.css")))))
         (testing "a page was saved from its address under the top of the blog"
           (is (re-matches #"http://localhost:\d+/my-blog/archive/" (slurp (fs/file docs "archive" "index.html")))))
         (testing "the data of a page is the data of that page"
@@ -103,6 +105,26 @@
           (is (not (contains? written "stale.html")))
           (is (not (fs/exists? (fs/path dir "docs.new"))))
           (is (not (fs/exists? (fs/path dir "docs.old")))))))))
+
+(deftest font-test
+  (with-blog "https://avanelsas.github.io/my-blog/"
+    (fn [dir app]
+      (spit (fs/file dir "blog.edn") (pr-str (assoc (source/read-settings dir) :font "Literata")))
+      (doseq [[family file-name text] [["literata" "font.css" "@font-face { src: url(a.woff2); }"]
+                                       ["literata" "a.woff2" "the font"]
+                                       ["lora" "b.woff2" "another font"]]]
+        (fs/create-dirs (fs/path dir "fonts" family))
+        (spit (fs/file dir "fonts" family file-name) text))
+      (generate/generate! {:save save-address :say identity :app app}
+                          (source/published dir (source/read-settings dir)))
+      (let [written (files (fs/path dir "docs"))]
+        (testing "the folder of the font of the blog is at the top, and no other font"
+          (is (contains? written "fonts/literata/a.woff2"))
+          (is (contains? written "fonts/literata/font.css"))
+          (is (not-any? #(str/starts-with? % "fonts/lora") written)))
+        (testing "the stylesheet of the font names its faces from the top"
+          (is (str/starts-with? (slurp (fs/file dir "docs" "font.css"))
+                                "@font-face { src: url(fonts/literata/a.woff2); }\n:root {\n  --font: \"Literata\";")))))))
 
 (deftest failure-test
   (with-blog nil

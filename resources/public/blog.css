@@ -625,6 +625,15 @@ x-collapse.series::part(chevron) {
   text-wrap: pretty;
 }
 
+/* The running text of the posts and the lists is in the font of the blog, which the stylesheet
+   of its font names. With none named, the declaration is void and the text keeps the font of
+   the theme. A reader who has not got the font gets that too. */
+.post-blocks :is(p, li, blockquote),
+.footnotes,
+.page .summary {
+  font-family: var(--font), var(--x-font-family, system-ui, sans-serif);
+}
+
 @media (prefers-color-scheme: dark) {
   .post-blocks p,
   .post-blocks li {

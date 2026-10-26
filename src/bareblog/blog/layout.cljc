@@ -10,6 +10,11 @@
    writes."
   "series.edn")
 
+(def fonts-dir
+  "The directory beside the settings that holds a folder for the font of the blog, which
+   `bareblog font` writes. A published blog holds it at its top."
+  "fonts")
+
 (def posts-dir "posts")
 
 (def drafts-dir "drafts")

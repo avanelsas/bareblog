@@ -31,6 +31,11 @@
   "The file at the top of a blog that holds its feed."
   "feed.xml")
 
+(def font
+  "The file at the top of a blog that holds the stylesheet of its font, which the page of the
+   app names in its head. It is empty when the settings name no font."
+  "font.css")
+
 (def feed-type
   "The media type of the feed, which is Atom. The page of the app names it too, in its head."
   "application/atom+xml")

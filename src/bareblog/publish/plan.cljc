@@ -114,12 +114,14 @@
 
 ;; A picture that is not there is a problem of the blog, and git commits nothing for a path
 ;; with nothing under it. The series go with every publish, since only a command writes them.
+;; The fonts go whole, so that a font that `bareblog font` took away goes too.
 (defn- settings-paths
-  "The paths of the settings `settings`: their file, and the pictures they name."
+  "The paths of the settings `settings`: their file, the pictures they name, and the fonts."
   [settings]
-  (into [layout/settings-file]
-        (comp (filter pictures/fits?) (map :src) (distinct))
-        (pictures/named settings)))
+  (-> [layout/settings-file]
+      (into (comp (filter pictures/fits?) (map :src) (distinct))
+            (pictures/named settings))
+      (conj layout/fonts-dir)))
 
 ;; An edit that the author keeps back stays out of the pages and out of the commit: the post
 ;; is taken as it was published, and its folder is not among the paths.

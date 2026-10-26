@@ -199,7 +199,7 @@
 (deftest folder-rule-test
   (testing "an author is told what the name of a folder may be, with the names that are kept"
     (is (re-find #"^A folder has small letters, digits and dashes" text/folder-rule))
-    (is (re-find #"archive, js, page, tags" text/folder-rule))))
+    (is (re-find #"archive, fonts, js, page, tags" text/folder-rule))))
 
 (deftest folder-for-test
   (testing "a title gives a name for a folder: its letters and digits, with dashes between"

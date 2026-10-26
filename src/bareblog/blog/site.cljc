@@ -1,6 +1,7 @@
 (ns bareblog.blog.site
   "What every page of a blog loads: the settings of the blog and its list of posts."
-  (:require [bareblog.blog.layout :as layout]
+  (:require [bareblog.blog.font :as font]
+            [bareblog.blog.layout :as layout]
             [bareblog.blog.pictures :as pictures]
             [bareblog.blog.text :as text]))
 
@@ -109,6 +110,7 @@
           (yes-or-no-problems settings :gradient-titles)
           (yes-or-no-problems settings :navbar-colors)
           (yes-or-no-problems settings :page-colors)
+          (font/settings-problems settings)
           (pictures/settings-problems settings)))
 
 (defn site
