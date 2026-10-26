@@ -20,7 +20,8 @@
    :notebook {:home :newest-post :choice :everywhere :search :palette}
    :magazine {:home :entries :choice :home :search :field}
    :longform {:home :entries :choice :home :search :field}
-   :diary    {:home :entries :choice :home :search :field}})
+   :diary    {:home :entries :choice :home :search :field}
+   :essay    {:home :entries :choice :home :search :field}})
 
 (defn named
   "The shape of the blog template with the name `template-name`. Throws when there is none."

@@ -230,11 +230,10 @@
   {:number (inc ref) :blocks (blocks node)})
 
 (defn- footnotes
-  "The block that holds the footnotes `nodes` in the order of their numbers, in a vector. No
-   footnotes is no block."
-  [nodes]
-  (if (seq nodes)
-    [{:kind :footnotes :notes (vec (sort-by :number (map note nodes)))}]
+  "The block that holds the notes `notes`, in a vector. No notes is no block."
+  [notes]
+  (if (seq notes)
+    [{:kind :footnotes :notes notes}]
     []))
 
 (defn- footnote-mark? [x]
@@ -260,13 +259,16 @@
   [blocks paths]
   (vals (reduce (partial keep-first blocks) {} paths)))
 
-(defn- mark-first [blocks path]
-  (assoc-in blocks (conj path :first?) true))
+(defn- with-note
+  "The `blocks` with the mark at `path` holding the blocks of its note, among `by-number`."
+  [by-number blocks path]
+  (assoc-in blocks (conj path :note) (by-number (:number (get-in blocks path)))))
 
-(defn- with-first-marks
-  "The `blocks` with `:first? true` in the first mark of each note. A note links back to it."
-  [blocks]
-  (reduce mark-first
+(defn- with-notes
+  "The `blocks` with the blocks of each of the notes `notes` under `:note` in the first mark of
+   the note. A note links back to that mark, and a page may show the note beside it."
+  [blocks notes]
+  (reduce (partial with-note (into {} (map (juxt :number :blocks)) notes))
           blocks
           (first-of-its-note blocks (mark-paths [] blocks))))
 
@@ -313,10 +315,11 @@
   (let [doc                   (md/parse text)
         nodes                 (:content doc)
         opening               (when (title-heading? (first nodes)) (first nodes))
-        {:keys [blocks tags]} (with-tags (blocks-of (if opening (rest nodes) nodes)))]
+        {:keys [blocks tags]} (with-tags (blocks-of (if opening (rest nodes) nodes)))
+        notes                 (vec (sort-by :number (map note (:footnotes doc))))]
     {:heading (some-> opening plain)
      :tags    tags
-     :blocks  (with-first-marks (into blocks (footnotes (:footnotes doc))))}))
+     :blocks  (with-notes (into blocks (footnotes notes)) notes)}))
 
 (defn written-tag
   "The tag `tag-name` as an author writes it, with its mark."

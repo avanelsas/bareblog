@@ -137,6 +137,7 @@ A blog template decides what the blog looks like. The posts stay the same: switc
 | `:magazine` | The home page shows the posts as cards in a grid. The newest post with a picture leads, on a card twice as wide and twice as high |
 | `:longform` | The home page shows the posts as a deck of large cards, which pile up as the reader scrolls. A post opens on its cover, with its title at the foot of it |
 | `:diary` | A calendar beside the list of posts. Only the days with a post can be picked. A day or a month shows its posts |
+| `:essay` | Each post under its cover. A post opens on its cover across the window, with its contents in the left margin and its notes beside their lines in the right one |
 
 ## More
 

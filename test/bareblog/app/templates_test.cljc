@@ -251,7 +251,8 @@
 
 (deftest gradient-titles-test
   (doseq [[template-name row-name] [[:journal "post"] [:journal "standalone"] [:journal "entries"]
-                                    [:magazine "entries"] [:longform "entries"] [:longform "post"]]
+                                    [:magazine "entries"] [:longform "entries"] [:longform "post"]
+                                    [:essay "entries"] [:essay "post"]]
           :let [node (templates/row-node (get-in (templates/named template-name) [:lists :main]) row-name)
                 row  (or (get-in node [:lists :entries :row :split]) (:split node))]]
     (testing (str template-name " " row-name ": a title is filled with a gradient when the view says so")
@@ -316,8 +317,30 @@
       (is (true? (:hidden (attrs-of post {:cover nil} "img.hero-picture"))))
       (is (not-any? (comp #{"post-cover"} :class second) (elements (:fixed post)))))))
 
+(deftest essay-test
+  (let [essay   (templates/named :essay)
+        entries (get-in essay [:lists :main :rows "entries"])
+        entry   (get-in entries [:lists :entries :row :split])
+        post    (:split (get-in essay [:lists :main :rows "post"]))
+        tram    {:src "/a/tram.jpg" :alt "A tram"}]
+    (testing "a post in a list has its picture with its title over it, or its title alone"
+      (is (= "essay-entry with-cover" (:class (attrs-of entry {:picture "/a/tram.jpg"} "li"))))
+      (is (= "essay-entry" (:class (attrs-of entry {} "li"))))
+      (is (false? (:gradient (attrs-of entry {:gradient-titles? true :picture "/a/tram.jpg"} "x-typography.title"))))
+      (is (true? (:gradient (attrs-of entry {:gradient-titles? true} "x-typography.title")))))
+    (testing "a post opens on its cover across the page, above its text and its contents"
+      (is (= "hero with-cover" (:class (attrs-of post {:cover tram} "div"))))
+      (is (= {:src "/a/tram.jpg" :alt "A tram" :hidden false}
+             (select-keys (attrs-of post {:cover tram} "img.hero-picture") [:src :alt :hidden])))
+      (let [[_ {:keys [class]} _hero [_ layout]] (:fixed post)]
+        (is (= "post-page" class))
+        (is (= "post-layout" (:class layout)))))
+    (testing "a post with no cover opens on its title alone"
+      (is (= "hero" (:class (attrs-of post {:cover nil} "div"))))
+      (is (true? (:hidden (attrs-of post {:cover nil} "img.hero-picture")))))))
+
 (deftest post-cover-test
-  (doseq [template-name (remove #{:longform} (keys templates/by-name))
+  (doseq [template-name (remove #{:longform :essay} (keys templates/by-name))
           :let          [main (get-in (templates/named template-name) [:lists :main])
                          post (:split (templates/row-node main "post"))
                          tram {:src "/a/tram.jpg" :alt "A tram" :width 1200 :height 800}]]
@@ -565,7 +588,8 @@
               "x-theme"]
    :magazine ["x-container" "x-drawer" "x-gaussian-blur" "x-navbar" "x-search-field" "x-select" "x-theme"]
    :longform ["x-container" "x-drawer" "x-gaussian-blur" "x-navbar" "x-search-field" "x-select" "x-theme"]
-   :diary    ["x-container" "x-drawer" "x-gaussian-blur" "x-navbar" "x-search-field" "x-select" "x-theme"]})
+   :diary    ["x-container" "x-drawer" "x-gaussian-blur" "x-navbar" "x-search-field" "x-select" "x-theme"]
+   :essay    ["x-container" "x-drawer" "x-gaussian-blur" "x-navbar" "x-search-field" "x-select" "x-theme"]})
 
 (def ^:private post-elements
   "The custom elements that the page of a post has in a blog template, besides those of its
@@ -640,7 +664,13 @@
                ["click" :close-menu]
                ["x-drawer-toggle" :menu]
                ["x-calendar-change" :day]
-               ["x-calendar-navigate" :month]}})
+               ["x-calendar-navigate" :month]}
+   :essay    #{["x-search-field-change-request" :search]
+               ["x-search-field-search" :submit-search]
+               ["x-select-change-request" :preset]
+               ["click" :open-menu]
+               ["click" :close-menu]
+               ["x-drawer-toggle" :menu]}})
 
 (deftest every-template-is-tested-test
   (testing "the tables of elements and of events have every blog template"

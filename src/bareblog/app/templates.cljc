@@ -14,6 +14,7 @@
    The view of a page is the same tree, filled in: an item for each node, and the keys and the
    rows of each list. One function in `render` brings any node to its view."
   (:require [bareblog.app.diary :as diary]
+            [bareblog.app.essay :as essay]
             [bareblog.app.journal :as journal]
             [bareblog.app.longform :as longform]
             [bareblog.app.magazine :as magazine]
@@ -27,7 +28,8 @@
    :notebook notebook/template
    :magazine magazine/template
    :longform longform/template
-   :diary    diary/template})
+   :diary    diary/template
+   :essay    essay/template})
 
 (defn named
   "The blog template with the name `template-name`. Throws when there is none."

@@ -1,0 +1,230 @@
+/* The Essay blog template: Journal, with the posts of a list under their covers, and a post that
+   opens on its cover across the page, with its contents on the left and its notes on the right. */
+
+/* The text is between two margins: its contents on the left and its notes on the right. A
+   note or a photo reaches over the gap into the margin of the notes. The text stands left of
+   the middle of the window by --text-shift, where only the margin of the notes is beside it. */
+.page.essay {
+  --post-width: 36rem;
+  --margin-width: 12rem;
+  --gutter: 2.25rem;
+  --into-margin: calc(var(--gutter) + var(--margin-width));
+  --text-shift: 0rem;
+  /* The cover is as wide as the window, which is wider than the page by its scrollbar. */
+  overflow-x: clip;
+}
+
+.essay .post,
+.essay .entries,
+.essay .archive,
+.essay .not-found {
+  margin: 0 auto;
+}
+
+/* The running text is in a serif of the system where the blog names no font of its own. */
+.essay .post-blocks :is(p, li, blockquote),
+.essay .footnotes,
+.essay .summary {
+  font-family: var(--font, Charter), Charter, "Iowan Old Style", Georgia, "Noto Serif", serif;
+}
+
+/* A list of posts: each under its picture, with its title over the foot of it. */
+.essay .essays {
+  display: grid;
+  gap: calc(var(--x-space-xl, 1.5rem) * 2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.essay .essay-entry {
+  position: relative;
+}
+
+.essay .essay-entry .card-text {
+  padding: 0;
+}
+
+.essay .essay-entry.with-cover {
+  display: grid;
+}
+
+.essay .essay-entry.with-cover .card-text {
+  display: contents;
+}
+
+.essay .essay-entry .cover {
+  aspect-ratio: 3 / 2;
+  border-radius: var(--x-radius-lg, 1rem);
+}
+
+.essay .essay-entry.with-cover > .cover,
+.essay .essay-entry.with-cover .title {
+  grid-area: 1 / 1;
+}
+
+.essay .essay-entry.with-cover .title {
+  align-self: end;
+  padding: calc(var(--x-space-xl, 1.5rem) * 2) var(--x-space-xl, 1.5rem) var(--x-space-lg, 1rem);
+  border-radius: 0 0 var(--x-radius-lg, 1rem) var(--x-radius-lg, 1rem);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+  --x-typography-color: #fff;
+}
+
+.essay .essay-entry h2 {
+  font-size: 1.75rem;
+}
+
+.essay .essay-entry.with-cover .meta {
+  margin-top: var(--x-space-md, 0.75rem);
+}
+
+.essay .essay-entry .summary {
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+}
+
+/* The opening of a post. With a cover, the cover is as wide as the window, and the title stands
+   at its foot, over the text column. */
+.essay .hero.with-cover {
+  position: relative;
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
+}
+
+.essay .hero-picture {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.essay .hero-picture[hidden] {
+  display: none;
+}
+
+.essay .hero:not(.with-cover) .post-header {
+  max-width: var(--post-width);
+  margin-inline: auto;
+  translate: calc(-1 * var(--text-shift));
+}
+
+.essay .hero.with-cover .post-header {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  min-height: 70vh;
+  margin: 0;
+  padding: calc(var(--x-space-xl, 1.5rem) * 3) var(--x-space-xl, 1.5rem) calc(var(--x-space-xl, 1.5rem) * 1.5)
+    max(var(--x-space-xl, 1.5rem), calc(50% - var(--post-width) / 2 - var(--text-shift)));
+  background: linear-gradient(transparent 40%, rgba(0, 0, 0, 0.7));
+  color: #fff;
+}
+
+.essay .hero.with-cover .post-header .meta,
+.essay .hero.with-cover .post-header .tags a {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.essay .hero.with-cover .title {
+  max-width: var(--post-width);
+  --x-typography-color: #fff;
+}
+
+/* The first letter of the text is as high as three lines, where a browser can set it so. */
+@supports (initial-letter: 3) or (-webkit-initial-letter: 3) {
+  .essay .post-blocks > p:first-of-type::first-letter {
+    -webkit-initial-letter: 3;
+    initial-letter: 3;
+    margin-right: 0.5rem;
+  }
+}
+
+/* A window with room for the notes alone has its contents above the text. Each width is that of
+   the columns, with the edges of the page and a scrollbar. A container query would be exact, but
+   Chrome stops answering when a scroll-triggered animation reveals a photo whose width comes
+   from one. */
+@media (min-width: 54rem) {
+  .page.essay {
+    --text-shift: calc(var(--into-margin) / 2);
+  }
+
+  .essay .post-layout {
+    display: grid;
+    grid-template-columns: var(--post-width) var(--margin-width);
+    column-gap: var(--gutter);
+    justify-content: center;
+    align-items: start;
+  }
+
+  .essay .post-layout > .post {
+    grid-row: 2;
+    grid-column: 1;
+    max-width: none;
+    margin: 0;
+  }
+
+  /* Above the text, the contents stay where they are, and do not follow the reader down over
+     the text. */
+  /* Above the text, the contents stay where they are, and do not follow the reader down over
+     the text. */
+  .essay .post-toc:not([data-empty]) {
+    display: block;
+    position: static;
+    grid-row: 1;
+    grid-column: 1;
+    margin: calc(var(--x-space-xl, 1.5rem) * 2) 0 0;
+  }
+
+
+  /* A note stands in the margin beside the line of its mark, below the note before it. */
+  .essay .sidenote {
+    display: block;
+    float: right;
+    clear: right;
+    width: var(--margin-width);
+    margin: 0.3rem calc(-1 * var(--into-margin)) 1rem 0;
+    color: var(--muted-color);
+    font-size: var(--x-font-size-sm, 0.875rem);
+    line-height: 1.5;
+    text-wrap: pretty;
+  }
+
+  .essay .sidenote-number {
+    margin-right: 0.35em;
+    font-weight: var(--x-font-weight-semibold, 600);
+  }
+
+  .essay .post-blocks > .footnotes {
+    display: none;
+  }
+
+  /* A landscape photo reaches into the margin of the notes, below the notes before it. */
+  .essay .post-blocks > figure.landscape {
+    clear: right;
+    width: calc(100% + var(--into-margin));
+  }
+}
+
+@media (min-width: 68rem) {
+  .page.essay {
+    --text-shift: 0rem;
+  }
+
+  .essay .post-layout {
+    grid-template-columns: var(--margin-width) var(--post-width) var(--margin-width);
+  }
+
+  .essay .post-layout > .post {
+    grid-row: 1;
+    grid-column: 2;
+  }
+
+  .essay .post-toc:not([data-empty]) {
+    position: sticky;
+    grid-column: 1;
+  }
+}

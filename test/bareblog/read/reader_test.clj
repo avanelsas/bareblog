@@ -132,17 +132,23 @@
 
 (deftest footnotes-test
   (let [read (blocks "First[^b] and second[^a].\n\n[^a]: Note a.\n[^b]: Note **b**.")]
-    (testing "a mark in the text has the number of its note, in the order of the marks"
-      (is (= [{:kind :text :content ["First" {:kind :footnote-mark :number 1 :first? true}
-                                     " and second" {:kind :footnote-mark :number 2 :first? true} "."]}]
+    (testing "a mark in the text has the number of its note, in the order of the marks, and the
+              first mark of a note holds the note"
+      (is (= [{:kind :text :content ["First" {:kind   :footnote-mark :number 1
+                                              :note   [{:kind :text :content ["Note " {:kind :strong :content ["b"]} "."]}]}
+                                     " and second" {:kind   :footnote-mark :number 2
+                                                    :note   [{:kind :text :content ["Note a."]}]}
+                                     "."]}]
              (butlast read))))
     (testing "the notes are the last block, in the order of their numbers, and hold blocks"
       (is (= {:kind  :footnotes
               :notes [{:number 1 :blocks [{:kind :text :content ["Note " {:kind :strong :content ["b"]} "."]}]}
                       {:number 2 :blocks [{:kind :text :content ["Note a."]}]}]}
              (last read)))))
-  (testing "of the marks of one note, the first in the text is the first, wherever it stands"
-    (is (= [[{:number 1 :first? true} {:number 2 :first? true} {:number 1}] [{:number 2}]]
+  (testing "of the marks of one note, the first in the text holds the note, wherever it stands"
+    (is (= [[{:number 1 :note [{:kind :text :content ["Two."]}]} {:number 2 :note [{:kind :text :content ["One."]}]}
+             {:number 1}]
+            [{:number 2}]]
            (let [[quoted later] (blocks "> A[^b] b[^a] c[^b].\n\nLater[^a].\n\n[^a]: One.\n[^b]: Two.")]
              [(mapv #(dissoc % :kind) (filter map? (:content (first (:blocks quoted)))))
               (mapv #(dissoc % :kind) (filter map? (:content later)))]))))

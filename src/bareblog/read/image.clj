@@ -1,5 +1,5 @@
 (ns bareblog.read.image
-  "The size of an image, read from the bytes of its file."
+  "The size of an image, and whether it is drawn at any size, read from the bytes of its file."
   (:require [clojure.string :as str]))
 
 (defn- numbers-at
@@ -175,9 +175,10 @@
   (when-some [tag (svg-tag bs)]
     (let [width  (pixels (attribute tag "width"))
           height (pixels (attribute tag "height"))]
-      (if (and width height)
-        {:width width :height height}
-        (view-box-size tag)))))
+      (some-> (if (and width height)
+                {:width width :height height}
+                (view-box-size tag))
+              (assoc :vector? true)))))
 
 (def ^:private readers
   "A function for each format, from bytes to a size or nil. They are tried in order."
@@ -196,7 +197,8 @@
   (real (read-size bs)))
 
 (defn size
-  "The width and the height of the image in the bytes `bs`, as it is shown. Nil when the bytes
-   are no PNG, GIF, JPEG, WebP or SVG, or end before their size."
+  "The width and the height of the image in the bytes `bs`, as it is shown, and `:vector?` for
+   an SVG, which is drawn at any size. Nil when the bytes are no PNG, GIF, JPEG, WebP or SVG, or
+   end before their size."
   [bs]
   (some (partial size-with bs) readers))
