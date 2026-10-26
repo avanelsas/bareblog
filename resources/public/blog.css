@@ -16,8 +16,9 @@ body {
 }
 
 .page {
-  /* The text of a post is 750 pixels wide at the browser's own size of text. */
-  --post-width: 46.875rem;
+  /* The text of a post is 624 pixels wide at the browser's own size of text: about 70
+     letters to a line, in its larger size of text. */
+  --post-width: 39rem;
   --list-width: 42rem;
   min-height: 100vh;
   isolation: isolate;
@@ -129,15 +130,22 @@ body {
 .not-found {
   max-width: var(--column-width, var(--list-width));
   padding: calc(var(--x-space-xl, 1.5rem) * 2) 0 calc(var(--x-space-xl, 1.5rem) * 4);
-  font-size: var(--x-font-size-lg, 1.125rem);
   line-height: 1.7;
 }
 
-.post {
-  --column-width: var(--post-width);
+.entries,
+.archive,
+.not-found {
+  font-size: var(--x-font-size-lg, 1.125rem);
 }
 
-/* The contents stand beside the text from 65rem: --post-width, a gap of 2.25rem, 14rem of
+/* The text of a post is a step larger than the largest size of text of a theme. */
+.post {
+  --column-width: var(--post-width);
+  font-size: 1.25rem;
+}
+
+/* The contents stand beside the text from 57rem: --post-width, a gap of 2.25rem, 14rem of
    contents and Notebook's margin of 1.5rem. A container query takes no custom property. */
 .post-layout {
   display: flex;
@@ -153,7 +161,7 @@ body {
   display: none;
 }
 
-@container post (min-width: 65rem) {
+@container post (min-width: 57rem) {
   .post-layout:has(> .post-toc:not([data-empty])) > .post {
     margin-right: 0;
   }
@@ -436,6 +444,7 @@ body {
   font-weight: var(--x-font-weight-bold, 700);
   line-height: 1.2;
   letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
 /* The foot of a post: the other posts, and the series that the post is a part of. Each group
@@ -559,6 +568,13 @@ x-collapse.series::part(chevron) {
   margin: 0 0 var(--x-space-xl, 1.5rem);
 }
 
+/* A line breaks where it reads well, and a long word breaks in the language of the blog. */
+.post-blocks p,
+.post-blocks li {
+  hyphens: auto;
+  text-wrap: pretty;
+}
+
 .post-blocks h1,
 .post-blocks h2,
 .post-blocks h3,
@@ -569,6 +585,7 @@ x-collapse.series::part(chevron) {
   margin-bottom: var(--x-space-md, 0.75rem);
   font-weight: var(--x-font-weight-semibold, 600);
   line-height: 1.3;
+  text-wrap: balance;
 }
 
 .post-blocks h2 { font-size: 1.75rem; }
@@ -584,6 +601,7 @@ x-collapse.series::part(chevron) {
   background: color-mix(in srgb, var(--x-color-text, #000) 10%, transparent);
   font-family: var(--x-font-family-mono, ui-monospace, monospace);
   font-size: 0.9em;
+  hyphens: manual;
 }
 
 .post-blocks figure {
