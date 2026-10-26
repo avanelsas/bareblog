@@ -431,6 +431,26 @@ body {
   object-fit: cover;
 }
 
+/* A block that stands apart from the running text rises into place once as it enters the
+   window. A printed page shows every block. */
+@supports (timeline-trigger: --block-in view()) {
+  @media screen and (prefers-reduced-motion: no-preference) {
+    .post-blocks > :is(figure, x-code, x-table, blockquote, .live) {
+      animation: block-in 0.9s var(--x-transition-easing, cubic-bezier(0.2, 0, 0, 1)) both;
+      timeline-trigger: --block-in view() cover 10% exit 100%;
+      animation-trigger: --block-in play-forwards;
+    }
+  }
+}
+
+@keyframes block-in {
+  from {
+    opacity: 0;
+    translate: 0 0.5rem;
+    scale: 0.9;
+  }
+}
+
 /* A post. */
 
 .post-header {
