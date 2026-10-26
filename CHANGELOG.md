@@ -3,6 +3,29 @@
 All notable changes to BareBlog are listed here. Until 1.0.0, a release may change the
 settings, the layout of a blog and the commands.
 
+## [0.5.0] - 2026-10-26
+
+BareBlog needs BareDOM 4.15.0.
+
+### Added
+
+- **A series of posts.** `bareblog series --name "A series" "A post" "Another post"` makes a
+  series of these posts in this order, by title or folder, after it shows what changes and
+  asks. Naming it again with every part replaces it, and naming it with no posts removes it,
+  while the posts stay. `bareblog series` lists every series. A series is kept in
+  `series.edn` and goes live with the next publish of any post. At the foot of each part, a
+  card shows the series beside the other posts, folds over every part, and links to the next
+  one. A post is in one series at most, and a draft part joins once it is published. A series
+  that names a missing post stops a publish, with the command that mends it.
+- **A change of page moves.** When a reader opens a post from a list, the picture of its card
+  grows into its cover, and its title moves into place. It shows on a published blog in
+  Chrome, Edge and Safari, and not for a reader who asks for less motion.
+
+### Fixed
+
+- **A page starts in the colour of its theme,** and not white, before its post is shown. The
+  preview showed white between pages.
+
 ## [0.4.0] - 2026-10-24
 
 BareBlog needs BareDOM 4.15.0. BareBlog 0.3.0 and before have no `bareblog update`: update to
