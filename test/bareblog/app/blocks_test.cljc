@@ -21,7 +21,7 @@
              ", " {:kind :emphasis :content ["slowly"]} ", with " {:kind :code :content ["bb"]}
              " and " {:kind :image :src "a.png" :alt "a map"} ". "
              {:kind :strikethrough :content ["Not this."]} {:kind :break}
-             "See the note" {:kind :footnote-mark :number 1 :first? true} " twice"
+             "See the note" {:kind :footnote-mark :number 1 :note [{:kind :text :content ["The note."]}]} " twice"
              {:kind :footnote-mark :number 1} ". " {:kind :unknown :type :formula :text "x + y"}]})
 
 (def examples
@@ -53,7 +53,10 @@
             ", " [:em "slowly"] ", with " [:code "bb"]
             " and " [:img {:src "a.png" :alt "a map"}] ". "
             [:s "Not this."] [:br]
-            "See the note" [:sup [:a {:id "note-mark-1" :href "#note-1"} "1"]] " twice"
+            "See the note" [:span {:class "note-mark"}
+                            [:sup [:a {:id "note-mark-1" :href "#note-1"} "1"]]
+                            [:span {:class "sidenote" :role "note"} [:span {:class "sidenote-number"} "1"] "The note."]]
+            " twice"
             [:sup [:a {:href "#note-1"} "1"]] ". " "x + y"]
            (blocks/template (:text examples)))))
   (testing "a link with no title has no title attribute"
@@ -65,8 +68,13 @@
     (is (= [:figure [:x-image {:src "harbour.svg" :alt "The harbour at dawn"}]]
            (blocks/template (:photo examples)))))
   (testing "a photo with a size holds its place with a ratio"
-    (is (= [:figure [:x-image {:src "harbour.svg" :alt "The harbour at dawn" :ratio "800:450"}]]
-           (blocks/template (assoc (:photo examples) :width 800 :height 450)))))
+    (is (= [:figure [:x-image {:src "harbour.svg" :alt "The harbour at dawn" :ratio "600:450"}]]
+           (blocks/template (assoc (:photo examples) :width 600 :height 450)))))
+  (testing "a photo of 3 by 2 or wider is a landscape"
+    (is (= [:figure {:class "landscape"} [:x-image {:src "harbour.svg" :alt "The harbour at dawn" :ratio "600:400"}]]
+           (blocks/template (assoc (:photo examples) :width 600 :height 400))))
+    (is (not (blocks/landscape? {:width 599 :height 400})))
+    (is (not (blocks/landscape? {}))))
   (testing "an image with a size has its width and height"
     (is (= [:p [:img {:src "a.png" :alt "a map" :width 64 :height 32}]]
            (blocks/template {:kind :text :content [{:kind :image :src "a.png" :alt "a map" :width 64 :height 32}]}))))
@@ -137,7 +145,17 @@
             [:ol [:li {:id "note-1"}
                   [:p "The note."]
                   [:a {:class "note-back" :href "#note-mark-1" :aria-label "Back to the text"} "\u21a9"]]]]
-           (blocks/template (:footnotes examples))))))
+           (blocks/template (:footnotes examples)))))
+  (testing "the first mark of a note holds the note beside it, of the text of its blocks"
+    (is (= [:p "See" [:span {:class "note-mark"}
+                      [:sup [:a {:id "note-mark-1" :href "#note-1"} "1"]]
+                      [:span {:class "sidenote" :role "note"} [:span {:class "sidenote-number"} "1"]
+                       "One " [:em "two"] "." " " "Three."]]]
+           (blocks/template {:kind    :text
+                             :content ["See" {:kind   :footnote-mark :number 1
+                                              :note   [{:kind :text :content ["One " {:kind :emphasis :content ["two"]} "."]}
+                                                       {:kind :code :text "x"}
+                                                       {:kind :text :content ["Three."]}]}]})))))
 
 (deftest every-kind-test
   (testing "there is an example of every kind of block"

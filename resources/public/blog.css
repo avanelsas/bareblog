@@ -751,6 +751,12 @@ x-collapse.series::part(chevron) {
   text-decoration: none;
 }
 
+/* A note is also beside its mark in the text, which a blog template with notes in the margin
+   shows in place of the footnotes. */
+.sidenote {
+  display: none;
+}
+
 .empty {
   color: var(--muted-color);
 }

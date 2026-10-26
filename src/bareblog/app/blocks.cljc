@@ -36,12 +36,29 @@
 (defn- mark-id [number]
   (str "note-mark-" number))
 
+(defn- note-content
+  "What a block of a note shows beside its mark: the content of a block of text, and nothing of
+   a block of another kind."
+  [{:keys [content]}]
+  (children content))
+
+(defn- sidenote
+  "The note `number` beside its mark, of the blocks `blocks`, each after a space. A blog template
+   shows it there, or the note among the footnotes."
+  [number blocks]
+  (into [:span {:class "sidenote" :role "note"} [:span {:class "sidenote-number"} (str number)]]
+        (apply concat (interpose [" "] (remove empty? (map note-content blocks))))))
+
 (defn- footnote-mark
-  "The mark of a note. Only the first mark of a note has an id, which the note links back to."
-  [{:keys [number first?]}]
-  [:sup (element :a
-                 {:id (when first? (mark-id number)) :href (str "#" (note-id number))}
-                 [(str number)])])
+  "The mark of a note. Only the first mark of a note holds the note. It has an id, which the note
+   links back to, and the note beside it."
+  [{:keys [number note]}]
+  (let [mark [:sup (element :a
+                            {:id (when note (mark-id number)) :href (str "#" (note-id number))}
+                            [(str number)])]]
+    (if note
+      [:span {:class "note-mark"} mark (sidenote number note)]
+      mark)))
 
 (defn- unknown-content [{:keys [text]}]
   text)
@@ -80,8 +97,15 @@
   (when (and width height)
     (str width ":" height)))
 
+(defn landscape?
+  "True when the photo `block` is 3 by 2 or wider."
+  [{:keys [width height]}]
+  (boolean (and width height (>= (* 2 width) (* 3 height)))))
+
 (defn- photo [{:keys [src alt] :as block}]
-  [:figure (element :x-image {:src src :alt alt :ratio (ratio block)} [])])
+  (element :figure
+           {:class (when (landscape? block) "landscape")}
+           [(element :x-image {:src src :alt alt :ratio (ratio block)} [])]))
 
 (defn- unknown [{:keys [text]}]
   [:p text])

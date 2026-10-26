@@ -28,24 +28,13 @@
                                    :data-x-part     "entries"}]
                  card))
 
-(defn- hero-class
-  "The class of the opening of a post: one with its cover behind its title, or one without."
-  [{:keys [cover]}]
-  (if cover "hero with-cover" "hero"))
-
-(defn- gradient-title?
-  "Whether the title of a post is filled with a gradient: never over its cover, where it is
-   white."
-  [{:keys [gradient-titles? cover]}]
-  (boolean (and gradient-titles? (not cover))))
-
 ;; The cover moves at half the speed of the page, and the title at the speed of the page.
 (def ^:private hero
   "The opening of a post: its cover, behind its title, date and tags."
-  [:x-scroll-parallax {:class hero-class :style pages/cover-name-around}
+  [:x-scroll-parallax {:class pages/hero-class :style pages/cover-name-around}
    [:img {:class "hero-picture" :src pages/cover-src :alt pages/cover-alt :data-speed "0.5"
           :hidden pages/no-cover?}]
-   [:div {:class "hero-text" :data-speed "1"} (pages/post-header-with gradient-title?)]])
+   [:div {:class "hero-text" :data-speed "1"} (pages/post-header-with pages/gradient-title?)]])
 
 (def template
   "The node of the whole document."

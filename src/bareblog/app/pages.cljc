@@ -78,7 +78,7 @@
   [kind {:keys [folder]}]
   (str "view-transition-name: " (named kind folder) "; view-transition-class: " kind))
 
-(def ^:private cover-name (partial transition-name "cover"))
+(def cover-name (partial transition-name "cover"))
 (def ^:private title-name (partial transition-name "title"))
 
 ;; A component that moves an element writes the style of that element, and a hole there would
@@ -237,17 +237,14 @@
     [:a {:class "series-next" :href (comp :href next-part) :aria-label next-label :hidden no-next?}
      (comp :title next-part)]]])
 
-(defn post-page
-  "The node of the page of a post, named `node-name`, whose article opens with `header`: an
-   element that holds a header from `post-header-with`."
-  [node-name header]
-  {:split (template/split
-           node-name
-           [:div {:class "post-layout"}
-            [:article {:class "post"}
-             read-progress
-             header
-             [:div {:class "post-blocks" :id "post-text" :data-x-part "blocks"}]
+(defn- post-layout
+  "The text of a post beside its contents, in an article that opens with the elements
+   `opening`."
+  [opening]
+  [:div {:class "post-layout"}
+   (-> [:article {:class "post"} read-progress]
+       (into opening)
+       (conj [:div {:class "post-blocks" :id "post-text" :data-x-part "blocks"}]
              [:footer {:class "post-foot"}
               series-group
               [:nav {:class "foot-group neighbours" :aria-label (:others words)}
@@ -255,11 +252,37 @@
                [:a {:class "newer" :rel "next" :href (comp :href :newer) :hidden no-newer?}
                 (comp :title :newer)]
                [:a {:class "older" :rel "prev" :href (comp :href :older) :hidden no-older?}
-                (comp :title :older)]]]]
-            contents])
+                (comp :title :older)]]]))
+   contents])
+
+(defn- post-node [node-name root]
+  {:split (template/split node-name root)
    :lists {:tags   {:part "tags" :row tag}
            :blocks {:part "blocks" :row block}
            :parts  {:part "parts" :row series-part}}})
+
+(defn post-page
+  "The node of the page of a post, named `node-name`, whose article opens with `header`: an
+   element that holds a header from `post-header-with`."
+  [node-name header]
+  (post-node node-name (post-layout [header])))
+
+(defn post-page-under
+  "The node of the page of a post, named `node-name`, with `opening` across the page above its
+   text and its contents: an element that holds a header from `post-header-with`."
+  [node-name opening]
+  (post-node node-name [:div {:class "post-page"} opening (post-layout [])]))
+
+(defn hero-class
+  "The class of the opening of a post: one with its cover behind its title, or one without."
+  [{:keys [cover]}]
+  (if cover "hero with-cover" "hero"))
+
+(defn gradient-title?
+  "Whether the title of a post is filled with a gradient: never over its cover, where it is
+   white."
+  [{:keys [gradient-titles? cover]}]
+  (boolean (and gradient-titles? (not cover))))
 
 (def ^:private post-cover
   "The cover of a post."
@@ -276,12 +299,17 @@
          :hidden no-picture?}])
 
 ;; The link of the title covers the whole card, so the card is one link.
-(def card-text
-  "What a card says of a post: its title, as the link to it, its date and tags, and its summary."
+(defn card-text-with
+  "What a card says of a post: its title, as the link to it, its date and tags, and its summary.
+   The hole `gradient` says whether its title is filled with a gradient."
+  [gradient]
   [:div {:class "card-text"}
-   (titled [:h2 {:style title-name} [:a {:href :href} :title]])
+   (titled gradient [:h2 {:style title-name} [:a {:href :href} :title]])
    meta-line
    [:p {:class "summary"} :summary]])
+
+(def card-text
+  (card-text-with :gradient-titles?))
 
 (def entry
   "A post in a list: its title, its date and tags, and its summary beside its first picture."

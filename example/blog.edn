@@ -5,8 +5,8 @@
  ;; as "nl". BareBlog's own words, such as "Archive", stay English. When left out: "en".
  :language         "en"
 
- ;; How the blog looks: :journal, :notebook, :magazine, :longform or :diary. When left
- ;; out: :journal.
+ ;; How the blog looks: :journal, :notebook, :magazine, :longform, :diary or :essay. When
+ ;; left out: :journal.
  :template         :journal
 
  ;; The themes a reader can pick from, by the name of a BareDOM theme preset. The first is
