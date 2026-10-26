@@ -112,7 +112,10 @@
         (is (str/includes? page "src=\"/my-blog/js/app.js\""))
         (is (str/includes? page (str "<link rel=\"alternate\" type=\"" wire/feed-type "\" href=\"/my-blog/"
                                      wire/feed "\">")))
-        (is (not (re-find #"(href|src)=\"/(?!my-blog/)" page)))))))
+        (is (not (re-find #"(href|src)=\"/(?!my-blog/)" page)))))
+    (testing "the page of the app reads the colour of the page by the names the app keeps it under"
+      (is (every? (partial str/includes? (slurp "resources/public/index.html"))
+                  (map pr-str (vals wire/page-colours)))))))
 
 (deftest every-page-is-served-test
   (let [site    {:blog  {:per-page 1}

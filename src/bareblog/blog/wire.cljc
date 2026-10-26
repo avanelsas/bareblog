@@ -39,6 +39,11 @@
   "The file at the top of a blog that a host sends for an address with no page."
   "404.html")
 
+(def page-colours
+  "The names under which the browser keeps the colour of the page, in light and in dark mode.
+   The page of the app reads them in its head, before anything is drawn."
+  {:light "bareblog-colour-light" :dark "bareblog-colour-dark"})
+
 (def root-attribute
   "The attribute of the document of a page that holds where the top of the blog is."
   "data-root")

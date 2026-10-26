@@ -2,6 +2,13 @@
 <html lang="en" data-loading>
   <head>
     <meta charset="utf-8">
+    <script>
+      try {
+        const colour = localStorage.getItem(matchMedia("(prefers-color-scheme: dark)").matches
+                                            ? "bareblog-colour-dark" : "bareblog-colour-light");
+        if (colour) document.documentElement.style.backgroundColor = colour;
+      } catch (e) {}
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>BareBlog</title>
     <link rel="alternate" type="application/atom+xml" href="/feed.xml">
