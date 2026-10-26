@@ -53,6 +53,14 @@
     (is (= {:command "series" :series-name "Trip" :named ["The start" "end"] :yes? false}
            (cli/asked ["series" "--name" "Trip" "The start" "end"])))
     (is (= {:command "series" :series-name "Trip" :named [] :yes? true} (cli/asked ["series" "--name" "Trip" "--yes"]))))
+  (testing "the font is said, fetched by its name, or taken away"
+    (is (= {:command "font"} (cli/asked ["font"])))
+    (is (= {:command "font" :family "Source Serif 4" :yes? false} (cli/asked ["font" "Source Serif 4"])))
+    (is (= {:command "font" :family "Literata" :yes? true} (cli/asked ["font" "--yes" "Literata"])))
+    (is (= {:command "font" :none? true :yes? true} (cli/asked ["font" "--none" "--yes"]))))
+  (testing "a font that is no name, or more than one, is refused"
+    (doseq [args [["font" "Bad\"name"] ["font" "A" "B"] ["font" "--none" "A"] ["font" "--yes"]]]
+      (is (re-find #"Give the name of a font" (:refuse (cli/asked args))) (pr-str args))))
   (testing "a series without --name and its name is refused"
     (is (every? (comp some? :refuse cli/asked)
                 [["series" "Trip"] ["series" "--name"] ["series" "--yes"] ["series" "--nam" "Trip"]])))

@@ -77,9 +77,18 @@
     (is (= {:serve :nothing} (serve/route "/a-post/%2e%2e")))))
 
 (deftest top-files-test
-  (testing "the feed, and the page for an address with no page, are at the top"
+  (testing "the feed, the stylesheet of the font, and the page for an address with no page, are
+            at the top"
     (is (= {:serve :feed} (serve/route "/feed.xml")))
+    (is (= {:serve :font} (serve/route "/font.css")))
     (is (= {:serve :missing} (serve/route "/404.html")))))
+
+(deftest font-routes-test
+  (testing "a file in a folder among the fonts is a file of a font"
+    (is (= {:serve :font-file :folder "source-serif-4" :file "a-latin.woff2"}
+           (serve/route "/fonts/source-serif-4/a-latin.woff2"))))
+  (testing "a folder that cannot be the folder of a font serves nothing"
+    (is (= {:serve :nothing} (serve/route "/fonts/Literata/a.woff2")))))
 
 (deftest under-a-path-test
   (testing "a path of a request is read from the top of the blog"
@@ -187,6 +196,32 @@
                                               {:uri "/my-blog/app.css" :query-string "v=abc"}))))))
         (testing "a file that is not in it is not found"
           (is (= 404 (:status (served (source/preview dir) "/other.css")))))))))
+
+(deftest font-test
+  (testing "a blog with a font of its own sends its faces, named from the top, and its files"
+    (example/with-copy {:font "Literata"}
+      (fn [dir]
+        (let [folder (fs/create-dirs (fs/path dir "fonts" "literata"))
+              served (fn [path] (serve/handler {:blog (source/preview dir) :app "resources/public"} {:uri path}))]
+          (spit (fs/file folder "font.css") "@font-face { src: url(a.woff2); }")
+          (spit (fs/file folder "a.woff2") "the font")
+          (is (= "@font-face { src: url(fonts/literata/a.woff2); }\n:root {\n  --font: \"Literata\";\n}\n"
+                 (:body (served "/font.css"))))
+          (is (= "font/woff2" (get-in (served "/fonts/literata/a.woff2") [:headers "Content-Type"])))
+          (is (= 404 (:status (served "/fonts/literata/b.woff2"))))
+          (is (re-find #"href=\"/font\.css\?v=[0-9a-f]{12}\"" (:body (served "/archive/"))))
+          (testing "and no other font"
+            (fs/create-dirs (fs/path dir "fonts" "lora"))
+            (spit (fs/file dir "fonts" "lora" "a.woff2") "another font")
+            (is (= 404 (:status (served "/fonts/lora/a.woff2")))))))))
+  (testing "a blog with no font has an empty stylesheet, also when its settings cannot be read"
+    (example/with-copy {}
+      (fn [dir]
+        (let [served (fn [path] (serve/handler {:blog (source/preview dir) :app "resources/public"} {:uri path}))]
+          (is (= "" (:body (served "/font.css"))))
+          (spit (fs/file dir "blog.edn") "{:title")
+          (is (= "" (:body (served "/font.css"))))
+          (is (= 200 (:status (served "/archive/")))))))))
 
 (deftest app-dir-test
   (testing "the files of the app are in BareBlog, wherever that is"

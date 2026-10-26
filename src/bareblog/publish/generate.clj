@@ -186,6 +186,14 @@
   (doseq [src (pictures/files pictures)]
     (fs/copy (fs/path (source/pictures-dir blog) src) (fs/path out src) {:replace-existing true})))
 
+(defn- copy-font!
+  "Copies the folder of the font of `blog` into the fonts at the top of `out`."
+  [blog out]
+  (when-some [dir (source/find-font-dir blog)]
+    (let [to (fs/path out layout/fonts-dir (fs/file-name dir))]
+      (fs/create-dirs (fs/parent to))
+      (fs/copy-tree dir to {:replace-existing true}))))
+
 (defn- write-blog!
   "Writes the whole of `blog` into the directory `out`, and gives the file of each page. Its
    pages are saved from a server that runs for as long as this takes."
@@ -201,9 +209,11 @@
       (let [files (save-pages! how blog origin out pages told)]
         (doseq [[file text] (output/texts root site)]
           (write-text! out file text))
+        (write-text! out wire/font (source/read-font-css blog))
         (copy-app! app out)
         (copy-media! blog out (distinct (keep :text (vals told))))
         (copy-pictures! blog out (:pictures site))
+        (copy-font! blog out)
         files)
       (finally
         @(http/server-stop! server)))))

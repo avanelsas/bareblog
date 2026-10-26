@@ -4,6 +4,7 @@
    The edge of the command. It is run in the directory of a blog, and is told where BareBlog
    is."
   (:require [babashka.fs :as fs]
+            [bareblog.blog.font :as font]
             [bareblog.command.start :as start]
             [bareblog.read.source :as source]
             [clojure.java.browse :as browse]
@@ -29,6 +30,11 @@
              "bareblog series --name \"A series\""
              "                                  removes the series, and keeps its posts"
              "                --yes             with a yes to the question"
+             "bareblog font                     the font of the blog, and whether it is served"
+             "bareblog font \"Literata\"          a font of Google Fonts, fetched into the blog"
+             "                                  as its font, in place of the one before"
+             "bareblog font --none              the font taken away, back to that of the theme"
+             "              --yes               with a yes to the question"
              "bareblog version                  the version of BareBlog"
              "bareblog update                   BareBlog, brought to its latest release"
              "                --yes             with a yes to the question"]))
@@ -98,6 +104,17 @@
       (empty? args)                             {}
       (and (= name-flag what) series-name)      {:series-name series-name :named (vec named) :yes? yes?}
       :else {:refuse "Name the series and its posts: bareblog series --name \"A series\" \"A post\" \"Another post\""})))
+
+(def ^:private none "--none")
+
+(defn- asks-font [args]
+  (let [[what & more] (remove #{yes} args)
+        yes?          (boolean (some #{yes} args))]
+    (cond
+      (empty? args)                                 {}
+      (and (= none what) (empty? more))             {:none? true :yes? yes?}
+      (and (font/family? what) (empty? more))       {:family what :yes? yes?}
+      :else {:refuse "Give the name of a font of Google Fonts, in quotes, or --none: bareblog font \"Literata\""})))
 
 (defn- asks-nothing [_args]
   {})
@@ -180,6 +197,14 @@
       ((requiring-resolve 'bareblog.command.series/make!) how dir series-name named)
       ((requiring-resolve 'bareblog.command.series/list!) how dir))))
 
+;; The font is changed by name, as the series are.
+(defn- run-font! [{:keys [dir]} {:keys [family none? yes?]}]
+  (let [how {:say println :ask (if yes? say-yes! ask!)}]
+    (cond
+      family ((requiring-resolve 'bareblog.command.font/fetch!) how dir family)
+      none?  ((requiring-resolve 'bareblog.command.font/none!) how dir)
+      :else  ((requiring-resolve 'bareblog.command.font/list!) how dir))))
+
 ;; The version and an update are asked for by name, as a publish is.
 (defn- run-version! [{:keys [home]} _asked]
   ((requiring-resolve 'bareblog.command.update/version!) {:say println} home))
@@ -201,6 +226,7 @@
    "publish" {:asks asks-publish :run run-publish! :in-a-blog? true}
    "tags"    {:asks asks-tags :run run-tags! :in-a-blog? true}
    "series"  {:asks asks-series :run run-series! :in-a-blog? true}
+   "font"    {:asks asks-font :run run-font! :in-a-blog? true}
    "version" {:asks asks-nothing :run run-version!}
    "update"  {:asks asks-update :run run-update!}
    "help"    {:asks asks-nothing :run run-help!}})

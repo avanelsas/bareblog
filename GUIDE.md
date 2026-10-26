@@ -125,6 +125,32 @@ A logo and a favicon can have a picture for each mode of the theme:
 dark. One name, as `"logo.svg"`, is the picture in both modes. A browser keeps a picture until
 it changes, and then takes the new one.
 
+## The font of the blog
+
+The running text of the posts and the lists, their paragraphs, lists, quotes, footnotes and
+summaries, can have a font of its own. Titles, the navbar and the components keep the font of
+the theme.
+
+```
+bareblog font "Literata"
+```
+
+This fetches the font from Google Fonts into `fonts/literata/`, beside `blog.edn`, and sets
+`:font "Literata"` in `blog.edn`. The blog serves the font itself, so every reader sees it and
+no reader's browser asks Google for it. The font comes in parts by alphabet, and a reader's
+browser fetches only the parts a page has letters of. The licence of the font is in its folder.
+
+| You want to | Do this |
+|---|---|
+| See the font of the blog | `bareblog font` |
+| Use another font | `bareblog font "Source Serif 4"`. It asks before it removes the folder of the font before |
+| Go back to the font of the theme | `bareblog font --none` |
+
+Each goes live with `bareblog publish --all`.
+
+`:font` can also name a font that is not in `fonts/`, such as `"Georgia"`. Only a reader who has
+that font installed sees it. Any other reader sees the font of the theme.
+
 ## Link previews
 
 A chat that shows a link to your blog, such as Slack, reads a card in the page: a title, a

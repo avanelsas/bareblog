@@ -3,7 +3,8 @@
 
    An address starts at the top of the blog, which is `top` in the preview and the path of the
    address in the settings when the blog is generated. Every function here takes it as `root`."
-  (:require [bareblog.blog.wire :as wire]
+  (:require [bareblog.blog.layout :as layout]
+            [bareblog.blog.wire :as wire]
             [clojure.string :as str]))
 
 (def top
@@ -16,7 +17,7 @@
 
 (def reserved
   "The names at the top of a blog that are not the name of the folder of a post or a page."
-  #{pages tags archive-name "js"})
+  #{pages tags archive-name "js" layout/fonts-dir})
 
 (def ^:private written
   "How the address in the settings of a blog is written: its scheme and host, the host alone,

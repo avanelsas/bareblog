@@ -119,6 +119,7 @@ build that GitHub starts fails.
 | See every tag, or write one tag one way | `bareblog tags`, then `bareblog tags rename baredom "BareDOM"` and `bareblog publish --all` |
 | Make a series of posts, or change one | `bareblog series --name "A series" "A post" "Another post"`, with every part in order. It goes live with the next publish |
 | Remove a series, and keep its posts | `bareblog series --name "A series"` |
+| Give the running text a font of its own | `bareblog font "Literata"`, then `bareblog publish --all`. `bareblog font --none` takes it away |
 | Use the latest release of BareBlog | `bareblog update`, then `bareblog publish --all` |
 
 Publishing one post reads only that post from disk. An unfinished edit in another post stays on
