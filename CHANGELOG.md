@@ -3,6 +3,11 @@
 All notable changes to BareBlog are listed here. Until 1.0.0, a release may change the
 settings, the layout of a blog and the commands.
 
+## [0.6.2] - 2026-10-27
+
+BareBlog bumps the BareDOM version to 4.16.0 to improve digital accessibility by following
+WCAG AA contrast guidelines in every theme.
+
 ## [0.6.1] - 2026-10-27
 
 BareBlog needs BareDOM 4.15.0.
