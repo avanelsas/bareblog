@@ -1,6 +1,6 @@
 {
   "name": "bareblog",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "A blog publishing tool built on BareDOM components and the BareMirror runtime.",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "preview": "cd example && ../bin/bareblog preview"
   },
   "devDependencies": {
-    "@vanelsas/baredom": "4.15.0",
+    "@vanelsas/baredom": "4.16.0",
     "shadow-cljs": "^3.4.11"
   }
 }
