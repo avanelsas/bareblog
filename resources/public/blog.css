@@ -618,10 +618,11 @@ x-collapse.series::part(chevron) {
   margin: 0 0 var(--x-space-xl, 1.5rem);
 }
 
-/* A line breaks where it reads well, and a long word breaks in the language of the blog. */
+/* A line breaks where it reads well, and a word too long for the column breaks rather than spills. */
 .post-blocks p,
 .post-blocks li {
-  hyphens: auto;
+  hyphens: manual;
+  overflow-wrap: break-word;
   text-wrap: pretty;
 }
 
