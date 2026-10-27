@@ -3,6 +3,16 @@
 All notable changes to BareBlog are listed here. Until 1.0.0, a release may change the
 settings, the layout of a blog and the commands.
 
+## [0.6.1] - 2026-10-27
+
+BareBlog needs BareDOM 4.15.0.
+
+### Changed
+
+- **No word in a post is broken with a hyphen.** The running text of a post and its lists
+  wraps between words. A word too long for the column, as a long address, breaks where it
+  must rather than run past it.
+
 ## [0.6.0] - 2026-10-26
 
 BareBlog needs BareDOM 4.15.0.
