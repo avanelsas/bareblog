@@ -3,7 +3,9 @@
 All notable changes to BareBlog are listed here. Until 1.0.0, a release may change the
 settings, the layout of a blog and the commands.
 
-## [Unreleased]
+## [0.7.0] - 2026-10-28
+
+BareBlog needs BareDOM 4.16.0.
 
 ### Added
 
