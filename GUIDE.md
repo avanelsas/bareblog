@@ -61,6 +61,16 @@ BareBlog works out the rest:
 | The cover | A picture on a line of its own that opens the post, right after the title. Each blog template shows it in its own way, and not again in the text. When a reader opens the post from a list, its picture there grows into the cover |
 | The picture in lists and link previews | The first picture of the post, which is its cover when it has one. A link preview takes the first PNG, JPEG or GIF |
 
+A picture on a line of its own has a caption below it when you write one, as the title of the
+picture. Without a title it has none, and the text in brackets is never shown: it describes the
+picture to a reader who cannot see it.
+
+```
+![The harbour at dawn](harbour.jpg "Lisbon, the morning we arrived")
+```
+
+The cover shows no caption.
+
 The line of tags is not shown, and a `#word` anywhere else is just text.
 
 A tag is one tag in any case, and with a dash, an underscore or a space between its words:

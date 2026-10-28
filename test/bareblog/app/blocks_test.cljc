@@ -67,6 +67,10 @@
   (testing "a photo block is an x-image in a figure"
     (is (= [:figure [:x-image {:src "harbour.svg" :alt "The harbour at dawn"}]]
            (blocks/template (:photo examples)))))
+  (testing "a photo with a caption has it below the picture"
+    (is (= [:figure [:x-image {:src "harbour.svg" :alt "The harbour at dawn"}]
+            [:figcaption "Lisbon, at six"]]
+           (blocks/template (assoc (:photo examples) :caption "Lisbon, at six")))))
   (testing "a photo with a size holds its place with a ratio"
     (is (= [:x-image {:src "harbour.svg" :alt "The harbour at dawn" :ratio "600:450"}]
            (peek (blocks/template (assoc (:photo examples) :width 600 :height 450))))))

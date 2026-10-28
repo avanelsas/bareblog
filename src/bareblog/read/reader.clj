@@ -21,6 +21,11 @@
 
        {:kind :live :text \"<x-icon></x-icon>\" :height 300}
 
+   A paragraph that holds one image and nothing else is a photo. The title of the image, when
+   it has one, is its caption.
+
+       {:kind :photo :src \"harbour.jpg\" :alt \"The harbour at dawn\" :caption \"Lisbon, at six\"}
+
    A text says two things of itself that are no blocks. A heading of the first level that
    opens it is its title. A last paragraph of nothing but tags, as `#travel #x-code`, names
    its tags, and `retagged` writes that paragraph anew."
@@ -107,8 +112,13 @@
   [{:keys [content]}]
   (and (= 1 (count content)) (= :image (:type (first content)))))
 
-(defn- photo [node]
-  (assoc (image (first (:content node))) :kind :photo))
+(defn- photo
+  "The photo that the paragraph `node` holds, with the title of its image as its caption."
+  [node]
+  (let [picture (first (:content node))
+        title   (get-in picture [:attrs :title])]
+    (cond-> (assoc (image picture) :kind :photo)
+      (not (str/blank? title)) (assoc :caption title))))
 
 (defn- text [node]
   {:kind :text :content (children node)})

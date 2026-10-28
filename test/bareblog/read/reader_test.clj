@@ -35,6 +35,12 @@
   (testing "a paragraph that holds one image and nothing else is a photo block"
     (is (= [{:kind :photo :src "harbour.svg" :alt "The harbour at dawn"}]
            (blocks "![The harbour at dawn](harbour.svg)"))))
+  (testing "the title of a photo's image is its caption"
+    (is (= [{:kind :photo :src "harbour.svg" :alt "The harbour at dawn" :caption "Lisbon, at six"}]
+           (blocks "![The harbour at dawn](harbour.svg \"Lisbon, at six\")"))))
+  (testing "a blank title is no caption"
+    (is (= [{:kind :photo :src "harbour.svg" :alt "The harbour at dawn"}]
+           (blocks "![The harbour at dawn](harbour.svg \" \")"))))
   (testing "an image beside text stays in its text block"
     (is (= [{:kind :text :content ["See " {:kind :image :src "a.png" :alt "a map"} " here."]}]
            (blocks "See ![a map](a.png) here."))))
