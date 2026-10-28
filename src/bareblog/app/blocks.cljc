@@ -110,10 +110,11 @@
     (str (when-not vector? (str "--photo-width: " width "px; "))
          "--photo-ratio: " width " / " height)))
 
-(defn- photo [{:keys [src alt] :as block}]
+(defn- photo [{:keys [src alt caption] :as block}]
   (element :figure
            {:class (when (landscape? block) "landscape") :style (size-style block)}
-           [(element :x-image {:src src :alt alt :ratio (ratio block)} [])]))
+           (cond-> [(element :x-image {:src src :alt alt :ratio (ratio block)} [])]
+             caption (conj [:figcaption caption]))))
 
 (defn- unknown [{:keys [text]}]
   [:p text])

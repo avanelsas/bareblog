@@ -745,6 +745,13 @@ x-collapse.series::part(chevron) {
   margin-inline: auto;
 }
 
+.post-blocks figcaption {
+  margin-top: var(--x-space-sm, 0.5rem);
+  color: var(--muted-color);
+  font-size: 0.875em;
+  text-align: center;
+}
+
 .post-blocks img {
   max-width: 100%;
   height: auto;

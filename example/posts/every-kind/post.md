@@ -28,9 +28,9 @@ A numbered list that starts at three:
 4. Turn it into blocks.
 5. Show the blocks.
 
-A photo:
+A photo, with a caption written as the title of the picture:
 
-![The harbour at dawn, with a boat on the water](harbour.svg)
+![The harbour at dawn, with a boat on the water](harbour.svg "The harbour at dawn")
 
 Code in a language that `x-code` colours: JavaScript, JSON, CSS, HTML or Clojure. Code in any
 other language is shown plain.
