@@ -427,6 +427,12 @@
                                                 {:page {:kind :home :number 1}} {})))))
     (is (false? (:page-colors? (:item (view/page "/" site {:page {:kind :home :number 1}} {})))))))
 
+(deftest texture-test
+  (testing "the document names the texture of the page that the settings name, and none by default"
+    (is (= "paper" (:texture (:item (view/page "/" (assoc-in site [:blog :texture] :paper)
+                                               {:page {:kind :home :number 1}} {})))))
+    (is (= "none" (:texture (:item (view/page "/" site {:page {:kind :home :number 1}} {})))))))
+
 (defn- gradient-titles
   "Whether `site` fills the title of the post that `post` tells, of the page that `about` tells,
    and of each entry of the list that `home` tells."

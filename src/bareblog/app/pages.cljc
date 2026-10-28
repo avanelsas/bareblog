@@ -458,6 +458,11 @@
                      :opacity     "0.25"
                      :data-colors :page-colors?}])
 
+(def page-texture
+  "The texture over the background of the whole page, which the item names: none, grain or
+   paper."
+  [:div {:class "page-texture" :aria-hidden "true" :data-texture :texture}])
+
 (defn navbar
   "The navbar of a page, in a band that shows the colours of the theme when the item says so:
    the brand, the links, and `search` and the theme select, with the button that opens the

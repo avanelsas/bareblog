@@ -3,7 +3,8 @@
   (:require [bareblog.blog.font :as font]
             [bareblog.blog.layout :as layout]
             [bareblog.blog.pictures :as pictures]
-            [bareblog.blog.text :as text]))
+            [bareblog.blog.text :as text]
+            [clojure.string :as str]))
 
 (defn entry
   "What the list of posts says of `post`, which is in the folder `folder`: enough to show it in
@@ -96,6 +97,37 @@
   [settings]
   (true? (:page-colors settings)))
 
+(def textures
+  "The textures that can lie over the background of every page, in the order the settings name
+   them."
+  [:none :grain :paper])
+
+(def default-texture
+  "What a new blog writes in its settings for the texture of its pages, which is what a blog
+   that says nothing of it gets."
+  :none)
+
+(defn- texture?
+  "Whether `x` is one of `textures`."
+  [x]
+  (some #{x} textures))
+
+;; A value written wrong is named as a problem, and the page has no texture meanwhile.
+(defn texture
+  "The texture that the settings `settings` lay over the background of every page, one of
+   `textures`."
+  [settings]
+  (let [chosen (:texture settings)]
+    (if (texture? chosen) chosen default-texture)))
+
+(defn- texture-problems
+  "What is wrong with how `settings` give the texture of the pages, as texts."
+  [settings]
+  (when-some [value (:texture settings)]
+    (when-not (texture? value)
+      [(str layout/settings-file " gives " (pr-str value) " as its :texture, which is one of "
+            (str/join ", " (map pr-str textures)) ".")])))
+
 (defn- yes-or-no-problems
   "What is wrong with how `settings` give the setting `k`, which is true or false, as texts."
   [settings k]
@@ -110,6 +142,7 @@
           (yes-or-no-problems settings :gradient-titles)
           (yes-or-no-problems settings :navbar-colors)
           (yes-or-no-problems settings :page-colors)
+          (texture-problems settings)
           (font/settings-problems settings)
           (pictures/settings-problems settings)))
 

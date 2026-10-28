@@ -97,6 +97,61 @@ body {
   display: none;
 }
 
+/* The texture over the background of the whole page, fixed to the window and under its content,
+   as the colours are. Each texture is a tile of black SVG noise whose alpha rises to 1, which a
+   dark page inverts to white. So the opacity is the most that the texture moves the background,
+   and the colour of the theme shows through. Each filter covers its tile and no more, so that
+   the noise meets itself at the edges. Over a texture, links and muted text are held further
+   from the background, so that every theme keeps 4.5:1 where the texture is strongest. */
+
+.page .page-texture {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.12;
+}
+
+.page .page-texture[data-texture="none"] {
+  display: none;
+}
+
+@media (prefers-color-scheme: light) {
+  .page:has(> .page-texture:not([data-texture="none"])) {
+    --lightness-max: 0.46;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .page .page-texture {
+    filter: invert(1);
+  }
+
+  .page:has(> .page-texture:not([data-texture="none"])) {
+    --lightness-min: 0.71;
+  }
+}
+
+/* Grain is fine specks that fade at their edges, drawn at half the size of their tile. */
+
+.page .page-texture[data-texture="grain"] {
+  background-size: 120px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 -1.8'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url%28%23n%29'/%3E%3C/svg%3E");
+}
+
+/* Paper is soft blotches, thin fibres and a fine tooth. */
+
+.page .page-texture[data-texture="paper"] {
+  background-size: 600px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='p' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006' numOctaves='3' seed='3' stitchTiles='stitch' result='m'/%3E%3CfeColorMatrix in='m' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.6 -0.55' result='mottle'/%3E%3CfeTurbulence type='turbulence' baseFrequency='0.035' numOctaves='3' seed='11' stitchTiles='stitch' result='f'/%3E%3CfeColorMatrix in='f' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -7 1' result='fibres'/%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='2' seed='5' stitchTiles='stitch' result='t'/%3E%3CfeColorMatrix in='t' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.4 -0.45' result='tooth'/%3E%3CfeMerge%3E%3CfeMergeNode in='mottle'/%3E%3CfeMergeNode in='fibres'/%3E%3CfeMergeNode in='tooth'/%3E%3C/feMerge%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url%28%23p%29'/%3E%3C/svg%3E");
+}
+
+@media print {
+  .page .page-texture {
+    display: none;
+  }
+}
+
 /* The band that holds the navbar. x-gaussian-blur makes itself as high as what holds it. The
    band takes the height of the navbar. */
 

@@ -278,6 +278,17 @@
       (is (true? (:data-colors (attrs-of split (assoc item :page-colors? true) "x-gaussian-blur.page-colors"))))
       (is (false? (:data-colors (attrs-of split (assoc item :page-colors? false) "x-gaussian-blur.page-colors")))))))
 
+(deftest page-texture-test
+  (doseq [template-name (keys templates/by-name)
+          :let          [split (:split (templates/named template-name))
+                         item  (:item (view/page "/" (site-of template-name) (:home pages) {}))]]
+    (testing (str template-name ": the texture of the page is the one the view names")
+      (is (= "grain" (:data-texture (attrs-of split (assoc item :texture "grain") "div.page-texture"))))
+      (is (= "none" (:data-texture (attrs-of split (assoc item :texture "none") "div.page-texture")))))
+    (testing (str template-name ": the texture is hidden from a reader of the screen")
+      (is (= ["true"] (keep (fn [[_ attrs]] (when (= "page-texture" (:class attrs)) (:aria-hidden attrs)))
+                            (elements (:fixed split))))))))
+
 (deftest magazine-test
   (let [entries (get-in (templates/named :magazine) [:lists :main :rows "entries"])
         card    (get-in entries [:lists :entries :row :split])

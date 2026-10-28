@@ -3,6 +3,17 @@
 All notable changes to BareBlog are listed here. Until 1.0.0, a release may change the
 settings, the layout of a blog and the commands.
 
+## [Unreleased]
+
+### Added
+
+- **A texture over the background.** `:texture :grain` lays a fine noise, as of film, over the
+  background of every page, and `:texture :paper` soft blotches, thin fibres and a fine tooth.
+  It lies under the text, takes the colours of the theme in light and in dark, and is not
+  printed. A page with a texture holds its links and muted text a little darker on a light
+  page and a little lighter on a dark one, so that every theme keeps WCAG AA contrast over it.
+  `bareblog init` writes `:texture :none`.
+
 ## [0.6.2] - 2026-10-27
 
 BareBlog bumps the BareDOM version to 4.16.0 to improve digital accessibility by following

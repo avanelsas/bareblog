@@ -20,6 +20,7 @@
                 [:x-theme {:preset :preset}
                  [:div {:class (str "page " (name template-name))}
                   pages/page-colors
+                  pages/page-texture
                   (pages/navbar pages/search-field)
                   [:x-drawer {:label (:menu pages/words) :placement "right" :open :menu?
                               :on    {"x-drawer-toggle" :menu}}

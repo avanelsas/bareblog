@@ -19,6 +19,7 @@
     bareblog.app.live-test
     bareblog.app.requests-test
     bareblog.app.state-test
+    bareblog.app.style-test
     bareblog.app.templates-test
     bareblog.app.view-test
     bareblog.written.feed-test
