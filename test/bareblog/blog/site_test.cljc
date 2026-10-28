@@ -51,6 +51,17 @@
            (site/settings-problems {:page-colors "yes"})))
     (is (empty? (site/settings-problems {:page-colors true})))))
 
+(deftest texture-test
+  (testing "the texture is the one the settings name, and none when they name none"
+    (is (= :grain (site/texture {:texture :grain})))
+    (is (= :paper (site/texture {:texture :paper})))
+    (is (= [:none :none] (map site/texture [{} {:texture :none}]))))
+  (testing "a texture that is not one of them is named as a problem, and the page has none"
+    (is (= ["blog.edn gives :sand as its :texture, which is one of :none, :grain, :paper."]
+           (site/settings-problems {:texture :sand})))
+    (is (= :none (site/texture {:texture :sand})))
+    (is (empty? (site/settings-problems {:texture :paper})))))
+
 (deftest days-test
   (testing "the days of the posts are each day once, oldest first, and a post with no date has none"
     (is (= ["2026-10-02" "2026-10-12"]

@@ -49,6 +49,10 @@
              " ;; The colours of the theme, still, behind the whole page. Only true shows them."
              (str " :page-colors      " (pr-str site/default-page-colors))
              ""
+             " ;; A texture over the background of every page, under the text: :grain, a fine"
+             " ;; noise as of film, :paper, soft blotches and thin fibres as of paper, or :none."
+             (str " :texture          " (pr-str site/default-texture))
+             ""
              " ;; The logo in the navbar, in place of the title: an SVG, PNG, JPEG, GIF or WebP"
              " ;; beside this file. One name is the logo in both modes of the theme. A map gives one"
              " ;; for each, and the one under :dark is shown when the theme is dark."

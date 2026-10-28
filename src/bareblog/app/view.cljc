@@ -441,6 +441,7 @@
                     :powered-by-footer? (site/powered-by-footer? blog)
                     :navbar-colors?     (site/navbar-colors? blog)
                     :page-colors?       (site/page-colors? blog)
+                    :texture            (name (site/texture blog))
                     :home               root
                     :archive            (address/archive root)
                     :feed               (address/feed root)})

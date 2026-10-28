@@ -151,6 +151,22 @@ Each goes live with `bareblog publish --all`.
 `:font` can also name a font that is not in `fonts/`, such as `"Georgia"`. Only a reader who has
 that font installed sees it. Any other reader sees the font of the theme.
 
+## The texture of the blog
+
+A blog can lay a texture over the background of every page, under the text. Set `:texture` in
+`blog.edn`:
+
+| `:texture` | What it is |
+|---|---|
+| `:grain` | A fine noise, as of film |
+| `:paper` | Soft blotches, thin fibres and a fine tooth, as of paper |
+| `:none` | No texture. This is what a blog that leaves the setting out gets |
+
+The texture takes the colours of the theme, in light and in dark, and goes live with
+`bareblog publish --all`. A page with a texture holds its links and muted text a little darker
+on a light page and a little lighter on a dark one, so that every theme keeps the contrast that
+WCAG AA asks for over the texture. It is not printed.
+
 ## Link previews
 
 A chat that shows a link to your blog, such as Slack, reads a card in the page: a title, a
