@@ -35,6 +35,14 @@
              "                                  as its font, in place of the one before"
              "bareblog font --none              the font taken away, back to that of the theme"
              "              --yes               with a yes to the question"
+             "bareblog comments connect         the inbox of the comments, from the template sheet"
+             "bareblog comments connect <address>"
+             "                                  the inbox at the address of its web app"
+             "bareblog comments check           whether the inbox works, and tells it the setting"
+             "bareblog comments --on            comments on, and every page published"
+             "bareblog comments --off           comments off, the inbox closed, and every page"
+             "                                  published"
+             "                  --yes           with a yes to the question"
              "bareblog version                  the version of BareBlog"
              "bareblog update                   BareBlog, brought to its latest release"
              "                --yes             with a yes to the question"]))
@@ -118,6 +126,20 @@
 
 (defn- asks-nothing [_args]
   {})
+
+(def ^:private not-built
+  "What a part of comments that is not built yet is refused with."
+  "That part of bareblog comments is not built yet.")
+
+(defn- asks-comments [args]
+  (let [[what address & more] (remove #{yes} args)
+        yes?                  (boolean (some #{yes} args))]
+    (cond
+      (and (= "connect" what) (empty? more))            {:connect true :address address :yes? yes?}
+      (and (= "check" what) (nil? address))             {:check true}
+      (and (#{"--on" "--off"} what) (nil? address))     {:on? (= "--on" what) :switch true :yes? yes?}
+      (or (nil? what) (#{"reply" "remove"} what))       {:refuse not-built}
+      :else {:refuse "Give connect, check, --on or --off: bareblog comments connect"})))
 
 (defn- asks-update [args]
   (if (every? #{yes} args)
@@ -205,6 +227,26 @@
       none?  ((requiring-resolve 'bareblog.command.font/none!) how dir)
       :else  ((requiring-resolve 'bareblog.command.font/list!) how dir))))
 
+(defn- prompt!
+  "Puts `question` to the author, and gives the line they type."
+  [question]
+  (print (str question " "))
+  (flush)
+  (read-line))
+
+;; Comments are connected and switched by name, as the font is. Switching them publishes every
+;; page, as a publish does.
+(defn- run-comments! [where {:keys [connect address check switch on? yes?]}]
+  (let [how {:say          println
+             :ask          (if yes? say-yes! ask!)
+             :prompt       prompt!
+             :browse!      browse/browse-url
+             :publish-all! #(run-publish! where {:all? true :yes? true})}]
+    (cond
+      connect ((requiring-resolve 'bareblog.command.comments/connect!) how where address)
+      check   ((requiring-resolve 'bareblog.command.comments/check!) how where)
+      switch  ((requiring-resolve 'bareblog.command.comments/switch!) how where on?))))
+
 ;; The version and an update are asked for by name, as a publish is.
 (defn- run-version! [{:keys [home]} _asked]
   ((requiring-resolve 'bareblog.command.update/version!) {:say println} home))
@@ -227,6 +269,7 @@
    "tags"    {:asks asks-tags :run run-tags! :in-a-blog? true}
    "series"  {:asks asks-series :run run-series! :in-a-blog? true}
    "font"    {:asks asks-font :run run-font! :in-a-blog? true}
+   "comments" {:asks asks-comments :run run-comments! :in-a-blog? true}
    "version" {:asks asks-nothing :run run-version!}
    "update"  {:asks asks-update :run run-update!}
    "help"    {:asks asks-nothing :run run-help!}})

@@ -57,3 +57,11 @@
   "The attribute of the document of a page that says the page is the one for an address with
    no page."
   "data-not-found")
+
+(def comment-limits
+  "What a comment that a reader sends may be: the most characters of a name and of a text, and
+   how long its form is open at least, in milliseconds. The form and the script take them from
+   here."
+  {:name-max    80
+   :text-max    4000
+   :open-min-ms 5000})

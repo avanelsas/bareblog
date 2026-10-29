@@ -35,8 +35,10 @@
     bareblog.publish.plan-test
     bareblog.publish.run-test
     bareblog.command.cli-test
+    bareblog.command.comments-test
     bareblog.command.font-test
     bareblog.command.series-test
+    bareblog.command.settings-test
     bareblog.command.start-test
     bareblog.command.tags-test
     bareblog.command.update-test])

@@ -45,3 +45,19 @@ Otherwise fix the cause in a pull request, and move the tag to its merge commit:
 git checkout main && git pull
 git tag -f vX.Y.Z && git push -f origin vX.Y.Z
 ```
+
+## The template sheet of comments
+
+`bareblog comments connect` opens the template sheet, which every blog copies to get its inbox of
+comments with the script in it. It is a Google Sheet of the maintainer, shared so that anyone with
+its link may view it. Its link is `template-link` in `bareblog.command.comments`, and nowhere
+else. It is made again when it is lost, and when the script changes:
+
+1. Open https://sheets.new, and name the sheet "BareBlog comments".
+2. Extensions, then Apps Script. Paste what `bb inbox` prints over the code, and save. Do not
+   deploy it, and run nothing: a copy deploys its own.
+3. Share, General access: Anyone with the link, Viewer.
+4. Put its link in `template-link`, with `/copy` in place of what follows its id, and release.
+
+A sheet in the trash of Drive comes back with the same link for 30 days. A copy brings the script
+and nothing of its settings, so the template sheet never holds a secret.

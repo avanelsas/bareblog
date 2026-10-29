@@ -7,6 +7,15 @@
             [clojure.test :refer [deftest is testing]]))
 
 (deftest asked-test
+  (testing "comments are connected, with or without an address, checked, and switched"
+    (is (= {:command "comments" :connect true :address nil :yes? false} (cli/asked ["comments" "connect"])))
+    (is (= {:command "comments" :connect true :address "https://a" :yes? false}
+           (cli/asked ["comments" "connect" "https://a"])))
+    (is (= {:command "comments" :check true} (cli/asked ["comments" "check"])))
+    (is (= {:command "comments" :switch true :on? true :yes? true} (cli/asked ["comments" "--on" "--yes"])))
+    (is (= {:command "comments" :switch true :on? false :yes? false} (cli/asked ["comments" "--off"])))
+    (is (every? (comp some? :refuse cli/asked)
+                [["comments"] ["comments" "reply"] ["comments" "check" "x"] ["comments" "--on" "x"]])))
   (testing "a new blog is asked for with its title"
     (is (= {:command "init" :title "My blog"} (cli/asked ["init" "My blog"])))
     (is (re-find #"in quotes" (:refuse (cli/asked ["init"]))))

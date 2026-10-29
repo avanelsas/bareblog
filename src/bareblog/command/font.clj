@@ -3,18 +3,18 @@
    the font taken away again.
 
    The edge of the command. What a font of a blog is, is `bareblog.blog.font`, which is pure, and
-   so is what is read of Google Fonts and how the settings change, at the top. Each function here
-   is given how, with `:say`, and `:ask` that puts a question to the author and gives true for a
-   yes. It gives the number that the process ends with."
+   so is what is read of Google Fonts, at the top, and how the settings change, in
+   `bareblog.command.settings`. Each function here is given how, with `:say`, and `:ask` that
+   puts a question to the author and gives true for a yes. It gives the number that the process
+   ends with."
   (:require [babashka.fs :as fs]
             [babashka.http-client :as http]
             [bareblog.blog.font :as font]
             [bareblog.blog.layout :as layout]
+            [bareblog.command.settings :as settings]
             [bareblog.read.source :as source]
             [cheshire.core :as json]
-            [clojure.string :as str]
-            [rewrite-clj.node :as node]
-            [rewrite-clj.zip :as z]))
+            [clojure.string :as str]))
 
 ;; What is read of Google Fonts. Pure.
 
@@ -167,111 +167,19 @@
     (for [[licence-dir file] licences]
       {:address (str licence-address licence-dir "/" id "/" file) :file file})))
 
-;; How the settings change. Pure. A setting is changed in the text, so that what the author
-;; wrote around it stays as it was.
-
-(defn- ends-line? [n]
-  (contains? #{:comment :newline} (node/tag n)))
-
-(defn- space? [n]
-  (contains? #{:whitespace :newline :comma} (node/tag n)))
-
-(defn- newline? [n]
-  (= :newline (some-> n node/tag)))
-
-(defn- added
-  "The nodes of the map `nodes` with the setting `entry` at its end: on a line of its own
-   where the map ends with one, and after the last setting where it ends on the line of it."
-  [nodes entry]
-  (let [body     (vec (reverse (drop-while space? (reverse nodes))))
-        trailing (subvec (vec nodes) (count body))
-        indent   (node/spaces 1)
-        new-line (node/newlines 1)]
-    (cond
-      (empty? body)             (concat entry trailing)
-      (ends-line? (peek body))  (concat body [indent] entry [new-line] trailing)
-      (some newline? trailing)  (concat body [new-line indent] entry trailing)
-      :else                     (concat body [indent] entry trailing))))
-
-(defn- blank? [n]
-  (= :whitespace (node/tag n)))
-
-(defn- blanks
-  "How many of `nodes` in a row from the first are spaces on a line."
-  [nodes]
-  (count (take-while blank? nodes)))
-
-(defn- taken
-  "The nodes of the map `nodes` without the setting whose key is at `i` and its value at `j`,
-   and without what set it apart: the spaces before it, with the end of the line before it
-   where that is a new line, or the spaces after it where it is the first, or the end of its
-   own line after a comment."
-  [nodes i j]
-  (let [start  (- i (blanks (rseq (subvec nodes 0 i))))
-        before (get nodes (dec start))
-        after  (subvec nodes (inc j))
-        spaces (blanks after)]
-    (concat (subvec nodes 0 (cond-> start (newline? before) dec))
-            (cond
-              (nil? before)                         (drop spaces after)
-              (and (= :comment (node/tag before))
-                   (newline? (get after spaces)))  (drop (inc spaces) after)
-              :else                                 after))))
-
-(defn- setting? [n]
-  (not (or (space? n) (= :comment (node/tag n)))))
-
-(defn- font-key? [n]
-  (and (= :token (node/tag n)) (= :font (node/sexpr n))))
-
-(defn- index-of
-  "The index of the first of `nodes` from `from` that `pred` holds for, or nil."
-  [pred nodes from]
-  (some (fn [i] (when (pred (nodes i)) i)) (range from (count nodes))))
-
-(defn- font-at
-  "The index of the key and of the value of the font among the nodes of the map `nodes`, or nil."
-  [nodes]
-  (when-some [i (index-of font-key? nodes 0)]
-    [i (index-of setting? nodes (inc i))]))
-
-(defn- set-font [family nodes]
-  (let [value (node/token-node family)]
-    (if-some [[_ j] (font-at nodes)]
-      (assoc nodes j value)
-      (added nodes [(node/keyword-node :font) (node/spaces 1) value]))))
-
-(defn- take-font [nodes]
-  (if-some [[i j] (font-at nodes)]
-    (taken nodes i j)
-    nodes))
-
-(defn- rewritten
-  "The text of the settings `text` with the nodes of its map as `change` makes them of those it
-   has."
-  [text change]
-  (let [settings (z/of-string text)
-        map-node (z/node settings)
-        changed  (change (vec (node/children map-node)))]
-    (z/root-string (z/replace settings (node/replace-children map-node changed)))))
+;; How the settings change. Pure.
 
 (defn with-font
   "The text of the settings `text` with `family` as the font of the blog."
   [text family]
-  (rewritten text (partial set-font family)))
+  (settings/with-setting text :font family))
 
 (defn without-font
   "The text of the settings `text` with no font of the blog."
   [text]
-  (rewritten text take-font))
+  (settings/without-setting text :font))
 
 ;; Doing it.
-
-(defn- read-settings-text [dir]
-  (slurp (fs/file dir layout/settings-file)))
-
-(defn- write-settings! [dir text]
-  (spit (fs/file dir layout/settings-file) text))
 
 (defn- kilobytes [path]
   (quot (+ 1023 (fs/size path)) 1024))
@@ -372,7 +280,7 @@
             name (:family family)]
         (remove-old! how dir old name)
         (put-in-place! dir fetched name)
-        (write-settings! dir (with-font (read-settings-text dir) name))
+        (settings/write! dir (with-font (settings/read-text dir) name))
         (say-fetched! how dir name came)
         0)
       (finally
@@ -414,7 +322,7 @@
       (ask (str "Take away the font " (pr-str (:font settings))
                 (when there? (str " and remove " folder)) "?"))
       (do (when there? (fs/delete-tree (fs/path dir folder)))
-          (write-settings! dir (without-font (read-settings-text dir)))
+          (settings/write! dir (without-font (settings/read-text dir)))
           (say "The blog has the font of its theme. It is published with: bareblog publish --all")
           0)
 
