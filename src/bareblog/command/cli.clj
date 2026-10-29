@@ -281,9 +281,9 @@
              :publish-comments! #(run-publish! where (assoc % :yes? true))}]
     (cond
       walk     ((requiring-resolve 'bareblog.command.comments/walk!) how where)
-      connect  ((requiring-resolve 'bareblog.command.comments/connect!) how where address)
-      check    ((requiring-resolve 'bareblog.command.comments/check!) how where)
-      switch   ((requiring-resolve 'bareblog.command.comments/switch!) how where on?)
+      connect  ((requiring-resolve 'bareblog.command.inbox/connect!) how where address)
+      check    ((requiring-resolve 'bareblog.command.inbox/check!) how where)
+      switch   ((requiring-resolve 'bareblog.command.inbox/switch!) how where on?)
       reply    ((requiring-resolve 'bareblog.command.comments/reply!) how where short-id text)
       removing ((requiring-resolve 'bareblog.command.comments/remove!) how where short-id))))
 

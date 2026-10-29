@@ -37,6 +37,7 @@
     bareblog.publish.run-test
     bareblog.command.cli-test
     bareblog.command.comments-test
+    bareblog.command.inbox-test
     bareblog.command.font-test
     bareblog.command.series-test
     bareblog.command.settings-test
