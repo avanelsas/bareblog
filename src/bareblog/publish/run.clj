@@ -1,5 +1,5 @@
 (ns bareblog.publish.run
-  "Publishes a blog: one post, the comments of one post, or the whole of it.
+  "Publishes a blog: one post, the comments of posts, or the whole of it.
 
    The edge of the command. What a publish does is `bareblog.publish.plan`, which is pure.
    Here the folders are looked at, the author is asked, the pages are generated, and what
@@ -19,12 +19,13 @@
 
 (def done?
   "The outcomes of a publish that went as the author asked."
-  #{:published :unchanged})
+  #{:published :pushed :unchanged})
 
 (def ^:private told
   "What the author is told of each outcome, from what came of the publish."
   {:published     (fn [{:keys [message]}] (str "Published: " message "."))
    :unchanged     (constantly "Nothing changed, so nothing was committed.")
+   :pushed        (constantly "Nothing changed. What was committed before is pushed now.")
    :declined      (constantly "Nothing was published.")
    :refused       :why
    :failed        (fn [{:keys [why]}] (str why "\nNothing was published."))
@@ -35,8 +36,9 @@
                                 ", with its pages."))
                          "\nWhen git can commit, publish again with: " again))
    :not-pushed    (fn [{:keys [message why]}]
-                    (str "Committed as \"" message "\", and git could not push. " why
-                         "\nPush it with: git push"))})
+                    (str (if message (str "Committed as \"" message "\", and git") "Git")
+                         " could not push. " why
+                         "\nWhen git can push, publish again with: bareblog publish --all"))})
 
 (defn- post-dir [dir folder]
   (fs/path dir layout/posts-dir folder))
@@ -116,17 +118,23 @@
         (move! (post-dir dir move) (draft-dir dir move)))
       {:outcome :failed :why (ex-message problem)})))
 
+;; A commit that an earlier publish could not push goes with the next publish, also when that
+;; one commits nothing, so that publishing again is how the author pushes it.
 (defn- committed!
-  "Commits what the plan `plan` changed in the blog in `dir`, and pushes it. Gives what came
-   of it."
+  "Commits what the plan `plan` changed in the blog in `dir`, and pushes it, with what was
+   committed before and not pushed. Gives what came of it."
   [dir {:keys [paths message move]}]
   (let [{:keys [committed? problem]} (git/commit! dir paths message)
-        pushed                       (when committed? (git/push! dir))]
+        pushed                       (when (and (not problem) (or committed? (git/ahead? dir)))
+                                       (git/push! dir))]
     (cond
       problem           {:outcome :not-committed :why problem :moved move}
-      (not committed?)  {:outcome :unchanged}
-      (:problem pushed) {:outcome :not-pushed :message message :why (:problem pushed)}
-      :else             {:outcome :published :message message})))
+      (:problem pushed) {:outcome :not-pushed
+                         :message (when committed? message)
+                         :why     (:problem pushed)}
+      committed?        {:outcome :published :message message}
+      pushed            {:outcome :pushed}
+      :else             {:outcome :unchanged})))
 
 ;; A commit of a path that git keeps out is refused by git. That is found before a page is
 ;; written, so that a publish that cannot end does not start.

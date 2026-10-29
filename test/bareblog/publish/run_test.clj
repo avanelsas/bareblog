@@ -425,14 +425,33 @@
 (deftest push-fails-test
   (with-repo
     (fn [{:keys [dir remote] :as repo}]
-      (fs/delete-tree remote)
+      (sh dir "remote" "set-url" "origin" (str remote ".gone"))
       (let [{:keys [outcome message said]} (publish! repo {:all? true} true)]
-        (testing "a push that fails leaves the commit, and says how to push it"
+        (testing "a push that fails leaves the commit, and says to publish again"
           (is (= [:not-pushed "Publish the whole blog"] [outcome message]))
           (is (not (run/done? outcome)))
           (is (= "Publish the whole blog" (:message (committed dir))))
-          (is (re-find #"could not push" (last said)))
-          (is (re-find #"git push" (last said))))))))
+          (is (re-find #"^Committed as \"Publish the whole blog\", and git could not push\."
+                       (last said)))
+          (is (str/ends-with? (last said)
+                              "When git can push, publish again with: bareblog publish --all"))))
+      (testing "publishing again while git still cannot push says so, with nothing new committed"
+        (let [before                         (head dir)
+              {:keys [outcome message said]} (publish! repo {:all? true} true)]
+          (is (= [:not-pushed nil] [outcome message]))
+          (is (= before (head dir)))
+          (is (re-find #"^Git could not push\." (last said)))))
+      (sh dir "remote" "set-url" "origin" remote)
+      (testing "once git can push, publishing again pushes what was committed before"
+        (let [before                (head dir)
+              {:keys [outcome said]} (publish! repo {:all? true} true)]
+          (is (= :pushed outcome))
+          (is (run/done? outcome))
+          (is (= before (head dir)))
+          (is (pushed? repo))
+          (is (= "Nothing changed. What was committed before is pushed now." (last said)))))
+      (testing "and after that, nothing changed is said as before"
+        (is (= :unchanged (:outcome (publish! repo {:all? true} true))))))))
 
 (deftest link-preview-test
   (with-repo
@@ -500,6 +519,10 @@
         (is (= "M blog.edn" (sh dir "status" "--porcelain"))))
       (testing "paths with nothing changed under them commit nothing"
         (is (= {:committed? false} (git/commit! dir ["posts"] "Nothing"))))
+      (testing "a branch with a commit that is not pushed is ahead, and one that is pushed is not"
+        (is (git/ahead? dir))
+        (git/push! dir)
+        (is (not (git/ahead? dir))))
       (testing "a push sends the branch, and says why when it cannot"
         (is (= {} (git/push! dir)))
         (is (= (head dir) (sh remote "rev-parse" "main")))
