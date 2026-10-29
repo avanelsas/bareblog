@@ -793,3 +793,9 @@
              (said :failed)))
       (is (= "Your comment was not sent: comments are closed. Copy it from here to send it again:"
              (said :closed))))))
+
+(deftest markdown-hint-test
+  (testing "the thread of a post carries the words of the hint beside the title of its form"
+    (let [[_ attrs] (first (filter (comp #{:x-comments} first)
+                                   (elements (:fixed (:split pages/post)))))]
+      (is (= "--comments-hint: \"Supports Markdown\"" (:style attrs))))))

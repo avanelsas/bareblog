@@ -558,6 +558,16 @@ body {
   text-wrap: balance;
 }
 
+/* What a comment may hold, beside the title of the form, which is inside x-comments. The words
+   are the custom property that the page sets on it. */
+x-comments::part(form-title)::after {
+  content: var(--comments-hint);
+  margin-inline-start: var(--x-space-sm, 0.5rem);
+  color: var(--muted-color);
+  font-size: var(--x-font-size-sm, 0.875rem);
+  font-weight: normal;
+}
+
 /* A comment that was not sent is shown as it was written, to copy. A long line, as an address,
    breaks to stay in the form. */
 .comment-not-sent pre {

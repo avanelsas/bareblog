@@ -38,6 +38,7 @@
    :powered-by    "Powered by "
    :comments      "Comments"
    :comment-count {:one "comment" :many "comments"}
+   :markdown      "Supports Markdown"
    :copy          "Copy"
    :sending       "Sending your comment\u2026"
    :received      "Received. Your comment shows here once the author has read it."
@@ -304,9 +305,12 @@
     [:p not-sent-line]
     [:pre (comp :text :sent)]]])
 
+;; The title of the form is inside x-comments. `blog.css` puts the words of the hint after it,
+;; from the custom property that reaches into the component.
 (def ^:private comment-thread
   "The comments of a post under its text, with the form to send one while comments are on."
   [:x-comments {:class          "comments"
+                :style          (str "--comments-hint: \"" (:markdown words) "\"")
                 :closed         :closed?
                 :reply-to       :reply-to
                 :commenter-name :commenter
