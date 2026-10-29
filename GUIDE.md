@@ -20,6 +20,7 @@ my-blog/
     a-first-post/
       post.md
       harbour.jpg
+      comments.edn      its published comments, if it has any
   pages/                pages that are no posts
     about/
       page.md
@@ -35,6 +36,9 @@ tells you when a post names a file that is not there.
 [`example/blog.edn`](./example/blog.edn) explains each in a comment.
 
 `docs/` belongs to BareBlog. Every publish writes it again, so do not change it by hand.
+
+`comments.edn` belongs to BareBlog too: `bareblog comments` writes it, as
+[Comments](./COMMENTS.md) says.
 
 ## A post
 
