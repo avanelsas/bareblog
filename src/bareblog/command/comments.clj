@@ -1,6 +1,6 @@
 (ns bareblog.command.comments
   "The `bareblog comments` command: the inbox of the comments connected, checked, comments
-   switched on and off, and the author's replies published.
+   switched on and off, and the author's replies and removals published.
 
    The inbox is a Google Sheet of the author with BareBlog's script in it, deployed as a web
    app. The setting `:comments` of the blog holds its address and whether comments are on:
@@ -394,3 +394,34 @@
       (if wrong
         (do (say wrong) 1)
         (reply-to-found! how found text)))))
+
+;; Removing.
+
+(defn- removal-question
+  "What the author is asked before a comment of the post in `folder` goes, with the number of
+   `replies` under it."
+  [folder replies]
+  (str "Remove it"
+       (case replies 0 "" 1 " and its reply" (str " and its " replies " replies"))
+       " from " folder "?"))
+
+(defn- remove-found!
+  "Shows the comment that `found` holds, asks whether it goes with the replies under it, and
+   publishes the post without them."
+  [{:keys [say ask publish-comments!]} {:keys [folder comment comments] :as found}]
+  (let [gone (comments/under comments (:id comment))]
+    (say (shown-comment found))
+    (if (ask (removal-question folder (dec (count gone))))
+      (publish-comments! {:folder   folder
+                          :comments (comments/without comments gone)
+                          :message  (str "Remove a comment on " folder)})
+      (do (say "Nothing was published.") 1))))
+
+(defn remove!
+  "Removes the published comment of the blog in `dir` whose id starts with `short`, and every
+   reply under it, and publishes its post."
+  [{:keys [say] :as how} {:keys [dir]} short]
+  (let [{:keys [wrong] :as found} (read-found-comment dir short)]
+    (if wrong
+      (do (say wrong) 1)
+      (remove-found! how found))))

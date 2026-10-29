@@ -205,6 +205,13 @@
             (is (= #{"posts/a-week-in-lisbon/comments.edn"}
                    (set (remove #(str/starts-with? % "docs/") (:paths (committed dir))))))
             (is (= "M posts/a-week-in-lisbon/post.md" (sh dir "status" "--porcelain"))))))
+      (testing "with its last comment removed, the published post shows no comments"
+        (let [file (fs/file dir "posts" "a-week-in-lisbon" "comments.edn")]
+          (is (= :published (:outcome (publish! repo {:folder "a-week-in-lisbon" :comments []
+                                                      :message "Remove a comment on a-week-in-lisbon"}
+                                                true))))
+          (is (nil? (published-comments dir "a-week-in-lisbon")))
+          (is (= [] (edn/read-string (slurp file))))))
       (testing "a post that is not published is refused, and nothing is written"
         (let [before (head dir)
               {:keys [outcome why]} (publish! repo {:folder "a-new-idea" :comments []} true)]

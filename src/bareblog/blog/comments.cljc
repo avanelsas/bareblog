@@ -88,6 +88,17 @@
   [comment text id moment]
   {:id id :reply-to (:id comment) :author? true :moment moment :text text})
 
+(defn under
+  "The ids of the comment `id` among `comments` and of every reply under it, at any depth."
+  [comments id]
+  (let [replies (group-by :reply-to comments)]
+    (set (tree-seq (constantly true) (comp (partial map :id) replies) id))))
+
+(defn without
+  "The `comments` without those whose ids are in `ids`."
+  [comments ids]
+  (into [] (remove (comp ids :id)) comments))
+
 (def ^:private written-keys
   "The keys of a comment in the order its file holds them."
   [:id :reply-to :name :author? :moment :text])

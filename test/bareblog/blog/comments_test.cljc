@@ -71,3 +71,15 @@
       (is (= 3 (count (str/split-lines text))))
       (is (str/starts-with? text "[{:id \"a\" :reply-to nil :name \"Ann\""))
       (is (str/ends-with? text "}]\n")))))
+
+(deftest under-test
+  (let [thread [(said "a" "2026-10-01" nil) (said "b" "2026-10-02" "a") (said "c" "2026-10-03" "b")
+                (said "d" "2026-10-04" "a") (said "e" "2026-10-05" nil)]]
+    (testing "a comment goes with every reply under it, at any depth, and with nothing else"
+      (is (= #{"a" "b" "c" "d"} (comments/under thread "a")))
+      (is (= #{"b" "c"} (comments/under thread "b"))))
+    (testing "a comment with no replies goes alone"
+      (is (= #{"e"} (comments/under thread "e"))))
+    (testing "the comments without those ids are the rest, in their order"
+      (is (= ["a" "d" "e"] (map :id (comments/without thread #{"b" "c"}))))
+      (is (= [] (comments/without [(said "e" "2026-10-05" nil)] #{"e"}))))))

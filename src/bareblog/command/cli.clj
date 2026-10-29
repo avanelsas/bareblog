@@ -45,6 +45,9 @@
              "                                  published"
              "bareblog comments reply <short-id>"
              "                                  the same, with the reply written in the editor"
+             "bareblog comments remove <short-id>"
+             "                                  a published comment and every reply under it"
+             "                                  taken out, and its post published"
              "bareblog comments --on            comments on, and every page published"
              "bareblog comments --off           comments off, the inbox closed, and every page"
              "                                  published"
@@ -142,6 +145,10 @@
   (str "Give the short id of a comment, and the reply in quotes or none: "
        "bareblog comments reply 1f0c9a52 \"Thank you.\""))
 
+(def ^:private remove-refusal
+  "What a removal that is not asked for well is refused with."
+  "Give the short id of a comment: bareblog comments remove 1f0c9a52")
+
 (defn- asks-comments [args]
   (let [[what address & more] (remove #{yes} args)
         yes?                  (boolean (some #{yes} args))]
@@ -153,8 +160,11 @@
       {:reply true :short-id address :text (first more) :yes? yes?}
 
       (= "reply" what)                                  {:refuse reply-refusal}
-      (or (nil? what) (= "remove" what))                {:refuse not-built}
-      :else {:refuse "Give connect, check, reply, --on or --off: bareblog comments connect"})))
+      (and (= "remove" what) address (empty? more))     {:remove true :short-id address :yes? yes?}
+      (= "remove" what)                                 {:refuse remove-refusal}
+      (nil? what)                                       {:refuse not-built}
+      :else
+      {:refuse "Give connect, check, reply, remove, --on or --off: bareblog comments connect"})))
 
 (defn- asks-update [args]
   (if (every? #{yes} args)
@@ -260,9 +270,10 @@
   (flush)
   (read-line))
 
-;; Comments are connected, switched and replied to by name, as the font is. Switching them
-;; publishes every page, and a reply its post, as a publish does.
-(defn- run-comments! [where {:keys [connect address check switch on? reply short-id text yes?]}]
+;; Comments are connected, switched, replied to and removed by name, as the font is.
+;; Switching them publishes every page, and a reply or a removal its post, as a publish does.
+(defn- run-comments!
+  [where {removing :remove :keys [connect address check switch on? reply short-id text yes?]}]
   (let [how {:say               println
              :ask               (if yes? say-yes! ask!)
              :prompt            prompt!
@@ -271,10 +282,11 @@
              :publish-all!      #(run-publish! where {:all? true :yes? true})
              :publish-comments! #(run-publish! where (assoc % :yes? true))}]
     (cond
-      connect ((requiring-resolve 'bareblog.command.comments/connect!) how where address)
-      check   ((requiring-resolve 'bareblog.command.comments/check!) how where)
-      switch  ((requiring-resolve 'bareblog.command.comments/switch!) how where on?)
-      reply   ((requiring-resolve 'bareblog.command.comments/reply!) how where short-id text))))
+      connect  ((requiring-resolve 'bareblog.command.comments/connect!) how where address)
+      check    ((requiring-resolve 'bareblog.command.comments/check!) how where)
+      switch   ((requiring-resolve 'bareblog.command.comments/switch!) how where on?)
+      reply    ((requiring-resolve 'bareblog.command.comments/reply!) how where short-id text)
+      removing ((requiring-resolve 'bareblog.command.comments/remove!) how where short-id))))
 
 ;; The version and an update are asked for by name, as a publish is.
 (defn- run-version! [{:keys [home]} _asked]

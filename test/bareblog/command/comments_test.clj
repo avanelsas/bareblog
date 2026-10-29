@@ -206,3 +206,42 @@
       (is (= "" (comments/reply-of nil))))
     (testing "a text with no cut line is the reply whole"
       (is (= "Hi." (comments/reply-of "Hi.\n"))))))
+
+(defn- removed
+  "What `remove!` says, gives and publishes, in a copy of the example blog with comments `on?`
+   whose published posts are its post of Lisbon, for the short id `short` and the answer `yes?`."
+  [{:keys [on? short yes?] :or {on? true yes? true}}]
+  (example/with-copy {:comments {:script "https://s" :on? on?}}
+    (fn [dir]
+      (fs/create-dirs (fs/path dir "docs"))
+      (spit (fs/file dir "docs" "site.edn") (pr-str {:posts [{:folder "a-week-in-lisbon"}]}))
+      (let [said      (atom [])
+            published (atom [])
+            how       {:say               #(swap! said conj %)
+                       :ask               (fn [question] (swap! said conj question) yes?)
+                       :publish-comments! #(do (swap! published conj %) 0)}
+            gave      (comments/remove! how {:dir dir} short)]
+        {:gave gave :said @said :published @published}))))
+
+(deftest remove-test
+  (testing "a comment goes with every reply under it, and its post is published without them"
+    (let [{:keys [gave said published]} (removed {:short "2a7d3b64"})
+          [{:keys [folder message] :as request}] published]
+      (is (= 0 gave))
+      (is (re-find #"^Bo Chen, 2026-10-21" (first said)))
+      (is (= "Remove it and its 3 replies from a-week-in-lisbon?" (second said)))
+      (is (= ["a-week-in-lisbon" "Remove a comment on a-week-in-lisbon"] [folder message]))
+      (is (= ["1f0c9a52-6d3e-4b1a-9a7e-2c4d5e6f7a81" "6eb17fa8-c25d-406f-8fd1-7b9cadbecfd6"]
+             (map :id (:comments request))))))
+  (testing "a comment with one reply is asked about with it"
+    (is (= "Remove it and its reply from a-week-in-lisbon?" (second (:said (removed {:short "4c9f5d86"}))))))
+  (testing "a comment with no replies goes alone, and is asked about alone"
+    (let [{:keys [said published]} (removed {:short "6eb17fa8"})]
+      (is (= "Remove it from a-week-in-lisbon?" (second said)))
+      (is (= 5 (count (:comments (first published)))))))
+  (testing "a no publishes nothing"
+    (is (empty? (:published (removed {:short "2a7d3b64" :yes? false})))))
+  (testing "a comment is removed also while comments are off"
+    (is (= 1 (count (:published (removed {:on? false :short "6eb17fa8"}))))))
+  (testing "a short id of no comment is refused"
+    (is (re-find #"No published comment" (last (:said (removed {:short "ffff"})))))))
