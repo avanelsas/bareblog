@@ -204,7 +204,7 @@
 
 (defn publish!
   "Publishes what `request` names of the blog in the directory `dir`: the post in its
-   `:folder`, the whole blog with `:all?`, or the `:comments` of the post in `:folder` with
+   `:folder`, the whole blog with `:all?`, or the `:comments` of each post by its folder, with
    the commit `:message`. `:now` in it is the moment of the publish, as text. Says what
    came of it, and gives that."
   [{:keys [say] :as how} dir {:keys [all? comments] :as request}]

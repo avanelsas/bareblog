@@ -15,8 +15,10 @@
     (is (= {:command "comments" :switch true :on? true :yes? true} (cli/asked ["comments" "--on" "--yes"])))
     (is (= {:command "comments" :switch true :on? false :yes? false} (cli/asked ["comments" "--off"])))
     (is (every? (comp some? :refuse cli/asked)
-                [["comments"] ["comments" "reply"] ["comments" "reply" "a" "b" "c"] ["comments" "check" "x"]
+                [["comments" "--yes"] ["comments" "reply"] ["comments" "reply" "a" "b" "c"] ["comments" "check" "x"]
                  ["comments" "--on" "x"] ["comments" "remove"] ["comments" "remove" "a" "b"]])))
+  (testing "the walk-through is the bare noun, with no yes to its questions"
+    (is (= {:command "comments" :walk true} (cli/asked ["comments"]))))
   (testing "a removal is asked for with the short id of its comment"
     (is (= {:command "comments" :remove true :short-id "1f0c9a52" :yes? true}
            (cli/asked ["comments" "remove" "1f0c9a52" "--yes"]))))

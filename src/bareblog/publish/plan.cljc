@@ -113,27 +113,34 @@
         (= :remove what)                                           (assoc :removed #{folder})
         (and (= :new what) (not page?) (not (:in-posts? where))) (assoc :move folder)))))
 
-;; A publish of comments takes the post as it was published, so that an unfinished edit of it
+(defn- comments-path
+  "The comments file of the post in `folder`, from the top of the blog."
+  [folder]
+  (str (path false folder) "/" layout/comments-file))
+
+;; A publish of comments takes each post as it was published, so that an unfinished edit of it
 ;; does not go live, and commits its comments file and not its folder.
 (defn comments
-  "The plan for publishing `:comments`, all the comments of the post in `:folder`, with every
+  "The plan for publishing `:comments`, all the comments of each post by its folder, with every
    post and page as it was published last in the site `:published`, and the commit `:message`."
-  [{:keys [published folder comments message]}]
-  (cond
-    (nil? published)
-    {:refuse "The blog was never published. Publish it with: bareblog publish --all"}
+  [{:keys [published comments message]}]
+  (let [posts       (folders published :posts)
+        unpublished (sort (remove posts (keys comments)))]
+    (cond
+      (nil? published)
+      {:refuse "The blog was never published. Publish it with: bareblog publish --all"}
 
-    (not (contains? (folders published :posts) folder))
-    {:refuse (str folder " is not a published post.")}
+      (seq unpublished)
+      {:refuse (str "Not a published post: " (str/join ", " unpublished) ".")}
 
-    :else
-    {:read         #{}
-     :as-published (into (folders published :posts) (folders published :pages))
-     :dates        (site/dates published)
-     :pictures-in  layout/output-dir
-     :comments     {folder comments}
-     :paths        [(str (path false folder) "/" layout/comments-file) layout/output-dir]
-     :message      message}))
+      :else
+      {:read         #{}
+       :as-published (into posts (folders published :pages))
+       :dates        (site/dates published)
+       :pictures-in  layout/output-dir
+       :comments     comments
+       :paths        (conj (mapv comments-path (sort (keys comments))) layout/output-dir)
+       :message      message})))
 
 ;; A picture that is not there is a problem of the blog, and git commits nothing for a path
 ;; with nothing under it. The series go with every publish, since only a command writes them.

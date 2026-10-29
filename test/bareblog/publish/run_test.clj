@@ -189,8 +189,8 @@
             before  (edn/read-string (slurp file))
             reply   {:id "7fc28009-0000-4000-8000-000000000000" :reply-to (:id (first before))
                      :author? true :moment "2026-10-29T10:00:00.000Z" :text "A *reply*."}
-            request {:folder "a-week-in-lisbon" :comments (conj before reply)
-                     :message "Reply to a comment on a-week-in-lisbon"}]
+            request {:comments {"a-week-in-lisbon" (conj before reply)}
+                     :message  "Reply to a comment on a-week-in-lisbon"}]
         (spit (fs/file dir "posts" "a-week-in-lisbon" "post.md") "# Not finished\n")
         (let [{:keys [outcome message]} (publish! repo request true)]
           (testing "the comments of a post are published, and its comments file is written and committed"
@@ -207,15 +207,15 @@
             (is (= "M posts/a-week-in-lisbon/post.md" (sh dir "status" "--porcelain"))))))
       (testing "with its last comment removed, the published post shows no comments"
         (let [file (fs/file dir "posts" "a-week-in-lisbon" "comments.edn")]
-          (is (= :published (:outcome (publish! repo {:folder "a-week-in-lisbon" :comments []
-                                                      :message "Remove a comment on a-week-in-lisbon"}
+          (is (= :published (:outcome (publish! repo {:comments {"a-week-in-lisbon" []}
+                                                      :message  "Remove a comment on a-week-in-lisbon"}
                                                 true))))
           (is (nil? (published-comments dir "a-week-in-lisbon")))
           (is (= [] (edn/read-string (slurp file))))))
       (testing "a post that is not published is refused, and nothing is written"
         (let [before (head dir)
-              {:keys [outcome why]} (publish! repo {:folder "a-new-idea" :comments []} true)]
-          (is (= [:refused "a-new-idea is not a published post."] [outcome why]))
+              {:keys [outcome why]} (publish! repo {:comments {"a-new-idea" []}} true)]
+          (is (= [:refused "Not a published post: a-new-idea."] [outcome why]))
           (is (= before (head dir)))
           (is (not (fs/exists? (fs/path dir "drafts" "a-new-idea" "comments.edn")))))))))
 

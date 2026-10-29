@@ -1,6 +1,7 @@
 (ns bareblog.command.comments
-  "The `bareblog comments` command: the inbox of the comments connected, checked, comments
-   switched on and off, and the author's replies and removals published.
+  "The `bareblog comments` command: the walk-through of the comments in the inbox, the inbox
+   connected and checked, comments switched on and off, and the author's replies and removals
+   published.
 
    The inbox is a Google Sheet of the author with BareBlog's script in it, deployed as a web
    app. The setting `:comments` of the blog holds its address and whether comments are on:
@@ -13,7 +14,7 @@
    a yes, `:prompt` that gives the line the author types, `:browse!` that opens an address in
    the browser, `:edit!` that opens the editor on a text and gives what the author saved,
    `:publish-all!` that publishes every page, and `:publish-comments!` that publishes the
-   `:comments` of the post in `:folder` with the commit `:message`. Each publish gives the
+   `:comments` of each post by its folder, with the commit `:message`. Each publish gives the
    number the process ends with, and each function gives that number too."
   (:require [babashka.fs :as fs]
             [babashka.http-client :as http]
@@ -228,21 +229,29 @@
    page sends it, and gives it back and deletes it, or refuses it while comments are off."
   [{:keys [say] :as how} {:keys [dir home]}]
   (if-some [{:keys [script on?]} (read-setting dir)]
-    (let [answers (check-answers! script (boolean on?))]
-      (if-some [problem (check-problem (boolean on?) answers)]
-        (do (say (str "The check failed. " problem)) 1)
-        (do (say (str "The script works, and comments are " (if on? "on" "off") "."))
-            (when (older? (get-in answers [:state :script])) (newer-script! how home))
-            0)))
+    (do
+      (say "Checking the script\u2026")
+      (let [answers (check-answers! script (boolean on?))]
+        (if-some [problem (check-problem (boolean on?) answers)]
+          (do (say (str "The check failed. " problem)) 1)
+          (do (say (str "The script works, and comments are " (if on? "on" "off") "."))
+              (when (older? (get-in answers [:state :script])) (newer-script! how home))
+              0))))
     (do (say not-connected) 1)))
+
+(defn- address-problem!
+  "What is wrong with the address `url`, as the script there answers, or nil."
+  [{:keys [say]} url]
+  (say "Trying the address\u2026")
+  (:wrong (ask-script! url {:action "version"})))
 
 (defn- reachable-address!
   "The address that `asked` or else the author gives, once it answers as the script. Asks
    again after a wrong one, where the author typed it. Nil when the author stops."
-  [{:keys [say prompt]} asked]
+  [{:keys [say prompt] :as how} asked]
   (loop [line (or asked (prompt "The web app address, or nothing to stop:"))]
     (let [{:keys [stop wrong] typed :address} (address line)
-          wrong (or wrong (when typed (:wrong (ask-script! typed {:action "version"}))))]
+          wrong (or wrong (when typed (address-problem! how typed)))]
       (cond
         stop        nil
         (not wrong) typed
@@ -259,23 +268,30 @@
     (say (str "The template sheet is open in the browser: " template-link))
     (say "Make a copy. In the copy: Extensions, Apps Script, Deploy, New deployment, Web app, Execute as Me, access for Anyone. Approve it, and copy the web app address."))
   (if-some [url (reachable-address! how asked)]
-    (let [{:keys [wrong script]} (author! url "connect" {})]
-      (cond
-        wrong                (do (say wrong) 1)
-        (not (:ok script))   (do (say (if (= "wrong secret" (:error script)) another-secret (:error script))) 1)
-        :else
-        (let [on? (boolean (:on? (read-setting dir)))]
-          (write-setting! dir {:script url :on? on?})
-          (say (str "Connected. The settings hold the address: " url))
-          (let [checked (check! how where)]
-            (if (or (pos? checked) on?)
-              checked
-              (switch! how where true))))))
+    (do
+      (say "Connecting\u2026")
+      (let [{:keys [wrong script]} (author! url "connect" {})]
+        (cond
+          wrong                (do (say wrong) 1)
+          (not (:ok script))   (do (say (if (= "wrong secret" (:error script))
+                                          another-secret
+                                          (:error script)))
+                                   1)
+          :else
+          (let [on? (boolean (:on? (read-setting dir)))]
+            (write-setting! dir {:script url :on? on?})
+            (say (str "Connected. The settings hold the address: " url))
+            (let [checked (check! how where)]
+              (if (or (pos? checked) on?)
+                checked
+                (switch! how where true)))))))
     (do (say "Nothing was changed.") 1)))
 
-(defn- told-problem
-  "What was wrong when the script at `script` was told that comments are `on?`, or nil."
-  [script on?]
+(defn- told-problem!
+  "Tells the script at `script` that comments are `on?`, saying so first, and gives what was
+   wrong, or nil."
+  [{:keys [say]} script on?]
+  (say "Telling the script\u2026")
   (judged (author! script "state" {:open on?}) (partial state-problem on?)))
 
 ;; Comments go on only once the script takes them, so that no page shows a form that the script
@@ -284,7 +300,7 @@
 (defn switch!
   "Switches comments of the blog in `dir` on, when `on?`, or off: in the script, in the
    settings, and on every page."
-  [{:keys [say ask publish-all!]} {:keys [dir]} on?]
+  [{:keys [say ask publish-all!] :as how} {:keys [dir]} on?]
   (let [{:keys [script] :as setting} (read-setting dir)
         word (if on? "on" "off")]
     (cond
@@ -298,7 +314,7 @@
       (do (say "Nothing was changed.") 1)
 
       :else
-      (let [problem (when script (told-problem script on?))]
+      (let [problem (when script (told-problem! how script on?))]
         (if (and on? problem)
           (do (say (str "Nothing was changed. The script did not open: " problem)) 1)
           (do (when problem
@@ -347,9 +363,10 @@
 (defn- now-moment []
   (str (.truncatedTo (java.time.Instant/now) java.time.temporal.ChronoUnit/MILLIS)))
 
-(def ^:private comments-off
-  "What tells the author that there is no reply while comments are off."
-  "Comments are off, so there is no reply. Switch them on with: bareblog comments --on")
+(defn- comments-off
+  "What tells the author that there is no `what` while comments are off."
+  [what]
+  (str "Comments are off, so there is no " what ". Switch them on with: bareblog comments --on"))
 
 (defn- read-found-comment
   "The published comment of the blog in `dir` whose id starts with `short`, as its `:folder`, its
@@ -380,8 +397,7 @@
 
         :else
         (let [reply (comments/reply comment written (str (random-uuid)) (now-moment))]
-          (publish-comments! {:folder   folder
-                              :comments (conj comments reply)
+          (publish-comments! {:comments {folder (conj comments reply)}
                               :message  (str "Reply to a comment on " folder)}))))))
 
 (defn reply!
@@ -389,7 +405,7 @@
    the published comment of the blog in `dir` whose id starts with `short`."
   [{:keys [say] :as how} {:keys [dir]} short text]
   (if-not (:on? (read-setting dir))
-    (do (say comments-off) 1)
+    (do (say (comments-off "reply")) 1)
     (let [{:keys [wrong] :as found} (read-found-comment dir short)]
       (if wrong
         (do (say wrong) 1)
@@ -412,8 +428,7 @@
   (let [gone (comments/under comments (:id comment))]
     (say (shown-comment found))
     (if (ask (removal-question folder (dec (count gone))))
-      (publish-comments! {:folder   folder
-                          :comments (comments/without comments gone)
+      (publish-comments! {:comments {folder (comments/without comments gone)}
                           :message  (str "Remove a comment on " folder)})
       (do (say "Nothing was published.") 1))))
 
@@ -425,3 +440,259 @@
     (if wrong
       (do (say wrong) 1)
       (remove-found! how found))))
+
+;; The walk-through. Pure.
+
+(defn row-comment
+  "The comment that the row `row` of the sheet holds, as its `:folder` and its `:comment`."
+  [{:keys [id received post replyTo text] commenter :name}]
+  {:folder  post
+   :comment {:id       id
+             :reply-to (not-empty replyTo)
+             :name     commenter
+             :moment   (str received)
+             :text     text}})
+
+(defn- fate
+  "What becomes of `found`, a comment of the sheet, for the published comments of each published
+   post in `by-folder`, whose ids are `published`."
+  [by-folder published {:keys [folder] {:keys [id reply-to]} :comment}]
+  (cond
+    (published id)                                                     :published
+    (not (contains? by-folder folder))                                 :missing-post
+    (and reply-to (not-any? #{reply-to} (map :id (by-folder folder)))) :missing-comment
+    :else                                                              :walk))
+
+(defn- ids-of
+  "The ids of the comments in `fates` under `k`."
+  [fates k]
+  (mapv (comp :id :comment) (get fates k)))
+
+(defn triage
+  "What becomes of the rows `rows` of the sheet, for the published comments of each published
+   post in `by-folder`: the ids of those that are `:published` already, the ids `:dropped`, by
+   `:missing-post` and `:missing-comment`, and the comments to `:walk` through, oldest first,
+   each as its `:folder` and its `:comment`."
+  [rows by-folder]
+  (let [published (into #{} (comp (mapcat val) (map :id)) by-folder)
+        fates     (group-by (partial fate by-folder published) (map row-comment rows))]
+    {:published (ids-of fates :published)
+     :dropped   {:missing-post    (ids-of fates :missing-post)
+                 :missing-comment (ids-of fates :missing-comment)}
+     :walk      (vec (sort-by (comp (juxt :moment :id) :comment) (:walk fates)))}))
+
+(defn- counted
+  "The number `n` of `unit`, as `1 day` or `3 days`."
+  [n unit]
+  (str n " " unit (when (not= 1 n) "s")))
+
+(defn- instant
+  "The instant that the text `moment` names in ISO 8601, or nil when it names none."
+  [moment]
+  (try (java.time.Instant/parse moment) (catch java.time.format.DateTimeParseException _ nil)))
+
+(defn age
+  "How long before the instant `now` the moment `moment` was, as the author reads it, or nil
+   when `moment` is no moment."
+  [moment now]
+  (when-some [then (instant moment)]
+    (let [minutes (.toMinutes (java.time.Duration/between then now))]
+      (cond
+        (< minutes 1)    "just now"
+        (< minutes 60)   (str (counted minutes "minute") " ago")
+        (< minutes 1440) (str (counted (quot minutes 60) "hour") " ago")
+        :else            (str (counted (quot minutes 1440) "day") " ago")))))
+
+(defn- gist
+  "The first line of `text`, cut to 80 characters."
+  [text]
+  (let [line (first (str/split-lines text))]
+    (if (< 80 (count line)) (str (subs line 0 79) "\u2026") line)))
+
+(defn step-text
+  "What the author is shown of `found`, the comment `place` of `total` in the walk-through, at
+   the instant `now`, with the comment it answers among the published comments in `by-folder`."
+  [by-folder now place total
+   {:keys [folder] {commenter :name :keys [moment text reply-to]} :comment}]
+  (let [answered (first (filter (comp #{reply-to} :id) (by-folder folder)))]
+    (str (str/join " \u00b7 " (remove nil? [(str place " of " total) folder commenter
+                                            (age moment now)]))
+         "\n"
+         (when answered
+           (str "In answer to " (or (:name answered) "you") ": " (gist (:text answered)) "\n"))
+         text)))
+
+(def nothing-decided
+  "What is decided before the first comment of a walk-through."
+  {:approved [] :replies [] :declined 0 :skipped 0})
+
+(defn decided
+  "What is decided after `state`, with the decision `decision`: `[:approve found]`, `[:reply
+   found reply]`, `[:decline found]` or `[:skip found]`, each `found` and `reply` as its
+   `:folder` and its `:comment`."
+  [state [choice found reply]]
+  (case choice
+    :approve (update state :approved conj found)
+    :reply   (-> state (update :approved conj found) (update :replies conj reply))
+    :decline (update state :declined inc)
+    :skip    (update state :skipped inc)))
+
+(defn- with-added [carried {:keys [folder comment]}]
+  (update carried folder conj comment))
+
+(defn carried
+  "The comments of each post that `state` adds to, by its folder: those it has in `by-folder`,
+   with the approved comments and the replies."
+  [by-folder {:keys [approved replies]}]
+  (let [added (concat approved replies)]
+    (reduce with-added (select-keys by-folder (map :folder added)) added)))
+
+(defn- dropped-text
+  "What the author is told of the comments `dropped`, or nothing when there are none."
+  [{:keys [missing-post missing-comment]}]
+  (let [counts (cond-> []
+                 (seq missing-post)    (conj (str (count missing-post) " for a missing post"))
+                 (seq missing-comment) (conj (str (count missing-comment)
+                                                  " for a missing comment")))]
+    (when (seq counts) (str " Dropped: " (str/join ", " counts) "."))))
+
+(defn summary
+  "What the author is told at the end of a walk-through of `walk`, of what `state` decided, and
+   of the comments `dropped`."
+  [walk {:keys [approved replies declined skipped]} dropped]
+  (str (if (empty? walk)
+         "No comments wait in the sheet."
+         (str (- (count approved) (count replies)) " approved, " (count replies) " replied to, "
+              declined " declined, " skipped " skipped."))
+       (dropped-text dropped)))
+
+(def ^:private choices
+  "What the author types for each choice of a step."
+  {"a" :approve "d" :decline "r" :reply "s" :skip "t" :stop})
+
+(def ^:private choices-question
+  "[a]pprove, [d]ecline, [r]eply, [s]kip or s[t]op?")
+
+(defn choice
+  "The choice that the line `line` the author typed is, or nil. No line at all is a stop."
+  [line]
+  (if (nil? line) :stop (choices (str/lower-case (str/trim line)))))
+
+;; Walking through.
+
+(defn- declined!
+  "The decision for `found` once the author declined it: its row is deleted with `delete!`, or
+   it is skipped when it cannot be."
+  [{:keys [say]} delete! found]
+  (say "Deleting its row\u2026")
+  (if (delete! (get-in found [:comment :id]))
+    [:decline found]
+    (do (say "Its row could not be deleted, so it stays in the sheet.") [:skip found])))
+
+(defn- reply-written!
+  "The reply of the author to `found`, shown as `shown`: the line they type, or else what they
+   write in the editor. Nil when it is empty."
+  [{:keys [say prompt edit!]} shown {:keys [folder comment]}]
+  (let [line    (prompt "Your reply, or nothing to write it in the editor:")
+        written (if (str/blank? line) (reply-of (edit! (editor-text shown))) (str/trim line))]
+    (when-not (str/blank? written)
+      (say (str "Your reply:\n" written))
+      {:folder folder :comment (comments/reply comment written (str (random-uuid)) (now-moment))})))
+
+(defn- decision!
+  "What the author decides of `found`, shown as `shown`, with `delete!` that deletes a row."
+  [{:keys [ask prompt] :as how} delete! shown found]
+  (loop []
+    (case (choice (prompt choices-question))
+      :approve [:approve found]
+      :skip    [:skip found]
+      :stop    [:stop]
+      :decline (if (ask "Decline it? Its row is deleted, and that cannot be undone.")
+                 (declined! how delete! found)
+                 (recur))
+      :reply   (if-some [reply (reply-written! how shown found)]
+                 [:reply found reply]
+                 (recur))
+      (recur))))
+
+(defn- walked!
+  "What the author decides of the comments `walk`, one at a time, until the last or a stop."
+  [{:keys [say] :as how} delete! by-folder walk]
+  (let [now (java.time.Instant/now)]
+    (loop [state nothing-decided [found & more] walk place 1]
+      (if (nil? found)
+        state
+        (let [shown (step-text by-folder now place (count walk) found)]
+          (say shown)
+          (let [decision (decision! how delete! shown found)]
+            (if (= :stop (first decision))
+              state
+              (recur (decided state decision) more (inc place)))))))))
+
+(defn- delete-all!
+  "Deletes the rows `ids` with `delete!`, saying `doing` first, and says when some could not be."
+  [{:keys [say]} delete! doing ids]
+  (when (seq ids)
+    (say doing)
+    (when-some [kept (seq (remove delete! ids))]
+      (say (str (counted (count kept) "row") " could not be deleted. The next walk-through deletes "
+                "them.")))))
+
+(defn- publish-decided!
+  "Publishes what `state` approved, among the published comments in `by-folder`, and deletes
+   the rows of the approved comments with `delete!` once that succeeded. Gives the number the
+   process ends with."
+  [{:keys [publish-comments!] :as how} delete! by-folder {:keys [approved] :as state}]
+  (if (empty? approved)
+    0
+    (let [publish (carried by-folder state)
+          folders (str/join ", " (sort (keys publish)))
+          gave    (publish-comments! {:comments publish
+                                      :message  (str "Publish comments on " folders)})]
+      (when (zero? gave)
+        (delete-all! how delete! "Deleting the rows of the approved comments\u2026"
+                     (map (comp :id :comment) approved)))
+      gave)))
+
+(defn walk-sheet!
+  "Walks the author through the rows `rows` of the sheet of the blog in `dir`, with `delete!`
+   that deletes a row and gives true when it did, and publishes what was approved. A row is
+   deleted once it is dropped, declined, or published."
+  [{:keys [say] :as how} {:keys [dir]} rows delete!]
+  (let [{:keys [by-folder problems]}     (read-published-comments dir)
+        {:keys [published dropped walk]} (triage rows by-folder)
+        gone                             (concat published (mapcat val dropped))]
+    (if (seq problems)
+      (do (say (str/join "\n" problems)) 1)
+      (do
+        (delete-all! how delete!
+                     (str "Deleting " (counted (count gone) "row") " from the sheet\u2026")
+                     gone)
+        (let [state (walked! how delete! by-folder walk)]
+          (say (summary walk state dropped))
+          (publish-decided! how delete! by-folder state))))))
+
+(defn- deleted?
+  "True when the script at `url` deleted the row `id`."
+  [url id]
+  (true? (get-in (author! url "delete" {:id id}) [:script :deleted])))
+
+(defn walk!
+  "Walks the author through the comments in the sheet of the blog in `dir`, and publishes what
+   was approved."
+  [{:keys [say] :as how} {:keys [dir] :as where}]
+  (let [{:keys [script on?]} (read-setting dir)]
+    (if-not on?
+      (do (say (comments-off "walk-through")) 1)
+      (do
+        (say "Reading the comments in the sheet\u2026")
+        (let [{:keys [wrong] answered :script} (author! script "rows" {})]
+          (cond
+            wrong
+            (do (say wrong) 1)
+
+            (not (:ok answered))
+            (do (say (str "The script refused the rows: " (:error answered) ".")) 1)
+
+            :else
+            (walk-sheet! how where (:rows answered) (partial deleted? script))))))))

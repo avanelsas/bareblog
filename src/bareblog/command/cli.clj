@@ -36,6 +36,7 @@
              "                                  as its font, in place of the one before"
              "bareblog font --none              the font taken away, back to that of the theme"
              "              --yes               with a yes to the question"
+             "bareblog comments                 the walk-through of the comments in the inbox"
              "bareblog comments connect         the inbox of the comments, from the template sheet"
              "bareblog comments connect <address>"
              "                                  the inbox at the address of its web app"
@@ -136,10 +137,6 @@
 (defn- asks-nothing [_args]
   {})
 
-(def ^:private not-built
-  "What a part of comments that is not built yet is refused with."
-  "That part of bareblog comments is not built yet.")
-
 (def ^:private reply-refusal
   "What a reply that is not asked for well is refused with."
   (str "Give the short id of a comment, and the reply in quotes or none: "
@@ -162,9 +159,10 @@
       (= "reply" what)                                  {:refuse reply-refusal}
       (and (= "remove" what) address (empty? more))     {:remove true :short-id address :yes? yes?}
       (= "remove" what)                                 {:refuse remove-refusal}
-      (nil? what)                                       {:refuse not-built}
+      (empty? args)                                     {:walk true}
       :else
-      {:refuse "Give connect, check, reply, remove, --on or --off: bareblog comments connect"})))
+      {:refuse (str "Give nothing for the walk-through, or connect, check, reply, remove, --on or "
+                    "--off: bareblog comments connect")})))
 
 (defn- asks-update [args]
   (if (every? #{yes} args)
@@ -270,10 +268,10 @@
   (flush)
   (read-line))
 
-;; Comments are connected, switched, replied to and removed by name, as the font is.
-;; Switching them publishes every page, and a reply or a removal its post, as a publish does.
+;; Comments are walked through, connected, switched, replied to and removed by name, as the font
+;; is. Switching them publishes every page, and the rest the posts they change, as a publish does.
 (defn- run-comments!
-  [where {removing :remove :keys [connect address check switch on? reply short-id text yes?]}]
+  [where {removing :remove :keys [walk connect address check switch on? reply short-id text yes?]}]
   (let [how {:say               println
              :ask               (if yes? say-yes! ask!)
              :prompt            prompt!
@@ -282,6 +280,7 @@
              :publish-all!      #(run-publish! where {:all? true :yes? true})
              :publish-comments! #(run-publish! where (assoc % :yes? true))}]
     (cond
+      walk     ((requiring-resolve 'bareblog.command.comments/walk!) how where)
       connect  ((requiring-resolve 'bareblog.command.comments/connect!) how where address)
       check    ((requiring-resolve 'bareblog.command.comments/check!) how where)
       switch   ((requiring-resolve 'bareblog.command.comments/switch!) how where on?)
