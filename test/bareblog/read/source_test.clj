@@ -381,3 +381,34 @@
         (spit (fs/file dir "series.edn") "{\"A\" \"start\"}")
         (is (thrown-with-msg? Exception #"series.edn is not as bareblog series writes it"
                               (source/read-series dir)))))))
+
+(deftest comments-test
+  (let [lisbon {:kind :post :folder "a-week-in-lisbon"}
+        for-author  (get-in (source/read-page blog lisbon) [:text :comments])
+        for-readers (get-in (source/read-page (source/published example/dir {}) lisbon) [:text :comments])]
+    (testing "a post is told its comments, each with its text as blocks"
+      (is (= 6 (count for-author)))
+      (is (every? (comp seq :blocks) for-author))
+      (is (not-any? :text for-author)))
+    (testing "a preview gives each comment its short id, and a page for readers gives none"
+      (is (= "1f0c9a52" (:short-id (first for-author))))
+      (is (= (map #(dissoc % :short-id) for-author) for-readers))
+      (is (not-any? :short-id for-readers)))
+    (testing "a post with no comments file is told no comments"
+      (is (nil? (get-in (source/read-page blog {:kind :post :folder "hello-bareblog"}) [:text :comments])))))
+  (example/with-copy {}
+    (fn [dir]
+      (let [blog (source/preview dir)
+            file (fs/file dir "posts" "a-week-in-lisbon" "comments.edn")]
+        (testing "a comments file that cannot be read is a problem, and the post shows no comments"
+          (spit file "[{:id")
+          (is (some #{"The comments of posts/a-week-in-lisbon cannot be read."} (:problems (source/read-site blog))))
+          (is (nil? (get-in (source/read-page blog {:kind :post :folder "a-week-in-lisbon"}) [:text :comments]))))
+        (testing "a page that is no post has no comments, whatever is beside it"
+          (spit (fs/file dir "pages" "about" "comments.edn") "[{:id")
+          (is (not-any? #(re-find #"pages/about" %) (:problems (source/read-site blog))))
+          (is (nil? (get-in (source/read-page blog {:kind :post :folder "about"}) [:text :comments]))))
+        (testing "a comment that is not whole is a problem"
+          (spit file "[{:id \"a\"}]")
+          (is (some #{"A comment of posts/a-week-in-lisbon has no id, moment, text or name."}
+                    (:problems (source/read-site blog)))))))))

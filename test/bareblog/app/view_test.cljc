@@ -514,3 +514,36 @@
       (is (not-any? :href (:posts site)))
       (is (not (contains? site :root))))))
 
+(defn- comment-list
+  "The comments of `node`, in order."
+  [node]
+  (let [{:keys [order by-key]} (get-in node [:lists :comments])]
+    (mapv by-key order)))
+
+(deftest comments-test
+  (let [said     (fn [id moment reply-to & {:as more}]
+                   (merge {:id id :reply-to reply-to :name "Ann" :moment moment :blocks [{:kind :text :content ["Hi."]}]}
+                          more))
+        told     (fn [shown-comments]
+                   {:page {:kind :post :folder "a"}
+                    :text {:folder "a" :title "First" :blocks [] :comments shown-comments}})
+        thread   [(said "r" "2026-10-02T10:00:00Z" "c" :author? true :name nil :short-id "r1234567")
+                  (said "c" "2026-10-01T09:00:00Z" nil :name "Bo")]
+        [_ node] (shown (told thread))]
+    (testing "a post gives its comments as a thread: oldest first, each reply under the comment it
+              answers, with its depth, its day and the name of the comment it answers"
+      (is (= [{:id "c" :name "Bo" :day "2026-10-01" :depth 0 :reply-to-name nil :author? false
+               :blocks [{:kind :text :content ["Hi."]}]}
+              {:id "r" :name "Bare notes" :day "2026-10-02" :depth 1 :reply-to-name "Bo" :author? true
+               :blocks [{:kind :text :content ["Hi."]}] :short-id "r1234567"}]
+             (comment-list node)))
+      (is (true? (get-in node [:item :comments?]))))
+    (testing "a comment of the author is named as the settings name the author, and else as the blog"
+      (let [[_ named] (shown (assoc-in site [:blog :author] "Alex") (told thread))]
+        (is (= "Alex" (:name (second (comment-list named)))))))
+    (testing "a comment gives its short id only when it has one, as it has in a preview"
+      (is (not (contains? (first (comment-list node)) :short-id))))
+    (testing "a post with no comments says so"
+      (let [[_ none] (shown (told []))]
+        (is (false? (get-in none [:item :comments?])))
+        (is (= [] (comment-list none)))))))

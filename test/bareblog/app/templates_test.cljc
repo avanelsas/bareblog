@@ -157,8 +157,10 @@
         two-pages   (assoc-in site [:blog :per-page] 1)
         older       {:folder "0" :title "Zero" :date "2024-01-01"}
         newer       {:folder "c" :title "Third" :date "2027-01-01"}
+        a-comment   {:id "c1" :name "Ann" :moment "2026-10-20T09:00:00Z" :blocks []}
         post-of     (fn [folder title blocks]
-                      {:page {:kind :post :folder folder} :text {:folder folder :title title :blocks blocks}})
+                      {:page {:kind :post :folder folder}
+                       :text {:folder folder :title title :blocks blocks :comments [a-comment]}})
         second-post (post-of "b" "Second" [{:kind :photo :src "b.jpg"}])
         first-post  (post-of "a" "First" [{:kind :photo :src "a.jpg"}])]
     (testing "a home page on one page hides its heading, the way back to all posts, the text for
@@ -192,7 +194,10 @@
     (testing "the page of a post that fits in the window hides the line of how far it is read"
       (is (= #{"a.newer" "x-progress.read-progress"} (hidden site second-post))))
     (testing "the page of a post with no cover hides the place of its cover"
-      (is (= #{"a.newer" "figure.post-cover"} (hidden site (post-of "b" "Second" []) reading))))))
+      (is (= #{"a.newer" "figure.post-cover"} (hidden site (post-of "b" "Second" []) reading))))
+    (testing "the page of a post with no comments hides its thread"
+      (is (= #{"a.newer" "x-comments.comments"}
+             (hidden site (update second-post :text dissoc :comments) reading))))))
 
 (deftest contents-test
   (doseq [template-name (keys templates/by-name)
@@ -618,8 +623,8 @@
       (is (= (conj (set shell) "x-badge") (tags-of (:archive pages)))))
     (testing (str template-name ": the page of a post has those of its blocks, at any depth")
       (is (= (-> (set shell)
-                 (into ["x-badge" "x-card" "x-code" "x-collapse" "x-image" "x-progress" "x-table"
-                       "x-table-cell" "x-table-row" "x-timeline" "x-toc" "x-typography"])
+                 (into ["x-badge" "x-card" "x-code" "x-collapse" "x-comments" "x-image" "x-progress"
+                       "x-table" "x-table-cell" "x-table-row" "x-timeline" "x-toc" "x-typography"])
                  (into (post-elements template-name)))
              (tags-of (:post pages))))))
   (testing "the page of a post in a series has the steps of the path of its parts"
@@ -701,3 +706,35 @@
   (testing "the blog template of a blog is the one its settings name, or the default"
     (is (= (templates/named :notebook) (templates/of-blog {:template :notebook})))
     (is (= (templates/named shape/default-template) (templates/of-blog {})))))
+
+(deftest comment-test
+  (let [row  (:fixed-of (get-in (templates/row-node (get-in (templates/named :journal) [:lists :main]) "post")
+                                [:lists :comments :row]))
+        item {:id "c1" :name "Bo" :day "2026-10-01" :depth 4 :reply-to-name "Ann" :author? false
+              :blocks [{:kind :text :content ["Hi."]}]}]
+    (testing "a comment is an x-comment with its facts, as deep as it is up to three indents, and
+              its blocks as its text"
+      (is (= [:x-comment {:comment-id "c1" :name "Bo" :datetime "2026-10-01" :depth "4" :max-depth "3"
+                          :reply-to-name "Ann"}
+              [:p "Hi."]]
+             (row item))))
+    (testing "a comment of the author is marked, and a top-level one answers no one"
+      (is (= {:comment-id "c1" :name "Bo" :datetime "2026-10-01" :depth "0" :max-depth "3" :author true}
+             (second (row (assoc item :depth 0 :reply-to-name nil :author? true))))))
+    (testing "a comment with a short id shows it with a button that copies it, and one without
+              shows none"
+      (is (= [:span {:slot "meta" :class "short-id"} [:code "c1234567"] [:x-copy {:text "c1234567"} "Copy"]]
+             (last (row (assoc item :short-id "c1234567")))))
+      (is (not-any? #{"x-copy"} (map (comp name first) (filter vector? (tree-seq vector? seq (row item)))))))))
+
+(deftest comment-from-the-view-test
+  (testing "a comment that the view gives a post is the x-comment of the page, with its facts"
+    (let [told  {:page {:kind :post :folder "a"}
+                 :text {:folder "a" :title "First" :blocks []
+                        :comments [{:id "c1" :name "Bo" :moment "2026-10-01T09:00:00Z"
+                                    :blocks [{:kind :text :content ["Hi."]}]}]}}
+          page  (view/page "/" site told {})
+          fixed (templates/fixed-templates (templates/named :journal) page)]
+      (is (some #{[:x-comment {:comment-id "c1" :name "Bo" :datetime "2026-10-01" :depth "0" :max-depth "3"}
+                   [:p "Hi."]]}
+                fixed)))))

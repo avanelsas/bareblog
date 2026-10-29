@@ -1,0 +1,18 @@
+[{:id "1f0c9a52-6d3e-4b1a-9a7e-2c4d5e6f7a81" :reply-to nil :name "Ann Lee"
+  :moment "2026-10-20T09:12:04.120Z"
+  :text "Tram 28 at dawn is the best advice in this post. We went at seven and had it **to ourselves**."}
+ {:id "2a7d3b64-8e1f-4c2b-8b9d-3d5e6f7a8b92" :reply-to "1f0c9a52-6d3e-4b1a-9a7e-2c4d5e6f7a81"
+  :name "Bo Chen" :moment "2026-10-21T14:30:51.007Z"
+  :text "Seven is early for a holiday. Was it worth it?"}
+ {:id "3b8e4c75-9f2a-4d3c-9cae-4e6f7a8b9ca3" :reply-to "2a7d3b64-8e1f-4c2b-8b9d-3d5e6f7a8b92"
+  :author? true :moment "2026-10-21T18:02:33.415Z"
+  :text "It was. By nine the queue went round the corner of the [Praça Martim Moniz](https://en.wikipedia.org/wiki/Martim_Moniz_Square)."}
+ {:id "4c9f5d86-a03b-4e4d-adbf-5f7a8b9cadb4" :reply-to "3b8e4c75-9f2a-4d3c-9cae-4e6f7a8b9ca3"
+  :name "Cy Park" :moment "2026-10-22T07:45:10.932Z"
+  :text "Noted for next spring.\n\nDid you try the *pastéis* in Belém, or is that a queue as well?"}
+ {:id "5da06e97-b14c-4f5e-bec0-6a8b9cadbec5" :reply-to "4c9f5d86-a03b-4e4d-adbf-5f7a8b9cadb4"
+  :name "Di Ruiz" :moment "2026-10-23T11:20:47.288Z"
+  :text "A queue, but it moves fast. Go in, not to the counter outside."}
+ {:id "6eb17fa8-c25d-406f-8fd1-7b9cadbecfd6" :reply-to nil :name "Eve Moreau"
+  :moment "2026-10-24T20:05:02.640Z"
+  :text "Lovely photo of the harbour."}]

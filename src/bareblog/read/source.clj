@@ -14,6 +14,7 @@
    each post and page, which is the moment it was first published."
   (:require [babashka.fs :as fs]
             [bareblog.blog.address :as address]
+            [bareblog.blog.comments :as comments]
             [bareblog.blog.font :as font]
             [bareblog.blog.series :as series]
             [bareblog.blog.shape :as shape]
@@ -178,6 +179,29 @@
         sized (text/sized read (into {} (keep (partial read-sized dir)) (text/sources read)))]
     (cond-> sized
       (get dates folder) (assoc :date (get dates folder)))))
+
+;; The comments of a post are beside its text. What cannot be read of them is a problem of the
+;; blog, and the post then shows none, so that a page never shows half a thread. Only a post
+;; has comments.
+(defn- read-comments
+  "The comments beside the post in `source`, and what is wrong with them, as texts. No file,
+   and a page that is no post, is no comments."
+  [{:keys [dir place] :as source}]
+  (let [file (fs/file dir layout/comments-file)]
+    (if (or (standalone? source) (not (fs/regular-file? file)))
+      {:comments []}
+      (let [read  (try (edn/read-string (slurp file)) (catch Exception _ ::unreadable))
+            found (if (= ::unreadable read)
+                    [(str "The comments of " place " cannot be read.")]
+                    (comments/problems place read))]
+        (if (seq found) {:comments [] :problems found} {:comments read})))))
+
+(defn- shown-comment
+  "The `comment` as a page shows it: its text as blocks, and its short id where `blog` is read
+   for its author."
+  [{:keys [preview?]} {:keys [id text] :as comment}]
+  (cond-> (-> comment (dissoc :text) (assoc :blocks (reader/read-comment text)))
+    preview? (assoc :short-id (comments/short-id id))))
 
 (defn- named-well? [{:keys [folder]}]
   (text/folder? folder))
@@ -404,7 +428,7 @@
      :entry    (if (standalone? source)
                  (unpublished blog (site/page-entry folder read))
                  (site/entry folder read draft?))
-     :problems (list-missing read source)}))
+     :problems (concat (list-missing read source) (:problems (read-comments source)))}))
 
 (defn- read?
   "True when `blog` reads `source`: it can be read, and is among the folders that the blog
@@ -484,12 +508,15 @@
   (text/files shown (address/post root (:folder shown))))
 
 (defn- shown
-  "The text of `blog` in `source` as a page shows it: with the name of its folder, and with
-   each file beside it under its full address, so that any page can show it."
+  "The text of `blog` in `source` as a page shows it: with the name of its folder, with each
+   file beside it under its full address, so that any page can show it, and with its
+   comments."
   [{:keys [root] :as blog} {:keys [folder] :as source}]
-  (-> (read-text (with-published blog) source)
-      (text/placed (address/post root folder))
-      (assoc :folder folder)))
+  (let [shown-comments (mapv (partial shown-comment blog) (:comments (read-comments source)))]
+    (cond-> (-> (read-text (with-published blog) source)
+                (text/placed (address/post root folder))
+                (assoc :folder folder))
+      (seq shown-comments) (assoc :comments shown-comments))))
 
 (defn read-shown-text
   "The post or the page in the folder `folder` as a page shows it. One that `blog` takes as it

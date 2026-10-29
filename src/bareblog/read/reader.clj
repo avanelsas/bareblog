@@ -30,6 +30,7 @@
    opens it is its title. A last paragraph of nothing but tags, as `#travel #x-code`, names
    its tags, and `retagged` writes that paragraph anew."
   (:require [clojure.string :as str]
+            [clojure.walk :as walk]
             [nextjournal.markdown :as md]))
 
 (defn- plain
@@ -239,6 +240,11 @@
 (defn- note [{:keys [ref] :as node}]
   {:number (inc ref) :blocks (blocks node)})
 
+(defn- notes-of
+  "The notes of the parsed Markdown `doc`, in the order of their numbers."
+  [doc]
+  (vec (sort-by :number (map note (:footnotes doc)))))
+
 (defn- footnotes
   "The block that holds the notes `notes`, in a vector. No notes is no block."
   [notes]
@@ -326,10 +332,70 @@
         nodes                 (:content doc)
         opening               (when (title-heading? (first nodes)) (first nodes))
         {:keys [blocks tags]} (with-tags (blocks-of (if opening (rest nodes) nodes)))
-        notes                 (vec (sort-by :number (map note (:footnotes doc))))]
+        notes                 (notes-of doc)]
     {:heading (some-> opening plain)
      :tags    tags
      :blocks  (with-notes (into blocks (footnotes notes)) notes)}))
+
+;; A comment is written by a reader, so it keeps to text. What would run, load from any address,
+;; or lead anywhere but the web or mail becomes text, a link or code.
+(defn- safe-address?
+  "True when `href` is an address that a link in a comment may lead to: of the web, or mail."
+  [href]
+  (some? (re-find #"^(?i)(https?:|mailto:)" (str href))))
+
+(defn- comment-link
+  "A link in a comment: one that a search engine does not follow, or the code of its address
+   when it is not one a comment may lead to."
+  [{:keys [href] :as link}]
+  (if (safe-address? href)
+    (assoc link :rel "nofollow ugc")
+    {:kind :code :content [(str href)]}))
+
+(defn- image-link
+  "The link that an image or a photo is in a comment, with its text or else its address."
+  [{:keys [src alt]}]
+  (comment-link {:kind :link :href src :content [(if (str/blank? alt) src alt)]}))
+
+(defn- note-list
+  "The notes of a comment, as a numbered list."
+  [{:keys [notes]}]
+  {:kind :list :numbered? true :start 1 :items (mapv #(select-keys % [:blocks]) notes)})
+
+(defn- live-as-code [{:keys [text]}]
+  {:kind :code :language "html" :text text})
+
+(defn- photo-as-link [photo]
+  {:kind :text :content [(image-link photo)]})
+
+(defn- heading-as-text [{:keys [content]}]
+  {:kind :text :content content})
+
+(defn- mark-as-number [{:keys [number]}]
+  (str "[" number "]"))
+
+(def ^:private in-a-comment
+  "What each kind of block or content that a comment may not hold is, in a comment."
+  {:live          live-as-code
+   :photo         photo-as-link
+   :image         image-link
+   :link          comment-link
+   :heading       heading-as-text
+   :footnote-mark mark-as-number
+   :footnotes     note-list})
+
+(defn- as-in-a-comment [x]
+  (if-let [made (and (map? x) (in-a-comment (:kind x)))]
+    (made x)
+    x))
+
+(defn read-comment
+  "The blocks of the text `text` of a comment. They hold text and nothing that loads or runs: a
+   live fence is code, an image is a link to it, a heading is a paragraph, and the notes are a
+   numbered list at the end. A link leads only to the web or to mail."
+  [text]
+  (let [doc (md/parse text)]
+    (walk/postwalk as-in-a-comment (into (blocks-of (:content doc)) (footnotes (notes-of doc))))))
 
 (defn written-tag
   "The tag `tag-name` as an author writes it, with its mark."

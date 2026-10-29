@@ -2,6 +2,7 @@
   "A text of an author, which is a post or a page that is no post: what was read of it, the
    name of its folder, and the files beside it."
   (:require [bareblog.blog.address :as address]
+            [bareblog.blog.layout :as layout]
             [bareblog.blog.wire :as wire]
             [clojure.string :as str]
             [clojure.walk :as walk]))
@@ -88,10 +89,12 @@
 
 (defn file-name?
   "True when `file-name` is the name of a file beside a post that a page can show: it is no
-   hidden file, it leads nowhere else, and a page does not keep the name for itself."
+   hidden file, it leads nowhere else, and neither a page nor the comments of the post keep the
+   name for themselves."
   [file-name]
   (boolean (and (not (str/includes? file-name ".."))
                 (not (contains? wire/reserved file-name))
+                (not= layout/comments-file file-name)
                 (re-matches (re-pattern file-pattern) file-name))))
 
 (defn- from-here

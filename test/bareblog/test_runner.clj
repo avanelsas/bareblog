@@ -6,6 +6,7 @@
   '[bareblog.code-test
     bareblog.example-test
     bareblog.blog.address-test
+    bareblog.blog.comments-test
     bareblog.blog.days-test
     bareblog.blog.font-test
     bareblog.blog.pictures-test

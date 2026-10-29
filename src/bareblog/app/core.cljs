@@ -19,8 +19,11 @@
             [baredom.exports.x-card :as x-card]
             [baredom.exports.x-code :as x-code]
             [baredom.exports.x-collapse :as x-collapse]
+            [baredom.exports.x-comment :as x-comment]
+            [baredom.exports.x-comments :as x-comments]
             [baredom.exports.x-command-palette :as x-command-palette]
             [baredom.exports.x-container :as x-container]
+            [baredom.exports.x-copy :as x-copy]
             [baredom.exports.x-drawer :as x-drawer]
             [baredom.exports.x-gaussian-blur :as x-gaussian-blur]
             [baredom.exports.x-image :as x-image]
@@ -54,7 +57,10 @@
    "x-code"            x-code/init
    "x-collapse"        x-collapse/init
    "x-command-palette" x-command-palette/init
+   "x-comment"         x-comment/init
+   "x-comments"        x-comments/init
    "x-container"    x-container/init
+   "x-copy"         x-copy/init
    "x-drawer"       x-drawer/init
    "x-gaussian-blur" x-gaussian-blur/init
    "x-image"        x-image/init

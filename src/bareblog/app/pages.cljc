@@ -35,7 +35,9 @@
    :not-found   "Not found"
    :not-here    "This page is not here."
    :to-home     "To the home page"
-   :powered-by  "Powered by "})
+   :powered-by  "Powered by "
+   :comments    "Comments"
+   :copy        "Copy"})
 
 (def wide-from
   "The width of a window in pixels from which `x-navbar` shows what it holds. A narrower window
@@ -237,6 +239,37 @@
     [:a {:class "series-next" :href (comp :href next-part) :aria-label next-label :hidden no-next?}
      (comp :title next-part)]]])
 
+(def ^:private comment-depth
+  "The deepest indent of a reply. A deeper one stands there, and says whom it answers."
+  3)
+
+(defn- short-id-line
+  "The short id of a comment, with a button that copies it, for its author in a preview."
+  [short-id]
+  [:span {:slot "meta" :class "short-id"}
+   [:code short-id]
+   [:x-copy {:text short-id} (:copy words)]])
+
+(defn- comment-template
+  "The fixed template of a comment, with its blocks as its text."
+  [{:keys [id name day depth reply-to-name author? short-id blocks]}]
+  (into [:x-comment (blocks/known {:comment-id id :name name :datetime day :depth (str depth)
+                                   :max-depth (str comment-depth) :reply-to-name reply-to-name
+                                   :author (when author? true)})]
+        (cond-> (mapv blocks/template blocks)
+          short-id (conj (short-id-line short-id)))))
+
+(def ^:private a-comment
+  {:fixed-of comment-template})
+
+(def ^:private no-comments? (complement :comments?))
+
+;; There is no form yet, so the thread is closed: it shows the comments and asks for none.
+(def ^:private comment-thread
+  "The comments of a post, under its text."
+  [:x-comments {:class "comments" :closed true :heading-label (:comments words)
+                :hidden no-comments? :data-x-part "comments"}])
+
 (defn- post-layout
   "The text of a post beside its contents, in an article that opens with the elements
    `opening`."
@@ -245,6 +278,7 @@
    (-> [:article {:class "post"} read-progress]
        (into opening)
        (conj [:div {:class "post-blocks" :id "post-text" :data-x-part "blocks"}]
+             comment-thread
              [:footer {:class "post-foot"}
               series-group
               [:nav {:class "foot-group neighbours" :aria-label (:others words)}
@@ -257,9 +291,10 @@
 
 (defn- post-node [node-name root]
   {:split (template/split node-name root)
-   :lists {:tags   {:part "tags" :row tag}
-           :blocks {:part "blocks" :row block}
-           :parts  {:part "parts" :row series-part}}})
+   :lists {:tags     {:part "tags" :row tag}
+           :blocks   {:part "blocks" :row block}
+           :parts    {:part "parts" :row series-part}
+           :comments {:part "comments" :row a-comment}}})
 
 (defn post-page
   "The node of the page of a post, named `node-name`, whose article opens with `header`: an

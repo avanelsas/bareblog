@@ -6,6 +6,7 @@
   (:require [bareblog.app.card :as card]
             [bareblog.app.templates :as templates]
             [bareblog.blog.address :as address]
+            [bareblog.blog.comments :as comments]
             [bareblog.blog.series :as series]
             [bareblog.blog.shape :as shape]
             [bareblog.blog.site :as site]
@@ -286,6 +287,32 @@
   [folder {:keys [parts number] :as in-series}]
   (rows (when in-series (map-indexed (partial part-row number folder) parts))))
 
+(defn- commenter
+  "The name that `comment` shows, where `author` is the name of the author of the blog."
+  [author {:keys [author?] commenter-name :name}]
+  (if author? author commenter-name))
+
+(defn- comment-row
+  "The row of `comment`, with the name of the comment it answers among `by-id`. A comment is a
+   fixed template, as a block is, so its row is what the template is made from."
+  [author by-id {:keys [id reply-to moment depth author? short-id blocks] :as comment}]
+  [id (cond-> {:id            id
+               :name          (commenter author comment)
+               :day           (site/day moment)
+               :depth         depth
+               :reply-to-name (some->> (by-id reply-to) (commenter author))
+               :author?       (boolean author?)
+               :blocks        blocks}
+        short-id (assoc :short-id short-id))])
+
+;; A comment of the author holds no name, so that a new name in the settings reaches every one.
+(defn- comment-rows
+  "The comments of a post, as a thread shows them, in the blog with the settings `blog`."
+  [blog shown-comments]
+  (let [author (or (:author blog) (:title blog))
+        by-id  (into {} (map (juxt :id identity)) shown-comments)]
+    (rows (map (partial comment-row author by-id) (comments/thread shown-comments)))))
+
 (defn- post [{:keys [site local] {:keys [folder title date tags] :as shown} :text}]
   (if shown
     (let [{:keys [cover blocks]} (text/split-cover shown)
@@ -299,11 +326,13 @@
                               :cover            cover
                               :series           (some-> in-series series-item)
                               :read             (:read local)
-                              :gradient-titles? (site/gradient-titles? (:blog site))}
+                              :gradient-titles? (site/gradient-titles? (:blog site))
+                              :comments?        (boolean (seq (:comments shown)))}
                              (neighbours site folder))
-               :lists {:tags   (tag-rows (:root site) tags)
-                       :blocks (block-rows blocks)
-                       :parts  (part-rows folder in-series)}}})
+               :lists {:tags     (tag-rows (:root site) tags)
+                       :blocks   (block-rows blocks)
+                       :parts    (part-rows folder in-series)
+                       :comments (comment-rows (:blog site) (:comments shown))}}})
     (not-found site)))
 
 ;; A page of the author that is no post is shown as its text alone: it has no date, no tags

@@ -10,7 +10,7 @@
 (defn- span [tag {:keys [content]}]
   (into [tag] (children content)))
 
-(defn- known
+(defn known
   "The attributes of `attrs` that have a value."
   [attrs]
   (into {} (filter (comp some? val)) attrs))
@@ -21,8 +21,8 @@
   (let [present (known attrs)]
     (into (if (seq present) [tag present] [tag]) children)))
 
-(defn- link [{:keys [href title content]}]
-  (element :a {:href href :title title} (children content)))
+(defn- link [{:keys [href title rel content]}]
+  (element :a {:href href :title title :rel rel} (children content)))
 
 (defn- image [{:keys [src alt width height]}]
   (element :img {:src src :alt alt :width width :height height} []))
