@@ -161,3 +161,17 @@
       (is (= (str "Git keeps out, and so leaves out of what is published: docs/a/harbour.jpg, by the "
                   "line *.jpg in .git/info/exclude.")
              (plan/ignored-notice [photo]))))))
+
+(deftest comments-test
+  (let [carried [{:id "c1" :moment "2026-10-29" :text "Hi." :name "Ann"}]
+        planned (plan/comments {:published published :folder "a" :comments carried :message "Reply to a comment on a"})]
+    (testing "a publish of comments reads no folder, and takes every post and page as published"
+      (is (= #{} (:read planned)))
+      (is (= #{"a" "b" "about"} (:as-published planned)))
+      (is (= {"a" carried} (:comments planned))))
+    (testing "it commits the comments file of the post and the pages, and not the folder of the post"
+      (is (= ["posts/a/comments.edn" "docs"] (:paths planned)))
+      (is (= "Reply to a comment on a" (:message planned)))))
+  (testing "a blog that was never published, and a post that is not published, are refused"
+    (is (re-find #"never published" (:refuse (plan/comments {:published nil :folder "a"}))))
+    (is (= "about is not a published post." (:refuse (plan/comments {:published published :folder "about"}))))))

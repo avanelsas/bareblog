@@ -412,3 +412,10 @@
           (spit file "[{:id \"a\"}]")
           (is (some #{"A comment of posts/a-week-in-lisbon has no id, moment, text or name."}
                     (:problems (source/read-site blog)))))))))
+
+(deftest kept-comments-test
+  (testing "comments given for a post that is taken as published, and has no published page,
+            make no page"
+    (let [kept (assoc (source/published example/dir {}) :as-published #{"gone"} :comments {"gone" []})]
+      (is (nil? (source/read-page kept {:kind :post :folder "gone"})))
+      (is (nil? (source/read-shown-text kept "gone"))))))

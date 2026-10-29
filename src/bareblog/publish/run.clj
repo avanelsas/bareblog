@@ -1,5 +1,5 @@
 (ns bareblog.publish.run
-  "Publishes a blog: one post, or the whole of it.
+  "Publishes a blog: one post, the comments of one post, or the whole of it.
 
    The edge of the command. What a publish does is `bareblog.publish.plan`, which is pure.
    Here the folders are looked at, the author is asked, the pages are generated, and what
@@ -8,6 +8,7 @@
    gives what came of it: an `:outcome`, with the `:message` of the commit or `:why` nothing
    was published."
   (:require [babashka.fs :as fs]
+            [bareblog.blog.comments :as comments]
             [bareblog.blog.site :as site]
             [bareblog.blog.layout :as layout]
             [bareblog.publish.generate :as generate]
@@ -57,7 +58,7 @@
    `settings`."
   [dir settings plan]
   (merge (source/published dir settings)
-         (select-keys plan [:read :as-published :pictures-in :dates])))
+         (select-keys plan [:read :as-published :pictures-in :dates :comments])))
 
 ;; A post is edited when what a page would show of it is not what was published. Both are
 ;; read for the settings that were published, so that a change of the settings is no edit.
@@ -97,14 +98,18 @@
 ;; A draft is moved to the posts before it is read, since that is where a published post is.
 ;; When its pages cannot be written, it is moved back. Once they are written it stays, also
 ;; when git cannot commit: the pages show it as published, and publishing again commits it.
+;; The comments that a plan carries are read from the plan, and written beside their post once
+;; the pages are, so that a publish that fails leaves the comments files as they were.
 (defn- written!
-  "Writes the pages of the blog in `dir` for the plan `plan`. Gives nil when they are written,
-   and what came of it when they are not."
+  "Writes the pages of the blog in `dir` for the plan `plan`, and the comments it carries.
+   Gives nil when they are written, and what came of it when they are not."
   [how dir settings {:keys [move] :as plan}]
   (when move
     (move! (draft-dir dir move) (post-dir dir move)))
   (try
     (write-pages! how (reading dir settings plan))
+    (doseq [[folder carried] (:comments plan)]
+      (spit (fs/file (post-dir dir folder) layout/comments-file) (comments/written carried)))
     nil
     (catch Exception problem
       (when move
@@ -159,7 +164,7 @@
       (nil? published)
       (say "The blog was never published, so this post is the only one in it. Publish the rest with: bareblog publish --all")
 
-      (not= settings on-disk)
+      (not= settings (site/given-settings on-disk))
       (say (str layout/settings-file " is not as it was published. Publish it with: bareblog publish --all"))
 
       :else
@@ -187,6 +192,11 @@
                                             :held-back held-back
                                             :now       now}))))
 
+(defn- publish-comments!
+  [how dir request]
+  (let [published (source/read-published dir)]
+    (carry-out! how dir (:blog published) (plan/comments (assoc request :published published)))))
+
 (defn- not-a-repository [dir]
   {:outcome :refused
    :why     (str dir " is not the top of a git repository. A blog is one, so that publishing commits "
@@ -194,18 +204,21 @@
 
 (defn publish!
   "Publishes what `request` names of the blog in the directory `dir`: the post in its
-   `:folder`, or the whole blog with `:all?`. `:now` in it is the moment of the publish,
-   as text. Says what came of it, and gives that."
-  [{:keys [say] :as how} dir {:keys [all?] :as request}]
+   `:folder`, the whole blog with `:all?`, or the `:comments` of the post in `:folder` with
+   the commit `:message`. `:now` in it is the moment of the publish, as text. Says what
+   came of it, and gives that."
+  [{:keys [say] :as how} dir {:keys [all? comments] :as request}]
   (let [came (try
                (cond
                  (not (git/top? dir)) (not-a-repository dir)
                  all?                 (publish-all! how dir request)
+                 comments             (publish-comments! how dir request)
                  :else                (publish-one! how dir request))
                (catch Exception problem
                  {:outcome :failed :why (ex-message problem)}))
         came (cond-> came
                (= :not-committed (:outcome came))
-               (assoc :again (str "bareblog publish " (if all? "--all" (:folder request)))))]
+               (assoc :again (str "bareblog publish "
+                                  (if (or all? comments) "--all" (:folder request)))))]
     (say ((told (:outcome came)) came))
     came))

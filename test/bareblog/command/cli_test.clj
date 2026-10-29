@@ -15,7 +15,13 @@
     (is (= {:command "comments" :switch true :on? true :yes? true} (cli/asked ["comments" "--on" "--yes"])))
     (is (= {:command "comments" :switch true :on? false :yes? false} (cli/asked ["comments" "--off"])))
     (is (every? (comp some? :refuse cli/asked)
-                [["comments"] ["comments" "reply"] ["comments" "check" "x"] ["comments" "--on" "x"]])))
+                [["comments"] ["comments" "reply"] ["comments" "reply" "a" "b" "c"] ["comments" "check" "x"]
+                 ["comments" "--on" "x"]])))
+  (testing "a reply is asked for with the short id of its comment, and its text or none"
+    (is (= {:command "comments" :reply true :short-id "1f0c9a52" :text "Thanks." :yes? false}
+           (cli/asked ["comments" "reply" "1f0c9a52" "Thanks."])))
+    (is (= {:command "comments" :reply true :short-id "1f0c9a52" :text nil :yes? true}
+           (cli/asked ["comments" "reply" "1f0c9a52" "--yes"]))))
   (testing "a new blog is asked for with its title"
     (is (= {:command "init" :title "My blog"} (cli/asked ["init" "My blog"])))
     (is (re-find #"in quotes" (:refuse (cli/asked ["init"]))))

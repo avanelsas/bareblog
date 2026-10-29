@@ -20,12 +20,17 @@
   [id]
   (subs id 0 (min short-id-length (count id))))
 
+(defn in-order
+  "The `comments` oldest first, and those of the same moment by their id."
+  [comments]
+  (vec (sort-by (juxt :moment :id) comments)))
+
 (defn- answers
   "The comments of `comments` by the id of the comment they answer, oldest first. A comment
    that answers none among them is under nil."
   [comments]
   (let [ids (set (map :id comments))]
-    (group-by (comp ids :reply-to) (sort-by (juxt :moment :id) comments))))
+    (group-by (comp ids :reply-to) (in-order comments))))
 
 (defn thread
   "The `comments` in the order a thread shows them, each with its `:depth`: oldest first, and
@@ -67,3 +72,33 @@
     [(str "A comment of " folder " answers a comment that answers it.")]
 
     :else []))
+
+(defn matching
+  "Each comment in `by-folder`, the comments of each post by its folder, whose id starts with
+   `short`, as its `:folder` and its `:comment`."
+  [short by-folder]
+  (for [[folder comments] by-folder
+        comment           comments
+        :when             (str/starts-with? (:id comment) short)]
+    {:folder folder :comment comment}))
+
+(defn reply
+  "The reply of the author with the text `text` to `comment`, under the id `id` and at the
+   moment `moment`."
+  [comment text id moment]
+  {:id id :reply-to (:id comment) :author? true :moment moment :text text})
+
+(def ^:private written-keys
+  "The keys of a comment in the order its file holds them."
+  [:id :reply-to :name :author? :moment :text])
+
+(defn- written-comment [comment]
+  (let [ks (concat written-keys (sort (remove (set written-keys) (keys comment))))]
+    (str "{"
+         (str/join " " (for [k ks :when (contains? comment k)] (str k " " (pr-str (k comment)))))
+         "}")))
+
+(defn written
+  "The text of the comments file that holds `comments`, one comment to a line, in order."
+  [comments]
+  (str "[" (str/join "\n " (map written-comment (in-order comments))) "]\n"))

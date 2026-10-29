@@ -148,7 +148,7 @@
 
 ;; The address of the script of comments is in the data of every page only while comments are
 ;; on. A bot that kept it is refused by the script, which `--off` closes.
-(defn- with-comments
+(defn given-settings
   "The settings `settings` as the pages are given them: comments with the address of their
    script while they are on, and no comments while they are off."
   [{{:keys [script on?]} :comments :as settings}]
@@ -165,7 +165,7 @@
   "The data that every page loads, from the settings of the blog and the entries of its posts.
    `problems` are texts that say what is wrong with the blog."
   [settings entries problems]
-  (with-problems {:blog (with-comments settings) :posts (listed entries)} problems))
+  (with-problems {:blog (given-settings settings) :posts (listed entries)} problems))
 
 ;; What is wrong with a blog is for its author. A reader is not told.
 (defn published

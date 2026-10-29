@@ -176,6 +176,54 @@
         (is (= "Not finished" (:title (listed dir "why-web-components"))))
         (is (clean? dir))))))
 
+(defn- published-comments
+  "The comments that the published page of the post in `folder` of the blog in `dir` shows."
+  [dir folder]
+  (get-in (edn/read-string (slurp (fs/file dir "docs" folder "page.edn"))) [:text :comments]))
+
+(deftest comments-test
+  (with-repo
+    (fn [{:keys [dir] :as repo}]
+      (publish! repo {:all? true} true)
+      (let [file    (fs/file dir "posts" "a-week-in-lisbon" "comments.edn")
+            before  (edn/read-string (slurp file))
+            reply   {:id "7fc28009-0000-4000-8000-000000000000" :reply-to (:id (first before))
+                     :author? true :moment "2026-10-29T10:00:00.000Z" :text "A *reply*."}
+            request {:folder "a-week-in-lisbon" :comments (conj before reply)
+                     :message "Reply to a comment on a-week-in-lisbon"}]
+        (spit (fs/file dir "posts" "a-week-in-lisbon" "post.md") "# Not finished\n")
+        (let [{:keys [outcome message]} (publish! repo request true)]
+          (testing "the comments of a post are published, and its comments file is written and committed"
+            (is (= [:published "Reply to a comment on a-week-in-lisbon"] [outcome message]))
+            (is (= 7 (count (published-comments dir "a-week-in-lisbon"))))
+            (is (= [{:kind :text :content ["A " {:kind :emphasis :content ["reply"]} "."]}]
+                   (:blocks (last (published-comments dir "a-week-in-lisbon")))))
+            (is (= (conj before reply) (edn/read-string (slurp file))))
+            (is (pushed? repo)))
+          (testing "an unfinished edit of the post stays out of the pages and the commit"
+            (is (= "A week in Lisbon" (:title (listed dir "a-week-in-lisbon"))))
+            (is (= #{"posts/a-week-in-lisbon/comments.edn"}
+                   (set (remove #(str/starts-with? % "docs/") (:paths (committed dir))))))
+            (is (= "M posts/a-week-in-lisbon/post.md" (sh dir "status" "--porcelain"))))))
+      (testing "a post that is not published is refused, and nothing is written"
+        (let [before (head dir)
+              {:keys [outcome why]} (publish! repo {:folder "a-new-idea" :comments []} true)]
+          (is (= [:refused "a-new-idea is not a published post."] [outcome why]))
+          (is (= before (head dir)))
+          (is (not (fs/exists? (fs/path dir "drafts" "a-new-idea" "comments.edn")))))))))
+
+(deftest comments-off-test
+  (with-repo
+    (fn [{:keys [dir] :as repo}]
+      (spit (fs/file dir "blog.edn")
+            (str/replace (slurp (fs/file dir "blog.edn")) #"\}\s*$" " :comments {:script \"https://s\" :on? false}}\n"))
+      (publish! repo {:all? true} true)
+      (spit (fs/file dir "posts" "hello-bareblog" "post.md") "# Hello again\n")
+      (testing "settings with comments that are off are as they were published"
+        (let [{:keys [outcome said]} (publish! repo {:folder "hello-bareblog"} true)]
+          (is (= :published outcome))
+          (is (not-any? #(re-find #"not as it was published" %) said)))))))
+
 (deftest removal-test
   (with-repo
     (fn [{:keys [dir] :as repo}]

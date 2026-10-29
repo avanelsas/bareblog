@@ -1,6 +1,6 @@
 (ns bareblog.command.comments
-  "The `bareblog comments` command: the inbox of the comments connected, checked, and comments
-   switched on and off.
+  "The `bareblog comments` command: the inbox of the comments connected, checked, comments
+   switched on and off, and the author's replies published.
 
    The inbox is a Google Sheet of the author with BareBlog's script in it, deployed as a web
    app. The setting `:comments` of the blog holds its address and whether comments are on:
@@ -11,10 +11,14 @@
    blog. What an address and an answer mean, and what a check found, are pure, at the top. Each
    function at the end is given how, with `:say`, `:ask` that puts a question and gives true for
    a yes, `:prompt` that gives the line the author types, `:browse!` that opens an address in
-   the browser, and `:publish-all!` that publishes every page and gives the number the process
-   ends with. It gives that number too."
+   the browser, `:edit!` that opens the editor on a text and gives what the author saved,
+   `:publish-all!` that publishes every page, and `:publish-comments!` that publishes the
+   `:comments` of the post in `:folder` with the commit `:message`. Each publish gives the
+   number the process ends with, and each function gives that number too."
   (:require [babashka.fs :as fs]
             [babashka.http-client :as http]
+            [bareblog.blog.comments :as comments]
+            [bareblog.blog.site :as site]
             [bareblog.blog.wire :as wire]
             [bareblog.command.settings :as settings]
             [bareblog.read.source :as source]
@@ -301,3 +305,92 @@
                 (say (str "The script is still open: " problem " It is closed with: bareblog comments check")))
               (write-setting! dir (assoc setting :on? on?))
               (publish-all!)))))))
+
+;; Replying.
+
+(defn- read-published-comments
+  "The comments of each published post of the blog in `dir`, by its folder, and what is wrong
+   with them, as texts."
+  [dir]
+  (let [read (into {} (map (juxt :folder (comp (partial source/read-post-comments dir) :folder)))
+                   (:posts (source/read-published dir)))]
+    {:by-folder (update-vals read :comments)
+     :problems  (mapcat :problems (vals read))}))
+
+(defn- shown-comment
+  "What the author is shown of the comment that `found` holds, under `:comment`, with the post
+   in `:folder`."
+  [{:keys [folder] {commenter :name :keys [moment text]} :comment}]
+  (str (or commenter "You") ", " (site/day moment) ", on " folder ":\n" text))
+
+(defn- match-text
+  "What names the comment of `match` by its id and its post."
+  [{:keys [folder comment]}]
+  (str (:id comment) " on " folder))
+
+(def cut-line
+  "The line in the editor above which the author writes a reply. It and what follows are no part
+   of the reply."
+  "------------------------ write your reply above this line ------------------------")
+
+(defn editor-text
+  "What the editor opens with for a reply to the comment that `shown` shows."
+  [shown]
+  (str "\n\n" cut-line "\n" shown "\n"))
+
+(defn reply-of
+  "The reply in `saved`, what the author saved in the editor: what is above the cut line."
+  [saved]
+  (let [s (or saved "")]
+    (str/trim (subs s 0 (or (str/index-of s cut-line) (count s))))))
+
+(defn- now-moment []
+  (str (.truncatedTo (java.time.Instant/now) java.time.temporal.ChronoUnit/MILLIS)))
+
+(def ^:private comments-off
+  "What tells the author that there is no reply while comments are off."
+  "Comments are off, so there is no reply. Switch them on with: bareblog comments --on")
+
+(defn- read-found-comment
+  "The published comment of the blog in `dir` whose id starts with `short`, as its `:folder`, its
+   `:comment` and the `:comments` of its post, or what is `:wrong`."
+  [dir short]
+  (let [{:keys [by-folder problems]}                      (read-published-comments dir)
+        [{:keys [folder] :as found} & more :as matches] (comments/matching short by-folder)]
+    (cond
+      (seq problems) {:wrong (str/join "\n" problems)}
+      (nil? found)   {:wrong (str "No published comment has an id that starts with " short ".")}
+      more           {:wrong (str "More than one comment has an id that starts with " short ": "
+                                  (str/join ", " (map match-text matches)) ". Give more of the id.")}
+      :else          (assoc found :comments (by-folder folder)))))
+
+(defn- reply-to-found!
+  "Shows the comment that `found` holds, takes the reply `text` or else what the author writes in
+   the editor, asks, and publishes it."
+  [{:keys [say ask edit! publish-comments!]} {:keys [folder comment comments] :as found} text]
+  (let [shown (shown-comment found)]
+    (say shown)
+    (let [written (if text (str/trim text) (reply-of (edit! (editor-text shown))))]
+      (cond
+        (str/blank? written)
+        (do (say "The reply is empty, so nothing was published.") 1)
+
+        (not (ask (str "Your reply:\n" written "\nPublish it on " folder "?")))
+        (do (say "Nothing was published.") 1)
+
+        :else
+        (let [reply (comments/reply comment written (str (random-uuid)) (now-moment))]
+          (publish-comments! {:folder   folder
+                              :comments (conj comments reply)
+                              :message  (str "Reply to a comment on " folder)}))))))
+
+(defn reply!
+  "Publishes the reply `text` of the author, or else what the author writes in the editor, to
+   the published comment of the blog in `dir` whose id starts with `short`."
+  [{:keys [say] :as how} {:keys [dir]} short text]
+  (if-not (:on? (read-setting dir))
+    (do (say comments-off) 1)
+    (let [{:keys [wrong] :as found} (read-found-comment dir short)]
+      (if wrong
+        (do (say wrong) 1)
+        (reply-to-found! how found text)))))

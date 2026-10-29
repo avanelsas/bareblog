@@ -9,9 +9,10 @@
    A blog that is read for its readers may say more. `:settings` are its settings, in place of
    the file. `:read` is the set of folders that are read, of posts and of pages, where it is
    not all of them. `:as-published` is the set of those that are taken as they were published
-   last, from the output directory, and not read. `:pictures-in` is the directory, from its
-   top, that holds its pictures, where that is not the top. `:dates` gives the date of
-   each post and page, which is the moment it was first published."
+   last, from the output directory, and not read. `:comments` gives the comments of a post among
+   those, by its folder, that it shows in place of those it was published with. `:pictures-in`
+   is the directory, from its top, that holds its pictures, where that is not the top. `:dates`
+   gives the date of each post and page, which is the moment it was first published."
   (:require [babashka.fs :as fs]
             [bareblog.blog.address :as address]
             [bareblog.blog.comments :as comments]
@@ -202,6 +203,30 @@
   [{:keys [preview?]} {:keys [id text] :as comment}]
   (cond-> (-> comment (dissoc :text) (assoc :blocks (reader/read-comment text)))
     preview? (assoc :short-id (comments/short-id id))))
+
+(defn read-post-comments
+  "The comments of the post in `folder` of the blog in the directory `dir`, and what is wrong
+   with them, as texts."
+  [dir folder]
+  (read-comments {:dir   (fs/path dir layout/posts-dir folder)
+                  :place (str layout/posts-dir "/" folder)
+                  :in    layout/posts-dir}))
+
+(defn- with-comments
+  "The text `text` of `blog` with `comments` as a page shows them, and none when there are none."
+  [blog text comments]
+  (let [shown-comments (mapv (partial shown-comment blog) comments)]
+    (if (seq shown-comments)
+      (assoc text :comments shown-comments)
+      (dissoc text :comments))))
+
+(defn- read-kept-page
+  "The data of the page of `folder` of `blog` as it was published last, with the comments that
+   `blog` gives it in place of those it had. Nil when it was not published."
+  [{:keys [dir comments] :as blog} folder]
+  (some-> (read-published-page dir folder)
+          (cond-> (contains? comments folder)
+            (update :text (partial with-comments blog) (get comments folder)))))
 
 (defn- named-well? [{:keys [folder]}]
   (text/folder? folder))
@@ -512,18 +537,18 @@
    file beside it under its full address, so that any page can show it, and with its
    comments."
   [{:keys [root] :as blog} {:keys [folder] :as source}]
-  (let [shown-comments (mapv (partial shown-comment blog) (:comments (read-comments source)))]
-    (cond-> (-> (read-text (with-published blog) source)
-                (text/placed (address/post root folder))
-                (assoc :folder folder))
-      (seq shown-comments) (assoc :comments shown-comments))))
+  (with-comments blog
+                 (-> (read-text (with-published blog) source)
+                     (text/placed (address/post root folder))
+                     (assoc :folder folder))
+                 (:comments (read-comments source))))
 
 (defn read-shown-text
   "The post or the page in the folder `folder` as a page shows it. One that `blog` takes as it
    was published is the one that was published. Nil when there is none."
-  [{:keys [dir as-published] :as blog} folder]
+  [{:keys [as-published] :as blog} folder]
   (if (contains? as-published folder)
-    (:text (read-published-page dir folder))
+    (:text (read-kept-page blog folder))
     (some->> folder (find-source blog) (shown blog))))
 
 ;; The address of a post and of a page that is no post look the same, so a page is asked for
@@ -531,9 +556,9 @@
 (defn- read-text-page
   "The data of the page of the post or the page in the folder of `page`: what the page is,
    with its kind, and its text."
-  [{:keys [dir as-published] :as blog} {folder :folder :as page} _site]
+  [{:keys [as-published] :as blog} {folder :folder :as page} _site]
   (if (contains? as-published folder)
-    (read-published-page dir folder)
+    (read-kept-page blog folder)
     (when-some [source (find-source blog folder)]
       {:page (assoc page :kind (if (standalone? source) :standalone :post))
        :text (shown blog source)})))

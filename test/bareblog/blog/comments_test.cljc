@@ -1,5 +1,7 @@
 (ns bareblog.blog.comments-test
   (:require [bareblog.blog.comments :as comments]
+            [clojure.edn :as edn]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]))
 
 (defn- said
@@ -42,3 +44,30 @@
     (testing "comments that answer each other, which no thread reaches, are a problem"
       (is (= ["A comment of posts/x answers a comment that answers it."]
              (comments/problems "posts/x" [a (said "b" "2026-10-02" "c") (said "c" "2026-10-03" "b")]))))))
+
+(deftest matching-test
+  (let [a (said "1f0c9a52-6d3e" "2026-10-01" nil)
+        b (said "1f0c9a99-0000" "2026-10-02" nil)]
+    (testing "a comment is found by the start of its id, with the folder of its post"
+      (is (= [{:folder "x" :comment a}] (comments/matching "1f0c9a52" {"x" [a] "y" [b]}))))
+    (testing "a start that more comments have finds them all, and one that none has finds none"
+      (is (= 2 (count (comments/matching "1f0c9a" {"x" [a] "y" [b]}))))
+      (is (empty? (comments/matching "ffff" {"x" [a]}))))))
+
+(deftest reply-test
+  (testing "a reply of the author answers the comment, with no name"
+    (is (= {:id "r" :reply-to "a" :author? true :moment "2026-10-29T10:00:00.000Z" :text "Thanks."}
+           (comments/reply (said "a" "2026-10-01" nil) "Thanks." "r" "2026-10-29T10:00:00.000Z")))))
+
+(deftest written-test
+  (let [comments [(said "b" "2026-10-02" "a")
+                  {:id "c" :reply-to "a" :author? true :moment "2026-10-02" :text "Hi \"you\"."}
+                  (said "a" "2026-10-01" nil)]
+        text     (comments/written comments)]
+    (testing "the comments file holds the comments by moment, then by id"
+      (is (= ["a" "b" "c"] (map :id (edn/read-string text))))
+      (is (= (set comments) (set (edn/read-string text)))))
+    (testing "it holds one comment to a line, each with its id first"
+      (is (= 3 (count (str/split-lines text))))
+      (is (str/starts-with? text "[{:id \"a\" :reply-to nil :name \"Ann\""))
+      (is (str/ends-with? text "}]\n")))))

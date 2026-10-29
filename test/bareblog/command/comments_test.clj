@@ -1,5 +1,6 @@
 (ns bareblog.command.comments-test
-  (:require [bareblog.blog.wire :as wire]
+  (:require [babashka.fs :as fs]
+            [bareblog.blog.wire :as wire]
             [bareblog.command.comments :as comments]
             [bareblog.example :as example]
             [bareblog.read.source :as source]
@@ -147,3 +148,61 @@
           (is (= 1 (comments/connect! how {:dir dir} "https://docs.google.com/x")))
           (is (re-find #"address of the sheet" (first @said)))
           (is (= "Nothing was changed." (last @said))))))))
+
+(defn- replied
+  "What `reply!` says, gives and publishes, in a copy of the example blog with comments `on?`
+   whose published posts are its post of Lisbon, for the short id `short` and the reply `text`,
+   with what the editor gives as `edited` and the answer `yes?`."
+  [{:keys [on? short text edited yes?] :or {on? true yes? true}}]
+  (example/with-copy {:comments {:script "https://s" :on? on?}}
+    (fn [dir]
+      (fs/create-dirs (fs/path dir "docs"))
+      (spit (fs/file dir "docs" "site.edn") (pr-str {:posts [{:folder "a-week-in-lisbon"}]}))
+      (let [said      (atom [])
+            published (atom [])
+            how       {:say               #(swap! said conj %)
+                       :ask               (constantly yes?)
+                       :edit!             (fn [text] (str edited text))
+                       :publish-comments! #(do (swap! published conj %) 0)}
+            gave      (comments/reply! how {:dir dir} short text)]
+        {:gave gave :said @said :published @published}))))
+
+(deftest reply-test
+  (testing "a reply is published with the comments of its post, and answers the comment it is to"
+    (let [{:keys [gave said published]} (replied {:short "1f0c9a52" :text " Thank you. "})
+          [{:keys [folder message] :as request}] published
+          reply (last (:comments request))]
+      (is (= 0 gave))
+      (is (re-find #"^Ann Lee, 2026-10-20, on a-week-in-lisbon:\nTram 28" (first said)))
+      (is (= ["a-week-in-lisbon" "Reply to a comment on a-week-in-lisbon"] [folder message]))
+      (is (= 7 (count (:comments request))))
+      (is (= {:reply-to "1f0c9a52-6d3e-4b1a-9a7e-2c4d5e6f7a81" :author? true :text "Thank you."}
+             (select-keys reply [:reply-to :author? :text])))
+      (is (re-matches #"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d{3})?Z" (:moment reply)))))
+  (testing "with no text, the reply is what the author writes in the editor"
+    (is (= "From the editor."
+           (-> (replied {:short "1f0c9a52" :edited "From the editor.\n"}) :published first :comments last :text))))
+  (testing "an empty reply and a no publish nothing"
+    (is (empty? (:published (replied {:short "1f0c9a52" :edited "  \n"}))))
+    (is (empty? (:published (replied {:short "1f0c9a52" :text "Hi." :yes? false})))))
+  (testing "a short id of no comment, or of more than one, is refused"
+    (is (re-find #"No published comment" (last (:said (replied {:short "ffff" :text "Hi."})))))
+    (is (re-find #"More than one comment" (last (:said (replied {:short "" :text "Hi."}))))))
+  (testing "while comments are off there is no reply"
+    (let [{:keys [gave said published]} (replied {:on? false :short "1f0c9a52" :text "Hi."})]
+      (is (= 1 gave))
+      (is (re-find #"Comments are off" (first said)))
+      (is (empty? published)))))
+
+(deftest reply-of-test
+  (let [opened (comments/editor-text "Ann Lee, 2026-10-20, on a-week-in-lisbon:\nTram 28.")]
+    (testing "the editor opens on the comment, below the cut line, with room above it"
+      (is (str/starts-with? opened (str "\n\n" comments/cut-line "\nAnn Lee"))))
+    (testing "the reply is what the author wrote above the cut line"
+      (is (= "Thank you." (comments/reply-of (str "Thank you.\n" opened))))
+      (is (= "# A heading\n\nAnd a text." (comments/reply-of (str "# A heading\n\nAnd a text.\n" opened)))))
+    (testing "nothing written, or nothing saved, is an empty reply"
+      (is (= "" (comments/reply-of opened)))
+      (is (= "" (comments/reply-of nil))))
+    (testing "a text with no cut line is the reply whole"
+      (is (= "Hi." (comments/reply-of "Hi.\n"))))))
