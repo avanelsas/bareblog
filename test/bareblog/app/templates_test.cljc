@@ -165,7 +165,8 @@
         second-post (post-of "b" "Second" [{:kind :photo :src "b.jpg"}])
         first-post  (post-of "a" "First" [{:kind :photo :src "a.jpg"}])
         nothing-sent #{"p.comment-sending" "p.comment-received" "div.comment-not-sent"}
-        post-hidden (fn [& args] (set/difference (apply hidden args) nothing-sent))]
+        post-hidden (fn [& args] (disj (set/difference (apply hidden args) nothing-sent)
+                                       "span.comment-count"))]
     (testing "a home page on one page hides its heading, the way back to all posts, the text for
               no posts and its page numbers"
       (is (= #{"div.heading" "button.clear" "p.empty" "x-pagination"} (hidden site (:home pages)))))
@@ -201,6 +202,8 @@
     (testing "the page of a post with no comments hides its thread"
       (is (= #{"a.newer" "x-comments.comments"}
              (post-hidden site (update second-post :text dissoc :comments) reading))))
+    (testing "the page of a post hides how many comments it has, which its thread shows"
+      (is (contains? (hidden site second-post reading) "span.comment-count")))
     (testing "the page of a post hides what a send says until there was one"
       (is (= nothing-sent (set/intersection nothing-sent (hidden site second-post reading)))))
     (testing "a comment on its way is said, one that was received is said, and one that was not
@@ -751,3 +754,22 @@
       (is (some #{[:x-comment {:comment-id "c1" :name "Bo" :datetime "2026-10-01" :depth "0" :max-depth "3"}
                    [:p "Hi."]]}
                 fixed)))))
+
+(defn- comment-count-write
+  "What the row node `row` writes in its count of comments for `item`."
+  [row item]
+  (let [split (:split row)]
+    (some (fn [[part-name write]]
+            (when (= "span.comment-count" (named-part (:fixed split) part-name))
+              write))
+          (template/writes split (merge {:title "T" :href "/a/" :draft? false} item)))))
+
+(deftest comment-count-test
+  (doseq [[list-name row] {"an entry"             pages/entry
+                           "a row of the archive" (get-in pages/archive [:lists :rows :row])}]
+    (testing (str list-name " says how many comments its post has")
+      (is (= {:attrs {:hidden false} :text "3 comments"}
+             (comment-count-write row {:comment-count 3})))
+      (is (= "1 comment" (:text (comment-count-write row {:comment-count 1})))))
+    (testing (str list-name " of a post with no comments says nothing of them")
+      (is (true? (get-in (comment-count-write row {:comment-count nil}) [:attrs :hidden]))))))

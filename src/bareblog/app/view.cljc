@@ -72,8 +72,12 @@
 
 (defn- listed
   "What a post shows of itself wherever it stands in a list."
-  [{:keys [title date href draft?]}]
-  {:title title :date (site/day date) :href href :draft? (boolean draft?)})
+  [{:keys [title date href draft? comment-count]}]
+  {:title         title
+   :date          (site/day date)
+   :href          href
+   :draft?        (boolean draft?)
+   :comment-count comment-count})
 
 (defn- entry-row [{:keys [root blog]} front? first-picture? {:keys [folder summary picture tags] :as entry}]
   [folder {:item  (assoc (listed entry)

@@ -455,19 +455,25 @@ body {
   margin-top: calc(var(--x-space-xl, 1.5rem) * 2);
 }
 
+/* A row is a line of flex, so that what a row hides leaves no gap, and every date ends at the
+   same place. */
 .archive-row {
-  display: grid;
-  grid-template-columns: 4rem 1fr auto auto;
+  display: flex;
   align-items: baseline;
   gap: var(--x-space-md, 0.75rem);
   padding: var(--x-space-xs, 0.25rem) 0;
 }
 
 .archive-row .year {
+  flex: 0 0 4rem;
   font-weight: var(--x-font-weight-semibold, 600);
 }
 
-.archive-row .date {
+.archive-row > a {
+  flex: 1;
+}
+
+.archive-row :is(.date, .comment-count) {
   color: var(--muted-color);
   font-size: var(--x-font-size-sm, 0.875rem);
 }

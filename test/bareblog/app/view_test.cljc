@@ -99,8 +99,13 @@
     (testing "an entry shows the folder, the title, the date, the summary and the address of its
               post, and its picture at the address of its file"
       (is (= {:folder "c" :title "Third" :date "2026-03-01" :href "/c/" :draft? false :summary "Three."
-              :picture "/c/tram.png" :front? true :first-picture? true :gradient-titles? false}
+              :picture "/c/tram.png" :front? true :first-picture? true :gradient-titles? false
+              :comment-count nil}
              (first (row-items node :entries)))))
+    (testing "an entry of a post with comments shows how many"
+      (let [[_ counted] (shown "/" (assoc-in site [:posts 0 :comment-count] 3)
+                               {:page {:kind :home :number 1}})]
+        (is (= 3 (:comment-count (first (row-items counted :entries)))))))
     (testing "the entries of the first page are on the front, and those of any other page are not"
       (is (every? :front? (row-items node :entries)))
       (let [[_ second-page] (shown {:page {:kind :home :number 2}})]
@@ -174,7 +179,8 @@
       (is (= [["2026" true] ["2026" false] ["2025" true]]
              (mapv (juxt :year :first-of-year?) (row-items node :rows)))))
     (testing "a row shows the title, the date and the address of its post"
-      (is (= {:title "First" :date "2025-01-01" :href "/a/" :draft? false :year "2025" :first-of-year? true}
+      (is (= {:title "First" :date "2025-01-01" :href "/a/" :draft? false :comment-count nil
+              :year "2025" :first-of-year? true}
              (last (row-items node :rows))))))
   (testing "a post with no date has no year, and the first of them is the first of its year"
     (let [undated {:blog blog :posts [{:folder "a" :title "A" :date "2026-01-01"}

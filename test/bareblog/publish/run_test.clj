@@ -196,6 +196,7 @@
           (testing "the comments of a post are published, and its comments file is written and committed"
             (is (= [:published "Reply to a comment on a-week-in-lisbon"] [outcome message]))
             (is (= 7 (count (published-comments dir "a-week-in-lisbon"))))
+            (is (= 7 (:comment-count (listed dir "a-week-in-lisbon"))))
             (is (= [{:kind :text :content ["A " {:kind :emphasis :content ["reply"]} "."]}]
                    (:blocks (last (published-comments dir "a-week-in-lisbon")))))
             (is (= (conj before reply) (edn/read-string (slurp file))))
@@ -211,6 +212,7 @@
                                                       :message  "Remove a comment on a-week-in-lisbon"}
                                                 true))))
           (is (nil? (published-comments dir "a-week-in-lisbon")))
+          (is (not (contains? (listed dir "a-week-in-lisbon") :comment-count)))
           (is (= [] (edn/read-string (slurp file))))))
       (testing "a post that is not published is refused, and nothing is written"
         (let [before (head dir)

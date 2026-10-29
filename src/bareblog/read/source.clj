@@ -448,12 +448,13 @@
   "The entry of the post or the page of `blog` in `source`, with whether it is a page, and
    what is wrong with it."
   [blog {:keys [folder draft?] :as source}]
-  (let [read (read-text blog source)]
+  (let [read                        (read-text blog source)
+        {:keys [comments problems]} (read-comments source)]
     {:page?    (standalone? source)
      :entry    (if (standalone? source)
                  (unpublished blog (site/page-entry folder read))
-                 (site/entry folder read draft?))
-     :problems (concat (list-missing read source) (:problems (read-comments source)))}))
+                 (site/with-comment-count (site/entry folder read draft?) (count comments)))
+     :problems (concat (list-missing read source) problems)}))
 
 (defn- read?
   "True when `blog` reads `source`: it can be read, and is among the folders that the blog
@@ -467,11 +468,21 @@
   [blog dirs]
   (map (partial read-entry blog) (filter (partial read? blog) dirs)))
 
+(defn- with-kept-count
+  "The entry `entry`, taken as it was published, with the number of the comments that `comments`
+   gives its post in place of those it had."
+  [comments {:keys [folder] :as entry}]
+  (cond-> entry
+    (contains? comments folder) (site/with-comment-count (count (get comments folder)))))
+
 (defn- read-kept
-  "The entries under `k`, `:posts` or `:pages`, that `blog` takes as they were published last."
-  [{:keys [dir as-published]} k]
+  "The entries under `k`, `:posts` or `:pages`, that `blog` takes as they were published last,
+   with the number of the comments that `blog` gives a post."
+  [{:keys [dir as-published comments]} k]
   (when (seq as-published)
-    (filter (comp as-published :folder) (get (read-published dir) k))))
+    (->> (get (read-published dir) k)
+         (filter (comp as-published :folder))
+         (map (partial with-kept-count comments)))))
 
 ;; A series is checked against the posts and the drafts on disk, also when the blog is read for
 ;; its readers, so that a part that is still a draft is no problem.

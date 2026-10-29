@@ -8,41 +8,42 @@
 
 (def words
   "Every word that a blog template puts in a page that is not from the blog."
-  {:archive     "Archive"
-   :feed        "Feed"
-   :draft       "Draft"
-   :unpublished "Not published"
-   :page-numbers "Pages"
-   :page        "Page"
-   :others      "Other posts"
-   :content     "Content"
-   :part        "Part"
-   :of          "of"
-   :in-series   "In this series"
-   :next-part   "Next part"
-   :no-date     "No date"
-   :no-posts    "There are no posts yet."
-   :search      "Search"
-   :search-key  {:command "\u2318K" :control "Ctrl K"}
-   :pages       "Pages"
-   :theme       "Theme"
-   :all-tags    "Tags"
-   :clear       "Show all posts"
-   :found       {:none "No posts found" :one "post found" :many "posts found"}
-   :posts       "Posts"
-   :menu        "Menu"
-   :close       "Close"
-   :not-found   "Not found"
-   :not-here    "This page is not here."
-   :to-home     "To the home page"
-   :powered-by  "Powered by "
-   :comments    "Comments"
-   :copy        "Copy"
-   :stored      "Comments are stored with Google, in a sheet of the author of this blog."
-   :sending     "Sending your comment\u2026"
-   :received    "Received. Your comment shows here once the author has read it."
-   :not-sent    "Your comment was not sent"
-   :copy-it     "Copy it from here to send it again:"})
+  {:archive       "Archive"
+   :feed          "Feed"
+   :draft         "Draft"
+   :unpublished   "Not published"
+   :page-numbers  "Pages"
+   :page          "Page"
+   :others        "Other posts"
+   :content       "Content"
+   :part          "Part"
+   :of            "of"
+   :in-series     "In this series"
+   :next-part     "Next part"
+   :no-date       "No date"
+   :no-posts      "There are no posts yet."
+   :search        "Search"
+   :search-key    {:command "\u2318K" :control "Ctrl K"}
+   :pages         "Pages"
+   :theme         "Theme"
+   :all-tags      "Tags"
+   :clear         "Show all posts"
+   :found         {:none "No posts found" :one "post found" :many "posts found"}
+   :posts         "Posts"
+   :menu          "Menu"
+   :close         "Close"
+   :not-found     "Not found"
+   :not-here      "This page is not here."
+   :to-home       "To the home page"
+   :powered-by    "Powered by "
+   :comments      "Comments"
+   :comment-count {:one "comment" :many "comments"}
+   :copy          "Copy"
+   :stored        "Comments are stored with Google, in a sheet of the author of this blog."
+   :sending       "Sending your comment\u2026"
+   :received      "Received. Your comment shows here once the author has read it."
+   :not-sent      "Your comment was not sent"
+   :copy-it       "Copy it from here to send it again:"})
 
 (def wide-from
   "The width of a window in pixels from which `x-navbar` shows what it holds. A narrower window
@@ -161,10 +162,21 @@
 (def ^:private block
   {:fixed-of blocks/template})
 
+(def ^:private no-comment-count? (comp nil? :comment-count))
+
+(defn- comment-count-text [{n :comment-count}]
+  (str n " " (get-in words [:comment-count (if (= 1 n) :one :many)])))
+
+(def comment-count
+  "How many comments a post in a list has, where it has some."
+  [:span {:class "comment-count" :hidden no-comment-count?} comment-count-text])
+
 (def meta-line
-  "What a post shows below its title: its date, whether it is a draft, and its tags."
+  "What a post shows below its title: its date, how many comments it has in a list, whether it
+   is a draft, and its tags."
   [:div {:class "meta"}
    [:time {:class "date"} :date]
+   comment-count
    draft
    [:ul {:class "tags" :data-x-part "tags"}]])
 
@@ -423,6 +435,7 @@
            [:li {:class "archive-row"}
             [:span {:class "year"} year-shown]
             [:a {:href :href} :title]
+            comment-count
             [:time {:class "date"} :date]
             draft])})
 

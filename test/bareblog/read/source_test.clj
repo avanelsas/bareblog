@@ -419,3 +419,19 @@
     (let [kept (assoc (source/published example/dir {}) :as-published #{"gone"} :comments {"gone" []})]
       (is (nil? (source/read-page kept {:kind :post :folder "gone"})))
       (is (nil? (source/read-shown-text kept "gone"))))))
+
+(deftest comment-count-test
+  (let [entry (fn [site folder] (first (filter (comp #{folder} :folder) (:posts site))))]
+    (testing "a post read from disk counts its comments, and one with none says nothing of them"
+      (let [site (source/read-site blog)]
+        (is (= 6 (:comment-count (entry site "a-week-in-lisbon"))))
+        (is (not (contains? (entry site "hello-bareblog") :comment-count)))))
+    (testing "a post taken as it was published counts the comments a publish of comments gives it"
+      (example/with-copy {}
+        (fn [dir]
+          (let [blog (source/published dir (source/read-settings dir))]
+            (fs/create-dirs (fs/path dir "docs"))
+            (spit (fs/file dir "docs" "site.edn") (pr-str (source/read-site blog)))
+            (let [kept (assoc blog :read #{} :as-published #{"a-week-in-lisbon"}
+                              :comments {"a-week-in-lisbon" [{:id "x"} {:id "y"}]})]
+              (is (= 2 (:comment-count (entry (source/read-site kept) "a-week-in-lisbon")))))))))))

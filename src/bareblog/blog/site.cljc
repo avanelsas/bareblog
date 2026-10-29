@@ -15,6 +15,12 @@
       picture (assoc :picture picture)
       draft?  (assoc :draft? true))))
 
+(defn with-comment-count
+  "The entry `entry` of a post with the number `n` of its published comments, which it holds
+   only when there are some."
+  [entry n]
+  (if (pos? n) (assoc entry :comment-count n) (dissoc entry :comment-count)))
+
 ;; The date of a post is the moment it was first published, on the clock of its author:
 ;; `2026-10-12T14:03:22+02:00`. It is compared as text, which is the order of time for as long
 ;; as that clock is not set back. A post that was never published has none. It goes first,
