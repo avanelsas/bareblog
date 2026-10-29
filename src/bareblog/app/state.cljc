@@ -14,7 +14,8 @@
   (:require [bareblog.app.view :as view]
             [bareblog.blog.address :as address]
             [bareblog.blog.shape :as shape]
-            [bareblog.blog.site :as site]))
+            [bareblog.blog.site :as site]
+            [clojure.string :as str]))
 
 (defn initial
   "The state of a page that was told nothing yet, with where the top of its blog is, what the
@@ -128,13 +129,30 @@
   [local outcome]
   (assoc local :sent outcome))
 
+(def ^:private refusals
+  "Each refusal of the script by the start of its error, as what a reader is told of it."
+  {"comments are closed" :closed
+   "a name of"           :name
+   "a comment of"        :text})
+
+(defn- refused-as
+  "The kind of the refusal that starts with `start`, when the error `error` is that refusal."
+  [error [start kind]]
+  (when (str/starts-with? (str error) start) kind))
+
+(defn- refusal-of
+  "What a reader is told of the error `error`: one of the `refusals` of the script, or else
+   `:failed`, for anything that went wrong on the way or at Google."
+  [error]
+  (or (some (partial refused-as error) refusals) :failed))
+
 (defn outcome
   "What came of sending the comment `text`, from `answer`, what the script answered: that it
-   was received, or its error with the text, to send again."
+   was received, or why it was not, with the text, to send again."
   [text {:keys [ok error]}]
   (if ok
     {:received? true}
-    {:error (or error "no answer") :text text}))
+    {:error (refusal-of error) :text text}))
 
 (def ^:private local-steps
   "What each meaning of a message does to what is local to the page."

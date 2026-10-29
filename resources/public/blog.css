@@ -558,6 +558,13 @@ body {
   text-wrap: balance;
 }
 
+/* A comment that was not sent is shown as it was written, to copy. A long line, as an address,
+   breaks to stay in the form. */
+.comment-not-sent pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* The foot of a post: the other posts, and the series that the post is a part of. Each group
    is named when the foot holds both, so that a reader sees the two ways to go on. */
 .post-foot {

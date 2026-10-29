@@ -339,18 +339,25 @@
 
 ;; A comment is written by a reader, so it keeps to text. What would run, load from any address,
 ;; or lead anywhere but the web or mail becomes text, a link or code.
-(defn- safe-address?
-  "True when `href` is an address that a link in a comment may lead to: of the web, or mail."
+(defn- web-address?
+  "True when `href` is an address of the web."
   [href]
-  (some? (re-find #"^(?i)(https?:|mailto:)" (str href))))
+  (some? (re-find #"^(?i)https?:" (str href))))
 
+(defn- mail-address?
+  "True when `href` is an address of mail."
+  [href]
+  (some? (re-find #"^(?i)mailto:" (str href))))
+
+;; A link of the web in a comment opens in a tab of its own, so that the reader keeps the post.
 (defn- comment-link
-  "A link in a comment: one that a search engine does not follow, or the code of its address
-   when it is not one a comment may lead to."
+  "A link in a comment: one that a search engine does not follow, which opens a page of the web
+   in a new tab, or the code of its address when it is not one a comment may lead to."
   [{:keys [href] :as link}]
-  (if (safe-address? href)
-    (assoc link :rel "nofollow ugc")
-    {:kind :code :content [(str href)]}))
+  (cond
+    (web-address? href)  (assoc link :rel "nofollow ugc noopener" :target "_blank")
+    (mail-address? href) (assoc link :rel "nofollow ugc")
+    :else                {:kind :code :content [(str href)]}))
 
 (defn- image-link
   "The link that an image or a photo is in a comment, with its text or else its address."

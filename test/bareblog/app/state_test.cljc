@@ -47,13 +47,19 @@
       (is (= "c1" (:reply-to local)) "the form moves back when x-comments asks")
       (is (= "Ann" (:commenter local)))))
   (testing "a comment that was not sent keeps its error and its text"
-    (is (= {:error "comments are closed" :text "Hi."}
-           (:sent (local-after [:comment-sent {:error "comments are closed" :text "Hi."}])))))
+    (is (= {:error :closed :text "Hi."}
+           (:sent (local-after [:comment-sent {:error :closed :text "Hi."}])))))
   (testing "what the script answers is what came of a send"
     (is (= {:received? true} (state/outcome "Hi." {:ok true :id "x"})))
-    (is (= {:error "comments are closed" :text "Hi."}
-           (state/outcome "Hi." {:ok false :error "comments are closed"})))
-    (is (= "no answer" (:error (state/outcome "Hi." {})))))
+    (is (= {:error :closed :text "Hi."}
+           (state/outcome "Hi." {:ok false :error "comments are closed"}))))
+  (testing "a refusal of the script is told by its kind, and anything else as a failure"
+    (let [kind (fn [error] (:error (state/outcome "Hi." {:ok false :error error})))]
+      (is (= :name (kind "a name of at most 80 characters is needed")))
+      (is (= :text (kind "a comment of at most 4000 characters is needed")))
+      (is (= :failed (kind "Exception: In de service Spreadsheets")))
+      (is (= :failed (kind "TypeError: Failed to fetch")))
+      (is (= :failed (kind nil)))))
   (testing "a send says that it is on its way, until the script answers"
     (is (= {:sending? true} (:sent (local-after [:comment-sending "Ann"]))))
     (is (= {:received? true} (:sent (local-after [:comment-sending "Ann"] [:comment-sent {:received? true}])))))

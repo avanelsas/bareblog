@@ -62,6 +62,11 @@
   (testing "a link with no title has no title attribute"
     (is (= [:p [:a {:href "/x"} "x"]]
            (blocks/template {:kind :text :content [{:kind :link :href "/x" :content ["x"]}]}))))
+  (testing "a link of a comment says how it is followed, and where it opens"
+    (is (= [:p [:a {:href "https://a.org" :rel "nofollow ugc noopener" :target "_blank"} "a"]]
+           (blocks/template {:kind    :text
+                             :content [{:kind :link :href "https://a.org" :content ["a"]
+                                        :rel "nofollow ugc noopener" :target "_blank"}]}))))
   (testing "a heading block is a heading of its level"
     (is (= [:h2 "The " [:em "old"] " town"] (blocks/template (:heading examples)))))
   (testing "a photo block is an x-image in a figure"

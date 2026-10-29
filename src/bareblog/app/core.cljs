@@ -248,7 +248,8 @@
 
 ;; A comment is sent as text with no headers of its own, so that the browser asks the script
 ;; nothing first, and the answer of the script can be read. How long the form was open is a span
-;; on the clock of the browser, so that how its clock is set does not count.
+;; on the clock of the browser, so that how its clock is set does not count. What went wrong is
+;; in the console, for the author. The reader is told in the words of the page.
 (defn- send-comment!
   "Sends the comment that the form gave, `{:name :text :reply-to :trap}`, to the script of the
    blog, for the post of the page, and tells the state what came of it."
@@ -258,7 +259,10 @@
         body   (wire/comment-body (assoc given
                                          :post (get-in @page-state [:page :page :folder])
                                          :open (js/Math.round (- now @form-ready))))
-        said   (fn [answer] (dispatch! [:comment-sent (state/outcome text answer)]))]
+        said   (fn [answer]
+                 (when-not (:ok answer)
+                   (js/console.warn "BareBlog: the comment was not sent." (:error answer)))
+                 (dispatch! [:comment-sent (state/outcome text answer)]))]
     (reset! form-ready now)
     (store! commenter-key commenter)
     (dispatch! [:comment-sending commenter])

@@ -21,8 +21,8 @@
   (let [present (known attrs)]
     (into (if (seq present) [tag present] [tag]) children)))
 
-(defn- link [{:keys [href title rel content]}]
-  (element :a {:href href :title title :rel rel} (children content)))
+(defn- link [{:keys [href title rel target content]}]
+  (element :a {:href href :title title :rel rel :target target} (children content)))
 
 (defn- image [{:keys [src alt width height]}]
   (element :img {:src src :alt alt :width width :height height} []))

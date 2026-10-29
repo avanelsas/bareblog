@@ -39,10 +39,13 @@
    :comments      "Comments"
    :comment-count {:one "comment" :many "comments"}
    :copy          "Copy"
-   :stored        "Comments are stored with Google, in a sheet of the author of this blog."
    :sending       "Sending your comment\u2026"
    :received      "Received. Your comment shows here once the author has read it."
    :not-sent      "Your comment was not sent"
+   :not-sent-why  {:closed "comments are closed."
+                   :name   "the name is empty or too long."
+                   :text   "the comment is empty or too long."
+                   :failed "the blog could not take it just now."}
    :copy-it       "Copy it from here to send it again:"})
 
 (def wide-from
@@ -287,20 +290,19 @@
   (complement (comp k :sent)))
 
 (defn- not-sent-line [item]
-  (str (:not-sent words) ": " (get-in item [:sent :error]) ". " (:copy-it words)))
+  (str (:not-sent words) ": " (get-in words [:not-sent-why (get-in item [:sent :error])]) " "
+       (:copy-it words)))
 
 ;; The form clears when a comment is sent, before the script answers. A comment that was not
 ;; sent is shown under the form, so that the reader can copy it.
 (def ^:private comment-notice
-  "What stands under the form: that a comment is on its way, what came of the last send, and
-   where comments are stored."
+  "What stands under the form: that a comment is on its way, and what came of the last send."
   [:div {:slot "notice" :class "comment-notice"}
    [:p {:class "comment-sending" :hidden (unless-sent :sending?) :role "status"} (:sending words)]
    [:p {:class "comment-received" :hidden (unless-sent :received?)} (:received words)]
    [:div {:class "comment-not-sent" :hidden (unless-sent :error)}
     [:p not-sent-line]
-    [:pre (comp :text :sent)]]
-   [:p {:class "comment-stored"} (:stored words)]])
+    [:pre (comp :text :sent)]]])
 
 (def ^:private comment-thread
   "The comments of a post under its text, with the form to send one while comments are on."

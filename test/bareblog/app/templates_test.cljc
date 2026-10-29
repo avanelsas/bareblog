@@ -7,6 +7,7 @@
             [bareblog.blog.wire :as wire]
             [baremirror.alpha.template :as template]
             [clojure.set :as set]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]))
 
 (def site
@@ -211,7 +212,7 @@
       (let [shown (fn [sent] (set/difference nothing-sent (hidden site second-post (assoc reading :sent sent))))]
         (is (= #{"p.comment-sending"} (shown {:sending? true})))
         (is (= #{"p.comment-received"} (shown {:received? true})))
-        (is (= #{"div.comment-not-sent"} (shown {:error "x" :text "Hi."})))))))
+        (is (= #{"div.comment-not-sent"} (shown {:error :failed :text "Hi."})))))))
 
 (deftest contents-test
   (doseq [template-name (keys templates/by-name)
@@ -773,3 +774,22 @@
       (is (= "1 comment" (:text (comment-count-write row {:comment-count 1})))))
     (testing (str list-name " of a post with no comments says nothing of them")
       (is (true? (get-in (comment-count-write row {:comment-count nil}) [:attrs :hidden]))))))
+
+(defn- written-texts
+  "Every text that the node of the page `told` of `site` writes, for what is `local`."
+  [site told local]
+  (let [page            (view/page "/" site told local)
+        k               (first (get-in page [:lists :main :order]))
+        {:keys [split]} (templates/row-node (get-in (templates/named :journal) [:lists :main]) k)]
+    (keep :text (vals (template/writes split (:item (get-in page [:lists :main :by-key k])))))))
+
+(deftest not-sent-test
+  (let [told {:page {:kind :post :folder "b"} :text {:folder "b" :title "Second" :blocks []}}
+        said (fn [kind] (some #(when (str/starts-with? (str %) "Your comment") %)
+                              (written-texts site told {:sent {:error kind :text "Hi."}})))]
+    (testing "a comment that was not sent says why in the words of the page, not those of Google"
+      (is (= (str "Your comment was not sent: the blog could not take it just now. "
+                  "Copy it from here to send it again:")
+             (said :failed)))
+      (is (= "Your comment was not sent: comments are closed. Copy it from here to send it again:"
+             (said :closed))))))

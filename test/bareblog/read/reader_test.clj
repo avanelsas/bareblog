@@ -268,10 +268,17 @@
     (is (= [{:kind :code :language "html" :text "<script>x</script>\n"}]
            (reader/read-comment "```html live\n<script>x</script>\n```"))))
   (testing "a photo and an image are links to what they name, so that nothing loads"
-    (is (= [{:kind :text :content [{:kind :link :href "https://a.org/p.png" :content ["A boat"] :rel "nofollow ugc"}]}]
+    (is (= [{:kind :text :content [{:kind :link :href "https://a.org/p.png" :content ["A boat"]
+                                    :rel "nofollow ugc noopener" :target "_blank"}]}]
            (reader/read-comment "![A boat](https://a.org/p.png)")))
-    (is (= [{:kind :text :content ["See " {:kind :link :href "https://a.org/p.png" :content ["https://a.org/p.png"] :rel "nofollow ugc"}]}]
+    (is (= [{:kind :text :content ["See " {:kind :link :href "https://a.org/p.png"
+                                           :content ["https://a.org/p.png"]
+                                           :rel "nofollow ugc noopener" :target "_blank"}]}]
            (reader/read-comment "See ![](https://a.org/p.png)"))))
+  (testing "a link of the web opens in a new tab"
+    (is (= [{:kind :text :content [{:kind :link :href "https://a.org" :content ["a"]
+                                    :rel "nofollow ugc noopener" :target "_blank"}]}]
+           (reader/read-comment "[a](https://a.org)"))))
   (testing "a link leads only to the web or to mail, and a search engine does not follow it"
     (is (= [{:kind :text :content [{:kind :link :href "mailto:a@b.org" :content ["mail"] :rel "nofollow ugc"}
                                    " "

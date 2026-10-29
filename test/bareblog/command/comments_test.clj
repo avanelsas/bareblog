@@ -1,5 +1,6 @@
 (ns bareblog.command.comments-test
   (:require [babashka.fs :as fs]
+            [bareblog.app.state :as state]
             [bareblog.blog.wire :as wire]
             [bareblog.command.comments :as comments]
             [bareblog.example :as example]
@@ -14,6 +15,14 @@
       (is (str/includes? text (str "var TEXT_MAX = " (:text-max wire/comment-limits) ";")))
       (is (str/includes? text (str "var OPEN_MIN_MS = " (:open-min-ms wire/comment-limits) ";")))
       (is (not (str/includes? text "{{"))))))
+
+(deftest refusals-test
+  (let [text     (comments/script-text (slurp "resources/comments/inbox.gs"))
+        refusals (re-seq #"error: '(comments are closed|a name of[^']*|a comment of[^']*)'" text)]
+    (testing "each refusal of the script to a reader is one that the page names"
+      (is (= 3 (count refusals)))
+      (is (= [:closed :name :text]
+             (map (fn [[_ error]] (:error (state/outcome "Hi." {:ok false :error error}))) refusals))))))
 
 (deftest address-test
   (testing "the address of a web app is taken, with the spaces around it"
