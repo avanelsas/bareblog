@@ -33,17 +33,6 @@ ln -s "$PWD/bin/bareblog" ~/.local/bin/bareblog
 The last two lines put the `bareblog` command on your path. `~/.local/bin` has to be on your
 path for that. Any other directory that is on it works as well.
 
-## Update
-
-```
-bareblog version
-bareblog update
-```
-
-`bareblog update` shows what changed since your version, asks, and brings BareBlog to its
-latest release. A published blog keeps the version it was published with: run
-`bareblog publish --all` in it to put the new one live.
-
 ## See what a post can hold
 
 BareBlog comes with an example blog. Look at it before you write your own:
@@ -80,15 +69,19 @@ bareblog preview
 This makes `drafts/a-first-post/post.md`. Write in it, and put photos beside it. The whole blog
 opens in your browser, drafts included. Save a file and the page follows.
 
-**3. Set `:author` and `:address` in `blog.edn`.** Both lines are in the file already, as
-comments. Take the `;;` away and fill them in:
+**3. Make an empty repository on GitHub, once.** Its name is the last part of the address of
+the blog: a repository `my-blog` of the account `<you>` is published at
+`https://<you>.github.io/my-blog/`. That address works once step 6 is done.
+
+**4. Set `:author` and `:address` in `blog.edn`, and put the blog on GitHub.** Both lines are
+in the file already, as comments. Take the `;;` away and fill them in:
 
 ```clojure
  :author  "Your name"
  :address "https://<you>.github.io/<repository>/"
 ```
 
-**4. Put the blog on GitHub, once.** Make an empty repository there, then:
+Then, in the directory of the blog:
 
 ```
 git remote add origin git@github.com:<you>/<repository>.git
@@ -106,7 +99,8 @@ committed and pushed.
 
 **6. Turn GitHub Pages on, once.** On GitHub, under Settings and Pages, serve the branch
 `main` from `/docs`. Do this after the first publish: before it there is no `docs/`, and the
-build that GitHub starts fails.
+build that GitHub starts fails. To show the address of the blog on the page of the repository,
+add it as the Website under About, with the gear beside it.
 
 ## After that
 
@@ -121,9 +115,21 @@ build that GitHub starts fails.
 | Remove a series, and keep its posts | `bareblog series --name "A series"` |
 | Give the running text a font of its own | `bareblog font "Literata"`, then `bareblog publish --all`. `bareblog font --none` takes it away |
 | Use the latest release of BareBlog | `bareblog update`, then `bareblog publish --all` |
+| Let readers comment under your posts | Follow [Comments](./COMMENTS.md) |
 
 Publishing one post reads only that post from disk. An unfinished edit in another post stays on
 your machine.
+
+## Update
+
+```
+bareblog version
+bareblog update
+```
+
+`bareblog update` shows what changed since your version, asks, and brings BareBlog to its
+latest release. A published blog keeps the version it was published with: run
+`bareblog publish --all` in it to put the new one live.
 
 ## The blog templates
 
@@ -143,6 +149,8 @@ A blog template decides what the blog looks like. The posts stay the same: switc
 
 - [The guide](./GUIDE.md): what a blog is made of, what a post and a page hold, a logo and a
   favicon, link previews, and a blog on your own server.
+- [Comments](./COMMENTS.md): activate a comments section. Let readers comment under your
+  posts, and approve each comment before it is published.
 - [Working on BareBlog](./CONTRIBUTING.md): how the code is laid out, and how to test it.
 
 ## License
