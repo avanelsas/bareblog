@@ -6,6 +6,7 @@
             [bareblog.blog.shape :as shape]
             [bareblog.blog.wire :as wire]
             [baremirror.alpha.template :as template]
+            [clojure.set :as set]
             [clojure.test :refer [deftest is testing]]))
 
 (def site
@@ -162,7 +163,9 @@
                       {:page {:kind :post :folder folder}
                        :text {:folder folder :title title :blocks blocks :comments [a-comment]}})
         second-post (post-of "b" "Second" [{:kind :photo :src "b.jpg"}])
-        first-post  (post-of "a" "First" [{:kind :photo :src "a.jpg"}])]
+        first-post  (post-of "a" "First" [{:kind :photo :src "a.jpg"}])
+        nothing-sent #{"p.comment-sending" "p.comment-received" "div.comment-not-sent"}
+        post-hidden (fn [& args] (set/difference (apply hidden args) nothing-sent))]
     (testing "a home page on one page hides its heading, the way back to all posts, the text for
               no posts and its page numbers"
       (is (= #{"div.heading" "button.clear" "p.empty" "x-pagination"} (hidden site (:home pages)))))
@@ -180,24 +183,32 @@
       (is (= #{"p.empty"} (hidden site (:archive pages))))
       (is (= #{} (hidden empty-site (:archive pages)))))
     (testing "the page of a draft with a newer and an older post hides nothing"
-      (is (= #{} (hidden (update site :posts (partial into [newer])) second-post reading))))
+      (is (= #{} (post-hidden (update site :posts (partial into [newer])) second-post reading))))
     (testing "the page of the newest post, a draft, hides the link to a newer one"
-      (is (= #{"a.newer"} (hidden site second-post reading))))
+      (is (= #{"a.newer"} (post-hidden site second-post reading))))
     (testing "the page of a published post with both neighbours hides the badge of a draft"
-      (is (= #{"x-badge.draft"} (hidden (update site :posts conj older) first-post reading))))
+      (is (= #{"x-badge.draft"} (post-hidden (update site :posts conj older) first-post reading))))
     (testing "the page of the oldest post hides the link to an older one too, and as the last part
               of its series the link to the next part"
-      (is (= #{"x-badge.draft" "a.older" "a.series-next"} (hidden site first-post reading))))
+      (is (= #{"x-badge.draft" "a.older" "a.series-next"} (post-hidden site first-post reading))))
     (testing "the page of a post in no series hides the series"
       (is (= #{"a.newer" "x-card.series-group" "a.series-next"}
-             (hidden (dissoc site :series) second-post reading))))
+             (post-hidden (dissoc site :series) second-post reading))))
     (testing "the page of a post that fits in the window hides the line of how far it is read"
-      (is (= #{"a.newer" "x-progress.read-progress"} (hidden site second-post))))
+      (is (= #{"a.newer" "x-progress.read-progress"} (post-hidden site second-post))))
     (testing "the page of a post with no cover hides the place of its cover"
-      (is (= #{"a.newer" "figure.post-cover"} (hidden site (post-of "b" "Second" []) reading))))
+      (is (= #{"a.newer" "figure.post-cover"} (post-hidden site (post-of "b" "Second" []) reading))))
     (testing "the page of a post with no comments hides its thread"
       (is (= #{"a.newer" "x-comments.comments"}
-             (hidden site (update second-post :text dissoc :comments) reading))))))
+             (post-hidden site (update second-post :text dissoc :comments) reading))))
+    (testing "the page of a post hides what a send says until there was one"
+      (is (= nothing-sent (set/intersection nothing-sent (hidden site second-post reading)))))
+    (testing "a comment on its way is said, one that was received is said, and one that was not
+              sent shows its error"
+      (let [shown (fn [sent] (set/difference nothing-sent (hidden site second-post (assoc reading :sent sent))))]
+        (is (= #{"p.comment-sending"} (shown {:sending? true})))
+        (is (= #{"p.comment-received"} (shown {:received? true})))
+        (is (= #{"div.comment-not-sent"} (shown {:error "x" :text "Hi."})))))))
 
 (deftest contents-test
   (doseq [template-name (keys templates/by-name)
@@ -644,7 +655,9 @@
   #{["page-change-request" :to-page]
     ["click" :tag]
     ["click" :tag-link]
-    ["click" :clear]})
+    ["click" :clear]
+    ["x-comments-reply-request" :reply-to]
+    ["x-comments-submit" :send-comment]})
 
 (def ^:private shell-events
   "The events of the document of each blog template."

@@ -26,15 +26,41 @@
   (testing "a page that was told nothing searches for nothing and has chosen nothing"
     (is (= {:root  "/"
             :local {:query "" :tag nil :date nil :preset nil :menu? false :palette? false
-                    :command-key? false}}
+                    :command-key? false :commenter ""}}
            (state/initial {}))))
   (testing "it starts with where the top of its blog is"
     (is (= "/my-blog/" (:root (state/initial {:root "/my-blog/"})))))
-  (testing "it starts with what the reader chose before, and with what the page knows of its keyboard"
+  (testing "it starts with what the reader chose before, the name they commented with, and what
+            the page knows of its keyboard"
     (is (= {:query "lisbon" :tag "travel" :date "2026-10" :preset "forest" :menu? false :palette? false
-            :command-key? true}
+            :command-key? true :commenter "Ann"}
            (:local (state/initial {:query "lisbon" :tag "travel" :date "2026-10" :preset "forest"
-                                   :command-key? true}))))))
+                                   :command-key? true :commenter "Ann"}))))))
+
+(deftest comments-test
+  (testing "the form answers the comment that a reply asks for, and the whole thread for none"
+    (is (= "c1" (:reply-to (local-after [:reply-to "c1"]))))
+    (is (nil? (:reply-to (local-after [:reply-to "c1"] [:reply-to ""])))))
+  (testing "a comment that was received is said, and the name it was sent under is kept"
+    (let [local (local-after [:reply-to "c1"] [:comment-sending "Ann"] [:comment-sent {:received? true}])]
+      (is (= {:received? true} (:sent local)))
+      (is (= "c1" (:reply-to local)) "the form moves back when x-comments asks")
+      (is (= "Ann" (:commenter local)))))
+  (testing "a comment that was not sent keeps its error and its text"
+    (is (= {:error "comments are closed" :text "Hi."}
+           (:sent (local-after [:comment-sent {:error "comments are closed" :text "Hi."}])))))
+  (testing "what the script answers is what came of a send"
+    (is (= {:received? true} (state/outcome "Hi." {:ok true :id "x"})))
+    (is (= {:error "comments are closed" :text "Hi."}
+           (state/outcome "Hi." {:ok false :error "comments are closed"})))
+    (is (= "no answer" (:error (state/outcome "Hi." {})))))
+  (testing "a send says that it is on its way, until the script answers"
+    (is (= {:sending? true} (:sent (local-after [:comment-sending "Ann"]))))
+    (is (= {:received? true} (:sent (local-after [:comment-sending "Ann"] [:comment-sent {:received? true}])))))
+  (testing "what came of a send is said once: a reply to a comment takes its place, and the form
+            moving back under the thread leaves it"
+    (is (nil? (:sent (local-after [:comment-sent {:received? true}] [:reply-to "c2"]))))
+    (is (= {:sending? true} (:sent (local-after [:reply-to "c1"] [:comment-sending "Ann"] [:reply-to ""]))))))
 
 (deftest told-test
   (testing "what a page is told becomes its site and its page"

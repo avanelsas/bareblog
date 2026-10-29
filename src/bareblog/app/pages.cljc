@@ -37,7 +37,12 @@
    :to-home     "To the home page"
    :powered-by  "Powered by "
    :comments    "Comments"
-   :copy        "Copy"})
+   :copy        "Copy"
+   :stored      "Comments are stored with Google, in a sheet of the author of this blog."
+   :sending     "Sending your comment\u2026"
+   :received    "Received. Your comment shows here once the author has read it."
+   :not-sent    "Your comment was not sent"
+   :copy-it     "Copy it from here to send it again:"})
 
 (def wide-from
   "The width of a window in pixels from which `x-navbar` shows what it holds. A narrower window
@@ -264,11 +269,41 @@
 
 (def ^:private no-comments? (complement :comments?))
 
-;; There is no form yet, so the thread is closed: it shows the comments and asks for none.
+(defn- unless-sent
+  "True of an item whose last send has nothing under `k`."
+  [k]
+  (complement (comp k :sent)))
+
+(defn- not-sent-line [item]
+  (str (:not-sent words) ": " (get-in item [:sent :error]) ". " (:copy-it words)))
+
+;; The form clears when a comment is sent, before the script answers. A comment that was not
+;; sent is shown under the form, so that the reader can copy it.
+(def ^:private comment-notice
+  "What stands under the form: that a comment is on its way, what came of the last send, and
+   where comments are stored."
+  [:div {:slot "notice" :class "comment-notice"}
+   [:p {:class "comment-sending" :hidden (unless-sent :sending?) :role "status"} (:sending words)]
+   [:p {:class "comment-received" :hidden (unless-sent :received?)} (:received words)]
+   [:div {:class "comment-not-sent" :hidden (unless-sent :error)}
+    [:p not-sent-line]
+    [:pre (comp :text :sent)]]
+   [:p {:class "comment-stored"} (:stored words)]])
+
 (def ^:private comment-thread
-  "The comments of a post, under its text."
-  [:x-comments {:class "comments" :closed true :heading-label (:comments words)
-                :hidden no-comments? :data-x-part "comments"}])
+  "The comments of a post under its text, with the form to send one while comments are on."
+  [:x-comments {:class          "comments"
+                :closed         :closed?
+                :reply-to       :reply-to
+                :commenter-name :commenter
+                :name-max       (str (:name-max wire/comment-limits))
+                :text-max       (str (:text-max wire/comment-limits))
+                :heading-label  (:comments words)
+                :hidden         no-comments?
+                :data-x-part    "comments"
+                :on             {"x-comments-reply-request" :reply-to
+                                 "x-comments-submit"        :send-comment}}
+   comment-notice])
 
 (defn- post-layout
   "The text of a post beside its contents, in an article that opens with the elements

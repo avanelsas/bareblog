@@ -15,6 +15,7 @@
     bareblog.blog.site-test
     bareblog.blog.tags-test
     bareblog.blog.text-test
+    bareblog.blog.wire-test
     bareblog.app.blocks-test
     bareblog.app.card-test
     bareblog.app.live-test

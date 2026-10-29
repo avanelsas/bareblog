@@ -235,14 +235,48 @@
   [message]
   (not= @page-state (state/step @page-state message)))
 
+(def ^:private commenter-key
+  "The name under which the browser keeps the name that the reader last commented with."
+  "bareblog-commenter")
+
+(defonce ^{:private true :doc "The moment that the form of comments was last ready: when the
+                                page started, or when the last comment was sent."}
+  form-ready
+  (atom (.now js/performance)))
+
+(declare dispatch!)
+
+;; A comment is sent as text with no headers of its own, so that the browser asks the script
+;; nothing first, and the answer of the script can be read. How long the form was open is a span
+;; on the clock of the browser, so that how its clock is set does not count.
+(defn- send-comment!
+  "Sends the comment that the form gave, `{:name :text :reply-to :trap}`, to the script of the
+   blog, for the post of the page, and tells the state what came of it."
+  [{commenter :name :keys [text] :as given}]
+  (let [now    (.now js/performance)
+        script (get-in @page-state [:site :blog :comments :script])
+        body   (wire/comment-body (assoc given
+                                         :post (get-in @page-state [:page :page :folder])
+                                         :open (js/Math.round (- now @form-ready))))
+        said   (fn [answer] (dispatch! [:comment-sent (state/outcome text answer)]))]
+    (reset! form-ready now)
+    (store! commenter-key commenter)
+    (dispatch! [:comment-sending commenter])
+    (-> (js/fetch script #js {:method "POST" :body (js/JSON.stringify (clj->js body))})
+        (.then #(.json %))
+        (.then #(said (js->clj % :keywordize-keys true)))
+        (.catch #(said {:ok false :error (str %)})))))
+
 (defn- dispatch!
-  "Takes the reader where `message` leads, or else lets it change the state. A message that
-   does neither is dropped."
-  [message]
-  (if-some [to (state/destination @page-state message)]
-    (set! (.-href js/location) to)
-    (when (changes? message)
-      (step-and-show! message))))
+  "Sends a comment, or takes the reader where `message` leads, or else lets it change the state.
+   A message that does none of these is dropped."
+  [[meaning argument :as message]]
+  (if (= :send-comment meaning)
+    (send-comment! argument)
+    (if-some [to (state/destination @page-state message)]
+      (set! (.-href js/location) to)
+      (when (changes? message)
+        (step-and-show! message)))))
 
 (defn- read!
   "Lets how far the reader has read, `share`, change the state. A share that does not is dropped."
@@ -289,6 +323,20 @@
   [_origin ^js event]
   (.. event -detail -month))
 
+(defn- detail-reply-to
+  "The comment that the form of comments is asked to answer."
+  [_origin ^js event]
+  (.. event -detail -replyTo))
+
+(defn- detail-comment
+  "The comment that the form of comments gave."
+  [_origin ^js event]
+  (let [^js detail (.-detail event)]
+    {:name     (.-name detail)
+     :text     (.-text detail)
+     :reply-to (.-replyTo detail)
+     :trap     (.-trap detail)}))
+
 (defn- nothing [_origin _event]
   nil)
 
@@ -308,7 +356,9 @@
    :close-menu    nothing
    :open-palette  nothing
    :close-palette nothing
-   :open-post     detail-address})
+   :open-post     detail-address
+   :reply-to      detail-reply-to
+   :send-comment  detail-comment})
 
 (defn- with-argument [meaning]
   [meaning (arguments meaning)])
@@ -556,6 +606,7 @@
   (reset! page-state (state/initial (assoc (asked-for)
                                            :root         (document-root)
                                            :preset       (read-stored preset-key)
+                                           :commenter    (read-stored commenter-key)
                                            :command-key? (command-key?))))
   (-> (fetch-page)
       (.then start!)

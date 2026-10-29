@@ -121,12 +121,9 @@
 (def test-comment
   "What the check sends as a page would: open long enough, and for no post, so that one that is
    left behind is dropped as a missing post."
-  {:post    ""
-   :name    "BareBlog check"
-   :text    "A test comment of bareblog comments check."
-   :replyTo ""
-   :trap    ""
-   :open    (+ 1000 (:open-min-ms wire/comment-limits))})
+  (wire/comment-body {:name "BareBlog check"
+                      :text "A test comment of bareblog comments check."
+                      :open (+ 1000 (:open-min-ms wire/comment-limits))}))
 
 ;; Calling the script.
 

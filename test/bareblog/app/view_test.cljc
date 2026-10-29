@@ -547,3 +547,18 @@
       (let [[_ none] (shown (told []))]
         (is (false? (get-in none [:item :comments?])))
         (is (= [] (comment-list none)))))))
+
+(deftest comment-form-test
+  (let [told   {:page {:kind :post :folder "a"} :text {:folder "a" :title "First" :blocks []}}
+        on     (assoc-in site [:blog :comments] {:script "https://s" :on? true})
+        item   (fn [site local] (:item (second (shown "/" site told local))))]
+    (testing "a post with no comments shows its thread while comments are on, with the form open"
+      (is (true? (:comments? (item on {}))))
+      (is (false? (:closed? (item on {})))))
+    (testing "while comments are off the thread of a post with no comments is hidden, and closed"
+      (is (false? (:comments? (item site {}))))
+      (is (true? (:closed? (item site {})))))
+    (testing "the form is given the comment it answers, the name and what a send said"
+      (is (= {:reply-to "c1" :commenter "Ann" :sent {:sending? true}}
+             (select-keys (item on {:reply-to "c1" :commenter "Ann" :sent {:sending? true}})
+                          [:reply-to :commenter :sent]))))))

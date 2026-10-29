@@ -190,3 +190,14 @@
                         :pages [{:folder "about" :date "2026-02-01"}]}))))
   (testing "a site with no pages says nothing of them"
     (is (= {:blog {}} (site/with-pages {:blog {}} [])))))
+
+(deftest comments-test
+  (let [script "https://script.google.com/macros/s/a/exec"]
+    (testing "the pages are given the address of the script while comments are on"
+      (is (= {:script script :on? true}
+             (get-in (site/site {:comments {:script script :on? true :extra 1}} [] []) [:blog :comments])))
+      (is (site/comments-on? (:blog (site/site {:comments {:script script :on? true}} [] [])))))
+    (testing "the pages are given no comments, and no address, while comments are off or not connected"
+      (is (not (contains? (:blog (site/site {:comments {:script script :on? false}} [] [])) :comments)))
+      (is (not (contains? (:blog (site/site {:comments {:on? true}} [] [])) :comments)))
+      (is (not (site/comments-on? (:blog (site/site {} [] []))))))))

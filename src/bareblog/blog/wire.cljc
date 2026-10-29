@@ -65,3 +65,15 @@
   {:name-max    80
    :text-max    4000
    :open-min-ms 5000})
+
+(defn comment-body
+  "What the script of comments is sent for a comment: the `:post` it is under, the `:name` and
+   the `:text`, the comment it answers as `:reply-to`, the hidden field as `:trap`, and how long
+   the form was `:open`, in milliseconds. The script reads it as JSON."
+  [{commenter :name :keys [post text reply-to trap open]}]
+  {:post    (or post "")
+   :name    commenter
+   :text    text
+   :replyTo (or reply-to "")
+   :trap    (or trap "")
+   :open    open})

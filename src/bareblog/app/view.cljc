@@ -313,6 +313,15 @@
         by-id  (into {} (map (juxt :id identity)) shown-comments)]
     (rows (map (partial comment-row author by-id) (comments/thread shown-comments)))))
 
+(defn- comment-form
+  "What the form of comments of a post is given: whether it is closed, the comment it answers,
+   the name of the reader, and what came of the last send."
+  [blog {:keys [reply-to commenter sent]}]
+  {:closed?   (not (site/comments-on? blog))
+   :reply-to  reply-to
+   :commenter commenter
+   :sent      sent})
+
 (defn- post [{:keys [site local] {:keys [folder title date tags] :as shown} :text}]
   (if shown
     (let [{:keys [cover blocks]} (text/split-cover shown)
@@ -327,7 +336,9 @@
                               :series           (some-> in-series series-item)
                               :read             (:read local)
                               :gradient-titles? (site/gradient-titles? (:blog site))
-                              :comments?        (boolean (seq (:comments shown)))}
+                              :comments?        (boolean (or (seq (:comments shown))
+                                                             (site/comments-on? (:blog site))))}
+                             (comment-form (:blog site) local)
                              (neighbours site folder))
                :lists {:tags     (tag-rows (:root site) tags)
                        :blocks   (block-rows blocks)

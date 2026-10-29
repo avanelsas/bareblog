@@ -5,7 +5,8 @@
    `:site` and its own `:page` or a `:problem`, and
    under `:local` what is the page's own: what the reader chose, which is the text to search
    for, a tag, a date and a theme preset, whether the menu and the palette are open, how far
-   the reader has scrolled through the page, and what the page knows of its keyboard.
+   the reader has scrolled through the page, what the page knows of its keyboard, and for
+   comments, the comment the form answers, the reader's name, and what a send said.
 
    A message goes through `step`, and `shown` says what the page then shows: a notice, the view
    of the document, what the address asks for, and the preset to keep. An event, and what the
@@ -17,8 +18,9 @@
 
 (defn initial
   "The state of a page that was told nothing yet, with where the top of its blog is, what the
-   reader chose before, and what the page knows of its keyboard."
-  [{:keys [root query tag date preset command-key?]}]
+   reader chose before, the name they last commented with, and what the page knows of its
+   keyboard."
+  [{:keys [root query tag date preset command-key? commenter]}]
   {:root  (or root address/top)
    :local {:query        (or query "")
            :tag          tag
@@ -26,7 +28,8 @@
            :preset       preset
            :menu?        false
            :palette?     false
-           :command-key? (boolean command-key?)}})
+           :command-key? (boolean command-key?)
+           :commenter    (or commenter "")}})
 
 (defn blog-shape
   "The shape of the blog that the page of `state` was told of."
@@ -106,21 +109,51 @@
 (defn- read-to [local share]
   (assoc local :read share))
 
+;; The form of comments answers one comment, or none. A send says that it is on its way, and
+;; then once what came of it: a reply to a comment takes the place of what it said. The form
+;; moves back under the thread after a send, and that leaves what it said.
+(defn- reply-to
+  "What is local after the form is asked to answer the comment `id`, or none when it is empty."
+  [local id]
+  (cond-> (assoc local :reply-to (not-empty id))
+    (seq id) (assoc :sent nil)))
+
+(defn- comment-sending
+  "What is local while a comment under the name `commenter` is on its way to the script."
+  [local commenter]
+  (assoc local :sent {:sending? true} :commenter commenter))
+
+(defn- comment-sent
+  "What is local after a comment was sent, with its `outcome`."
+  [local outcome]
+  (assoc local :sent outcome))
+
+(defn outcome
+  "What came of sending the comment `text`, from `answer`, what the script answered: that it
+   was received, or its error with the text, to send again."
+  [text {:keys [ok error]}]
+  (if ok
+    {:received? true}
+    {:error (or error "no answer") :text text}))
+
 (def ^:private local-steps
   "What each meaning of a message does to what is local to the page."
-  {:search        search
-   :tag           pick-tag
-   :tag-link      pick-tag
-   :day           pick-date
-   :month         pick-date
-   :clear         clear
-   :preset        pick-preset
-   :menu          menu
-   :open-menu     open-menu
-   :close-menu    close-menu
-   :open-palette  open-palette
-   :close-palette close-palette
-   :read          read-to})
+  {:search          search
+   :tag             pick-tag
+   :tag-link        pick-tag
+   :day             pick-date
+   :month           pick-date
+   :clear           clear
+   :preset          pick-preset
+   :menu            menu
+   :open-menu       open-menu
+   :close-menu      close-menu
+   :open-palette    open-palette
+   :close-palette   close-palette
+   :read            read-to
+   :reply-to        reply-to
+   :comment-sending comment-sending
+   :comment-sent    comment-sent})
 
 (defn step
   "The state after `message`, which is a meaning and an optional argument. A message that
