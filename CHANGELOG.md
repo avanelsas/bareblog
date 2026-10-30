@@ -1,7 +1,41 @@
 # Changelog
 
-All notable changes to BareBlog are listed here. Until 1.0.0, a release may change the
-settings, the layout of a blog and the commands.
+All notable changes to BareBlog are listed here. From 1.0.0 on, a release that changes the
+settings, the layout of a blog or the commands in a way that a blog must follow is a new major
+version.
+
+## [1.0.0] - 2026-10-30
+
+BareBlog needs BareDOM 4.17.0.
+
+### Added
+
+- **Comments under posts.** A reader writes a comment under a post, in Markdown, and it waits
+  in a Google Sheet of the author's own until the author approves it. Nothing reaches the blog
+  without the author's yes. Comments are off until the author turns them on, and are for posts
+  only. [COMMENTS.md](./COMMENTS.md) says how to set them up and use them.
+  - `bareblog comments connect` opens the template comments sheet to copy, takes the address of
+    its script, and turns comments on.
+  - `bareblog comments` walks the author through each comment that waits, oldest first:
+    approve, decline, reply, skip or stop. The approved comments and the replies are published
+    in one commit, and their rows are deleted once that is done.
+  - `bareblog comments reply <short-id>` replies to a published comment, and
+    `bareblog comments remove <short-id>` takes one away with every reply under it. The
+    preview shows the short id of each comment.
+  - `bareblog comments --off` and `--on` turn comments off and on, and
+    `bareblog comments check` checks the script of the sheet.
+  - The comments of a post are kept in `comments.edn` beside it. A reply nests 3 deep at most,
+    and a link in a comment opens in a new tab. Listing pages and the archive show how many
+    comments a post has.
+- **A caption under a photo.** A picture on a line of its own has a caption below it when it
+  has a title: `![The harbour](harbour.jpg "Lisbon, the morning we arrived")`. The cover shows
+  none.
+
+### Changed
+
+- **A publish pushes what an earlier one could not.** When git could not push, the next
+  publish pushes the commit, also when it commits nothing. A failed push says to publish again
+  with `bareblog publish --all`.
 
 ## [0.7.0] - 2026-10-28
 
