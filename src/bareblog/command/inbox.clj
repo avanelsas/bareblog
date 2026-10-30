@@ -29,7 +29,7 @@
 
 (def script-version
   "The version of the script that this BareBlog holds."
-  1)
+  2)
 
 ;; The script. Pure.
 

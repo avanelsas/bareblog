@@ -29,9 +29,15 @@ function comment(data) {
   if (!filled(data.name, NAME_MAX)) return { ok: false, error: 'a name of at most ' + NAME_MAX + ' characters is needed' };
   if (!filled(data.text, TEXT_MAX)) return { ok: false, error: 'a comment of at most ' + TEXT_MAX + ' characters is needed' };
   var id = Utilities.getUuid();
-  sheet().appendRow([id, new Date().toISOString(), String(data.post || ''),
-                     String(data.replyTo || ''), data.name, data.text]);
+  sheet().appendRow([id, new Date().toISOString(), data.post || '', data.replyTo || '',
+                     data.name, data.text].map(asText));
   return { ok: true, id: id };
+}
+
+// A cell keeps what starts with a quote as the text after it, so that a comment such as +1 or
+// =A1 is not read as a number or a formula.
+function asText(s) {
+  return "'" + s;
 }
 
 function filled(s, max) {
