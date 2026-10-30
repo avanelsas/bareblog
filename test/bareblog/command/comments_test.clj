@@ -116,6 +116,16 @@
   [id post reply-to received]
   {:id id :received received :post post :replyTo reply-to :name "Fay" :text (str "Text of " id ".")})
 
+(deftest row-comment-test
+  (testing "what the sheet gives as a number, a truth or nothing is a comment of text"
+    (is (= {:folder  "a-post"
+            :comment {:id     "r1" :reply-to nil :name "42"
+                      :moment "2026-10-29T10:00:00.000Z" :text "1"}}
+           (comments/row-comment {:id "r1" :received "2026-10-29T10:00:00.000Z" :post "a-post"
+                                  :replyTo "" :name 42 :text 1})))
+    (is (= "true" (get-in (comments/row-comment {:id "r1" :text true}) [:comment :text])))
+    (is (nil? (get-in (comments/row-comment {:id "r1" :replyTo nil}) [:comment :reply-to])))))
+
 (deftest triage-test
   (let [rows [(row "r2" "a-week-in-lisbon" "" "2026-10-29T10:00:00.000Z")
               (row "r1" "hello-bareblog" "" "2026-10-28T10:00:00.000Z")

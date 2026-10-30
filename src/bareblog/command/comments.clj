@@ -59,15 +59,18 @@
 
 ;; The walk-through. Pure.
 
+;; A script before version 2 let the sheet read a comment such as +1 as a number, and its rows
+;; may wait still, so each value is taken as text.
 (defn row-comment
   "The comment that the row `row` of the sheet holds, as its `:folder` and its `:comment`."
-  [{:keys [id received post replyTo text] commenter :name}]
-  {:folder  post
-   :comment {:id       id
-             :reply-to (not-empty replyTo)
-             :name     commenter
-             :moment   (str received)
-             :text     text}})
+  [row]
+  (let [{:keys [id received post replyTo text] commenter :name} (update-vals row str)]
+    {:folder  post
+     :comment {:id       id
+               :reply-to (not-empty replyTo)
+               :name     commenter
+               :moment   received
+               :text     text}}))
 
 (defn- fate
   "What becomes of `found`, a comment of the sheet, for the published comments of each published

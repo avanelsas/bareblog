@@ -9,6 +9,10 @@ var VERSION = {{version}};
 var NAME_MAX = {{name-max}};
 var TEXT_MAX = {{text-max}};
 var OPEN_MIN_MS = {{open-min-ms}};
+var WAITING_MAX = {{waiting-max}};
+var FOLDER = /^(?:{{folder-pattern}})?$/;
+// The shape of a UUID, as Google and BareBlog make them.
+var ID = /^(?:[0-9a-f-]{36})?$/;
 
 // One address for both: a reader's comment, and the author's actions with a secret.
 function doPost(e) {
@@ -20,18 +24,32 @@ function doPost(e) {
   }
 }
 
-// A trap is answered as a comment is, and nothing is written, so a bot is not told.
+// A trap is answered as a comment is, and nothing is written, so a bot is not told. A full
+// inbox stops a flood at what the author can read.
 function comment(data) {
   if (props().getProperty('open') !== 'yes') return { ok: false, error: 'comments are closed' };
-  if (data.trap !== '' || typeof data.open !== 'number' || data.open < OPEN_MIN_MS) {
+  if (data.trap !== '' || typeof data.open !== 'number' || data.open < OPEN_MIN_MS ||
+      !addressed(data)) {
     return { ok: true, id: Utilities.getUuid() };
   }
+  if (sheet().getLastRow() >= WAITING_MAX) return { ok: false, error: 'the inbox is full' };
   if (!filled(data.name, NAME_MAX)) return { ok: false, error: 'a name of at most ' + NAME_MAX + ' characters is needed' };
   if (!filled(data.text, TEXT_MAX)) return { ok: false, error: 'a comment of at most ' + TEXT_MAX + ' characters is needed' };
   var id = Utilities.getUuid();
-  sheet().appendRow([id, new Date().toISOString(), String(data.post || ''),
-                     String(data.replyTo || ''), data.name, data.text]);
+  sheet().appendRow([id, new Date().toISOString(), data.post || '', data.replyTo || '',
+                     data.name, data.text].map(asText));
   return { ok: true, id: id };
+}
+
+// A cell keeps what starts with a quote as the text after it, so that a comment such as +1 or
+// =A1 is not read as a number or a formula.
+function asText(s) {
+  return "'" + s;
+}
+
+// A post and the comment it answers, as a page sends them.
+function addressed(data) {
+  return FOLDER.test(data.post || '') && ID.test(data.replyTo || '');
 }
 
 function filled(s, max) {

@@ -3,7 +3,9 @@
 
    A page loads two files. The data of the site, at the top of the blog, is the same for every
    page. The data of a page, beside the page, says what the page is, and holds under `:text`
-   the post or the page of the author that it shows, when it shows one. In a preview it names a socket, and the page is told both over that.")
+   the post or the page of the author that it shows, when it shows one. In a preview it names a
+   socket, and the page is told both over that."
+  (:require [clojure.string :as str]))
 
 (def site-data
   "The file at the top of a blog that holds what every page loads: the settings of the blog and
@@ -59,12 +61,31 @@
   "data-not-found")
 
 (def comment-limits
-  "What a comment that a reader sends may be: the most characters of a name and of a text, and
-   how long its form is open at least, in milliseconds. The form and the script take them from
-   here."
+  "What a comment that a reader sends may be: the most characters of a name and of a text, how
+   long its form is open at least, in milliseconds, and how many comments may wait for the
+   author. The form and the script take them from here."
   {:name-max    80
    :text-max    4000
-   :open-min-ms 5000})
+   :open-min-ms 5000
+   :waiting-max 100})
+
+(def refusals
+  "Each refusal of the script to a reader, by the start of its error, as its kind. The page and
+   the command read an error by these."
+  {"comments are closed" :closed
+   "the inbox is full"   :full
+   "a name of"           :name
+   "a comment of"        :text})
+
+(defn- refused-as
+  "The kind of the refusal that starts with `start`, when the error `error` is that refusal."
+  [error [start kind]]
+  (when (str/starts-with? (str error) start) kind))
+
+(defn refusal
+  "The kind of the refusal of the script that the error `error` is, or nil."
+  [error]
+  (some (partial refused-as error) refusals))
 
 (defn comment-body
   "What the script of comments is sent for a comment: the `:post` it is under, the `:name` and

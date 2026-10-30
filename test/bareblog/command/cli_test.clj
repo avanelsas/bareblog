@@ -6,6 +6,14 @@
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]))
 
+(deftest visible-test
+  (testing "a control that a terminal acts on is shown as its escape"
+    (is (= "Nice\\u001B[2Kpost" (cli/visible "Nice\u001b[2Kpost")))
+    (is (= "a\\u000Db\\u0000" (cli/visible "a\rb\u0000")))
+    (is (= "\\u202Eevil" (cli/visible "\u202Eevil"))))
+  (testing "a new line, a tab and every other character stay"
+    (is (= "Café — ok\n\tnext" (cli/visible "Café — ok\n\tnext")))))
+
 (deftest asked-test
   (testing "comments are connected, with or without an address, checked, and switched"
     (is (= {:command "comments" :connect true :address nil :yes? false} (cli/asked ["comments" "connect"])))

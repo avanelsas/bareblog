@@ -7,5 +7,5 @@
          :requires ([bareblog.test-runner])
          :task     (bareblog.test-runner/run)}
   inbox {:doc      "Print the script of the comments inbox, for the template sheet."
-         :requires ([bareblog.command.comments])
-         :task     (print (bareblog.command.comments/read-script "."))}}}
+         :requires ([bareblog.command.inbox])
+         :task     (print (bareblog.command.inbox/read-script "."))}}}
