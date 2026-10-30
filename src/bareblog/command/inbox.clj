@@ -46,7 +46,9 @@
 
 ;; What a line and an answer mean. Pure.
 
-(def ^:private address-shape #"https://script\.google\.com/macros/s/[A-Za-z0-9_-]+/exec")
+(def ^:private address-shape
+  "The address of a web app, with the ID of its deployment."
+  #"https://script\.google\.com/macros/s/([A-Za-z0-9_-]+)/exec")
 
 (defn address
   "What the line `line` that the author typed is: `:stop` when it is empty, the `:address` of a
@@ -236,15 +238,33 @@
   [home]
   (script-text (slurp (fs/file home "resources" "comments" "inbox.gs"))))
 
+;; A sheet can have more than one deployment, and only the one at the address of the blog counts.
+;; A new deployment gets another address, so the author is told which one to give a new version.
+(defn deployment
+  "The start of the ID of the deployment at the address `url`, enough to tell it from another, or
+   nil when `url` is no address of a web app."
+  [url]
+  (some->> url (re-matches address-shape) second (take 12) (apply str)))
+
+(defn newer-script-text
+  "What tells the author that the newer script is in `file`, and how to deploy it at `url`."
+  [file url]
+  (str "The script of the sheet is older than this BareBlog's. The newer one is in " file ". In "
+       "the sheet: Extensions, Apps Script, paste it over the code, and save. Then Deploy, Manage "
+       "deployments, "
+       (if-some [id (deployment url)]
+         (str "the deployment whose ID starts with " id)
+         "the deployment of the blog")
+       ": its pencil, Version: New version, and Deploy. A new deployment would get another "
+       "address."))
+
 (defn- newer-script!
-  "Writes the script that this BareBlog holds to a file outside the blog, and says what to do
-   with it."
-  [{:keys [say]} home]
+  "Writes the script that this BareBlog holds to a file outside the blog, and says how to deploy
+   it at `url`."
+  [{:keys [say]} home url]
   (let [file (fs/create-temp-file {:prefix "bareblog-inbox-" :suffix ".gs"})]
     (spit (fs/file file) (read-script home))
-    (say (str "The script of the sheet is older than this BareBlog's. The newer one is in " file
-              ". In the sheet: Extensions, Apps Script, paste it over the code, save, and deploy "
-              "a new version under Manage deployments."))))
+    (say (newer-script-text file url))))
 
 (defn- check-answers!
   "What the script at `url` answers at each step of a check with comments `on?`, as
@@ -267,7 +287,7 @@
         (if-some [problem (check-problem (boolean on?) answers)]
           (do (say (str "The check failed. " problem)) 1)
           (do (say (str "The script works, and comments are " (if on? "on" "off") "."))
-              (when (older? (get-in answers [:state :script])) (newer-script! how home))
+              (when (older? (get-in answers [:state :script])) (newer-script! how home script))
               0))))
     (do (say not-connected) 1)))
 

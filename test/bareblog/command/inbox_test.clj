@@ -47,6 +47,18 @@
     (is (re-find #"a page" (:wrong (inbox/answer {:status 200 :body "<html>"}))))
     (is (re-find #"not be reached" (:wrong (inbox/answer {:unreachable "timed out"}))))))
 
+(deftest newer-script-text-test
+  (let [url "https://script.google.com/macros/s/AKfycbxJdhUNq4c-RbDHZ7IQ/exec"]
+    (testing "the deployment is named by the start of its ID, and an address of no web app names none"
+      (is (= "AKfycbxJdhUN" (inbox/deployment url)))
+      (is (nil? (inbox/deployment "https://example.com/")))
+      (is (nil? (inbox/deployment nil))))
+    (testing "the author is told where the script is, and which deployment gets a new version"
+      (is (re-find #"in /tmp/a\.gs\. .*whose ID starts with AKfycbxJdhUN: its pencil"
+                   (inbox/newer-script-text "/tmp/a.gs" url)))
+      (is (re-find #"Manage deployments, the deployment of the blog: its pencil"
+                   (inbox/newer-script-text "/tmp/a.gs" nil))))))
+
 (deftest older-test
   (testing "a script with a lower version, or none, is older"
     (is (inbox/older? {:version (dec inbox/script-version)}))
