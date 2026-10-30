@@ -99,8 +99,13 @@
     (testing "an entry shows the folder, the title, the date, the summary and the address of its
               post, and its picture at the address of its file"
       (is (= {:folder "c" :title "Third" :date "2026-03-01" :href "/c/" :draft? false :summary "Three."
-              :picture "/c/tram.png" :front? true :first-picture? true :gradient-titles? false}
+              :picture "/c/tram.png" :front? true :first-picture? true :gradient-titles? false
+              :comment-count nil}
              (first (row-items node :entries)))))
+    (testing "an entry of a post with comments shows how many"
+      (let [[_ counted] (shown "/" (assoc-in site [:posts 0 :comment-count] 3)
+                               {:page {:kind :home :number 1}})]
+        (is (= 3 (:comment-count (first (row-items counted :entries)))))))
     (testing "the entries of the first page are on the front, and those of any other page are not"
       (is (every? :front? (row-items node :entries)))
       (let [[_ second-page] (shown {:page {:kind :home :number 2}})]
@@ -174,7 +179,8 @@
       (is (= [["2026" true] ["2026" false] ["2025" true]]
              (mapv (juxt :year :first-of-year?) (row-items node :rows)))))
     (testing "a row shows the title, the date and the address of its post"
-      (is (= {:title "First" :date "2025-01-01" :href "/a/" :draft? false :year "2025" :first-of-year? true}
+      (is (= {:title "First" :date "2025-01-01" :href "/a/" :draft? false :comment-count nil
+              :year "2025" :first-of-year? true}
              (last (row-items node :rows))))))
   (testing "a post with no date has no year, and the first of them is the first of its year"
     (let [undated {:blog blog :posts [{:folder "a" :title "A" :date "2026-01-01"}
@@ -514,3 +520,51 @@
       (is (not-any? :href (:posts site)))
       (is (not (contains? site :root))))))
 
+(defn- comment-list
+  "The comments of `node`, in order."
+  [node]
+  (let [{:keys [order by-key]} (get-in node [:lists :comments])]
+    (mapv by-key order)))
+
+(deftest comments-test
+  (let [said     (fn [id moment reply-to & {:as more}]
+                   (merge {:id id :reply-to reply-to :name "Ann" :moment moment :blocks [{:kind :text :content ["Hi."]}]}
+                          more))
+        told     (fn [shown-comments]
+                   {:page {:kind :post :folder "a"}
+                    :text {:folder "a" :title "First" :blocks [] :comments shown-comments}})
+        thread   [(said "r" "2026-10-02T10:00:00Z" "c" :author? true :name nil :short-id "r1234567")
+                  (said "c" "2026-10-01T09:00:00Z" nil :name "Bo")]
+        [_ node] (shown (told thread))]
+    (testing "a post gives its comments as a thread: oldest first, each reply under the comment it
+              answers, with its depth, its day and the name of the comment it answers"
+      (is (= [{:id "c" :name "Bo" :day "2026-10-01" :depth 0 :reply-to-name nil :author? false
+               :blocks [{:kind :text :content ["Hi."]}]}
+              {:id "r" :name "Bare notes" :day "2026-10-02" :depth 1 :reply-to-name "Bo" :author? true
+               :blocks [{:kind :text :content ["Hi."]}] :short-id "r1234567"}]
+             (comment-list node)))
+      (is (true? (get-in node [:item :comments?]))))
+    (testing "a comment of the author is named as the settings name the author, and else as the blog"
+      (let [[_ named] (shown (assoc-in site [:blog :author] "Alex") (told thread))]
+        (is (= "Alex" (:name (second (comment-list named)))))))
+    (testing "a comment gives its short id only when it has one, as it has in a preview"
+      (is (not (contains? (first (comment-list node)) :short-id))))
+    (testing "a post with no comments says so"
+      (let [[_ none] (shown (told []))]
+        (is (false? (get-in none [:item :comments?])))
+        (is (= [] (comment-list none)))))))
+
+(deftest comment-form-test
+  (let [told   {:page {:kind :post :folder "a"} :text {:folder "a" :title "First" :blocks []}}
+        on     (assoc-in site [:blog :comments] {:script "https://s" :on? true})
+        item   (fn [site local] (:item (second (shown "/" site told local))))]
+    (testing "a post with no comments shows its thread while comments are on, with the form open"
+      (is (true? (:comments? (item on {}))))
+      (is (false? (:closed? (item on {})))))
+    (testing "while comments are off the thread of a post with no comments is hidden, and closed"
+      (is (false? (:comments? (item site {}))))
+      (is (true? (:closed? (item site {})))))
+    (testing "the form is given the comment it answers, the name and what a send said"
+      (is (= {:reply-to "c1" :commenter "Ann" :sent {:sending? true}}
+             (select-keys (item on {:reply-to "c1" :commenter "Ann" :sent {:sending? true}})
+                          [:reply-to :commenter :sent]))))))

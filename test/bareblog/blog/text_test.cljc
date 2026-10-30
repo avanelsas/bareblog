@@ -101,7 +101,7 @@
   (testing "the name of a file on disk is held to the same rule, as it is written"
     (is (text/file-name? "harbour.jpg"))
     (is (text/file-name? "100%.jpg"))
-    (is (not-any? text/file-name? [".DS_Store" "index.html" "page.edn" "a..b" "sub/b.jpg"])))
+    (is (not-any? text/file-name? [".DS_Store" "index.html" "page.edn" "comments.edn" "a..b" "sub/b.jpg"])))
   (testing "a hidden file, nothing, and a broken escape name none"
     (is (nil? (text/file-beside ".env")))
     (is (nil? (text/file-beside "")))

@@ -4,8 +4,9 @@
    A plan says what is read and what is kept: under `:read` the folders of the posts and the
    pages that are read from disk, under `:as-published` those that are taken as they were
    published last, and under `:dates` the date of each post and page, which is the moment it
-   was first published. Under `:pictures-in` it names the directory, from the top of the blog,
-   that the pictures are taken from, where that is not the top. It says what goes:
+   was first published. Under `:comments` it gives the comments of each post that a publish of
+   comments carries, by its folder. Under `:pictures-in` it names the directory, from the top
+   of the blog, that the pictures are taken from, where that is not the top. It says what goes:
    under `:removed` the published posts that are taken out, which the author is asked about
    first, and under `:move` the draft that becomes a post. And it says what is committed: the
    `:paths`, from the top of the blog, and the `:message`. A plan that does nothing has a
@@ -111,6 +112,35 @@
         published                                                  (assoc :pictures-in layout/output-dir)
         (= :remove what)                                           (assoc :removed #{folder})
         (and (= :new what) (not page?) (not (:in-posts? where))) (assoc :move folder)))))
+
+(defn- comments-path
+  "The comments file of the post in `folder`, from the top of the blog."
+  [folder]
+  (str (path false folder) "/" layout/comments-file))
+
+;; A publish of comments takes each post as it was published, so that an unfinished edit of it
+;; does not go live, and commits its comments file and not its folder.
+(defn comments
+  "The plan for publishing `:comments`, all the comments of each post by its folder, with every
+   post and page as it was published last in the site `:published`, and the commit `:message`."
+  [{:keys [published comments message]}]
+  (let [posts       (folders published :posts)
+        unpublished (sort (remove posts (keys comments)))]
+    (cond
+      (nil? published)
+      {:refuse "The blog was never published. Publish it with: bareblog publish --all"}
+
+      (seq unpublished)
+      {:refuse (str "Not a published post: " (str/join ", " unpublished) ".")}
+
+      :else
+      {:read         #{}
+       :as-published (into posts (folders published :pages))
+       :dates        (site/dates published)
+       :pictures-in  layout/output-dir
+       :comments     comments
+       :paths        (conj (mapv comments-path (sort (keys comments))) layout/output-dir)
+       :message      message})))
 
 ;; A picture that is not there is a problem of the blog, and git commits nothing for a path
 ;; with nothing under it. The series go with every publish, since only a command writes them.

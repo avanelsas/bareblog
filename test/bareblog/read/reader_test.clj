@@ -254,3 +254,40 @@
       (is (nil? (reader/retagged "Text with #travel.\n" ["travel"]))))
     (testing "tags that would be read as other tags are not written"
       (is (nil? (reader/retagged text ["travel" "a#b"]))))))
+
+(deftest read-comment-test
+  (testing "a comment holds text, emphasis, links, code, quotes and lists as a post does"
+    (is (= [{:kind :text :content ["A " {:kind :strong :content ["bold"]} " word."]}
+            {:kind :quote :blocks [{:kind :text :content ["Quoted."]}]}
+            {:kind :code :language "clojure" :text "(inc 1)\n"}]
+           (reader/read-comment "A **bold** word.\n\n> Quoted.\n\n```clojure\n(inc 1)\n```"))))
+  (testing "a heading is a paragraph, and a last paragraph of tags stays a paragraph"
+    (is (= [{:kind :text :content ["Hi"]} {:kind :text :content ["#travel"]}]
+           (reader/read-comment "# Hi\n\n#travel"))))
+  (testing "a live fence is code, so that it does not run"
+    (is (= [{:kind :code :language "html" :text "<script>x</script>\n"}]
+           (reader/read-comment "```html live\n<script>x</script>\n```"))))
+  (testing "a photo and an image are links to what they name, so that nothing loads"
+    (is (= [{:kind :text :content [{:kind :link :href "https://a.org/p.png" :content ["A boat"]
+                                    :rel "nofollow ugc noopener" :target "_blank"}]}]
+           (reader/read-comment "![A boat](https://a.org/p.png)")))
+    (is (= [{:kind :text :content ["See " {:kind :link :href "https://a.org/p.png"
+                                           :content ["https://a.org/p.png"]
+                                           :rel "nofollow ugc noopener" :target "_blank"}]}]
+           (reader/read-comment "See ![](https://a.org/p.png)"))))
+  (testing "a link of the web opens in a new tab"
+    (is (= [{:kind :text :content [{:kind :link :href "https://a.org" :content ["a"]
+                                    :rel "nofollow ugc noopener" :target "_blank"}]}]
+           (reader/read-comment "[a](https://a.org)"))))
+  (testing "a link leads only to the web or to mail, and a search engine does not follow it"
+    (is (= [{:kind :text :content [{:kind :link :href "mailto:a@b.org" :content ["mail"] :rel "nofollow ugc"}
+                                   " "
+                                   {:kind :code :content ["javascript:alert(1)"]}]}]
+           (reader/read-comment "[mail](mailto:a@b.org) [run](javascript:alert(1))"))))
+  (testing "HTML is code, as in a post"
+    (is (= [{:kind :text :content [{:kind :code :content ["<b>"]} "hi" {:kind :code :content ["</b>"]}]}]
+           (reader/read-comment "<b>hi</b>"))))
+  (testing "a note is a number in the text, and the notes are a numbered list at the end"
+    (is (= [{:kind :text :content ["Text" "[1]" "."]}
+            {:kind :list :numbered? true :start 1 :items [{:blocks [{:kind :text :content ["A note."]}]}]}]
+           (reader/read-comment "Text[^a].\n\n[^a]: A note.")))))

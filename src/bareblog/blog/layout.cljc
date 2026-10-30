@@ -41,3 +41,8 @@
 (def text-files
   "The names that the file with the text of a folder can have."
   (set (vals text-file)))
+
+(def comments-file
+  "The file beside a post that holds its published comments, which only `bareblog comments`
+   writes."
+  "comments.edn")

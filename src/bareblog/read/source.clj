@@ -9,11 +9,13 @@
    A blog that is read for its readers may say more. `:settings` are its settings, in place of
    the file. `:read` is the set of folders that are read, of posts and of pages, where it is
    not all of them. `:as-published` is the set of those that are taken as they were published
-   last, from the output directory, and not read. `:pictures-in` is the directory, from its
-   top, that holds its pictures, where that is not the top. `:dates` gives the date of
-   each post and page, which is the moment it was first published."
+   last, from the output directory, and not read. `:comments` gives the comments of a post among
+   those, by its folder, that it shows in place of those it was published with. `:pictures-in`
+   is the directory, from its top, that holds its pictures, where that is not the top. `:dates`
+   gives the date of each post and page, which is the moment it was first published."
   (:require [babashka.fs :as fs]
             [bareblog.blog.address :as address]
+            [bareblog.blog.comments :as comments]
             [bareblog.blog.font :as font]
             [bareblog.blog.series :as series]
             [bareblog.blog.shape :as shape]
@@ -178,6 +180,53 @@
         sized (text/sized read (into {} (keep (partial read-sized dir)) (text/sources read)))]
     (cond-> sized
       (get dates folder) (assoc :date (get dates folder)))))
+
+;; The comments of a post are beside its text. What cannot be read of them is a problem of the
+;; blog, and the post then shows none, so that a page never shows half a thread. Only a post
+;; has comments.
+(defn- read-comments
+  "The comments beside the post in `source`, and what is wrong with them, as texts. No file,
+   and a page that is no post, is no comments."
+  [{:keys [dir place] :as source}]
+  (let [file (fs/file dir layout/comments-file)]
+    (if (or (standalone? source) (not (fs/regular-file? file)))
+      {:comments []}
+      (let [read  (try (edn/read-string (slurp file)) (catch Exception _ ::unreadable))
+            found (if (= ::unreadable read)
+                    [(str "The comments of " place " cannot be read.")]
+                    (comments/problems place read))]
+        (if (seq found) {:comments [] :problems found} {:comments read})))))
+
+(defn- shown-comment
+  "The `comment` as a page shows it: its text as blocks, and its short id where `blog` is read
+   for its author."
+  [{:keys [preview?]} {:keys [id text] :as comment}]
+  (cond-> (-> comment (dissoc :text) (assoc :blocks (reader/read-comment text)))
+    preview? (assoc :short-id (comments/short-id id))))
+
+(defn read-post-comments
+  "The comments of the post in `folder` of the blog in the directory `dir`, and what is wrong
+   with them, as texts."
+  [dir folder]
+  (read-comments {:dir   (fs/path dir layout/posts-dir folder)
+                  :place (str layout/posts-dir "/" folder)
+                  :in    layout/posts-dir}))
+
+(defn- with-comments
+  "The text `text` of `blog` with `comments` as a page shows them, and none when there are none."
+  [blog text comments]
+  (let [shown-comments (mapv (partial shown-comment blog) comments)]
+    (if (seq shown-comments)
+      (assoc text :comments shown-comments)
+      (dissoc text :comments))))
+
+(defn- read-kept-page
+  "The data of the page of `folder` of `blog` as it was published last, with the comments that
+   `blog` gives it in place of those it had. Nil when it was not published."
+  [{:keys [dir comments] :as blog} folder]
+  (some-> (read-published-page dir folder)
+          (cond-> (contains? comments folder)
+            (update :text (partial with-comments blog) (get comments folder)))))
 
 (defn- named-well? [{:keys [folder]}]
   (text/folder? folder))
@@ -399,12 +448,13 @@
   "The entry of the post or the page of `blog` in `source`, with whether it is a page, and
    what is wrong with it."
   [blog {:keys [folder draft?] :as source}]
-  (let [read (read-text blog source)]
+  (let [read                        (read-text blog source)
+        {:keys [comments problems]} (read-comments source)]
     {:page?    (standalone? source)
      :entry    (if (standalone? source)
                  (unpublished blog (site/page-entry folder read))
-                 (site/entry folder read draft?))
-     :problems (list-missing read source)}))
+                 (site/with-comment-count (site/entry folder read draft?) (count comments)))
+     :problems (concat (list-missing read source) problems)}))
 
 (defn- read?
   "True when `blog` reads `source`: it can be read, and is among the folders that the blog
@@ -418,11 +468,21 @@
   [blog dirs]
   (map (partial read-entry blog) (filter (partial read? blog) dirs)))
 
+(defn- with-kept-count
+  "The entry `entry`, taken as it was published, with the number of the comments that `comments`
+   gives its post in place of those it had."
+  [comments {:keys [folder] :as entry}]
+  (cond-> entry
+    (contains? comments folder) (site/with-comment-count (count (get comments folder)))))
+
 (defn- read-kept
-  "The entries under `k`, `:posts` or `:pages`, that `blog` takes as they were published last."
-  [{:keys [dir as-published]} k]
+  "The entries under `k`, `:posts` or `:pages`, that `blog` takes as they were published last,
+   with the number of the comments that `blog` gives a post."
+  [{:keys [dir as-published comments]} k]
   (when (seq as-published)
-    (filter (comp as-published :folder) (get (read-published dir) k))))
+    (->> (get (read-published dir) k)
+         (filter (comp as-published :folder))
+         (map (partial with-kept-count comments)))))
 
 ;; A series is checked against the posts and the drafts on disk, also when the blog is read for
 ;; its readers, so that a part that is still a draft is no problem.
@@ -484,19 +544,22 @@
   (text/files shown (address/post root (:folder shown))))
 
 (defn- shown
-  "The text of `blog` in `source` as a page shows it: with the name of its folder, and with
-   each file beside it under its full address, so that any page can show it."
+  "The text of `blog` in `source` as a page shows it: with the name of its folder, with each
+   file beside it under its full address, so that any page can show it, and with its
+   comments."
   [{:keys [root] :as blog} {:keys [folder] :as source}]
-  (-> (read-text (with-published blog) source)
-      (text/placed (address/post root folder))
-      (assoc :folder folder)))
+  (with-comments blog
+                 (-> (read-text (with-published blog) source)
+                     (text/placed (address/post root folder))
+                     (assoc :folder folder))
+                 (:comments (read-comments source))))
 
 (defn read-shown-text
   "The post or the page in the folder `folder` as a page shows it. One that `blog` takes as it
    was published is the one that was published. Nil when there is none."
-  [{:keys [dir as-published] :as blog} folder]
+  [{:keys [as-published] :as blog} folder]
   (if (contains? as-published folder)
-    (:text (read-published-page dir folder))
+    (:text (read-kept-page blog folder))
     (some->> folder (find-source blog) (shown blog))))
 
 ;; The address of a post and of a page that is no post look the same, so a page is asked for
@@ -504,9 +567,9 @@
 (defn- read-text-page
   "The data of the page of the post or the page in the folder of `page`: what the page is,
    with its kind, and its text."
-  [{:keys [dir as-published] :as blog} {folder :folder :as page} _site]
+  [{:keys [as-published] :as blog} {folder :folder :as page} _site]
   (if (contains? as-published folder)
-    (read-published-page dir folder)
+    (read-kept-page blog folder)
     (when-some [source (find-source blog folder)]
       {:page (assoc page :kind (if (standalone? source) :standalone :post))
        :text (shown blog source)})))

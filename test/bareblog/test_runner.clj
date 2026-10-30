@@ -6,6 +6,7 @@
   '[bareblog.code-test
     bareblog.example-test
     bareblog.blog.address-test
+    bareblog.blog.comments-test
     bareblog.blog.days-test
     bareblog.blog.font-test
     bareblog.blog.pictures-test
@@ -14,6 +15,7 @@
     bareblog.blog.site-test
     bareblog.blog.tags-test
     bareblog.blog.text-test
+    bareblog.blog.wire-test
     bareblog.app.blocks-test
     bareblog.app.card-test
     bareblog.app.live-test
@@ -34,8 +36,11 @@
     bareblog.publish.plan-test
     bareblog.publish.run-test
     bareblog.command.cli-test
+    bareblog.command.comments-test
+    bareblog.command.inbox-test
     bareblog.command.font-test
     bareblog.command.series-test
+    bareblog.command.settings-test
     bareblog.command.start-test
     bareblog.command.tags-test
     bareblog.command.update-test])

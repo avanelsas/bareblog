@@ -176,6 +176,63 @@
         (is (= "Not finished" (:title (listed dir "why-web-components"))))
         (is (clean? dir))))))
 
+(defn- published-comments
+  "The comments that the published page of the post in `folder` of the blog in `dir` shows."
+  [dir folder]
+  (get-in (edn/read-string (slurp (fs/file dir "docs" folder "page.edn"))) [:text :comments]))
+
+(deftest comments-test
+  (with-repo
+    (fn [{:keys [dir] :as repo}]
+      (publish! repo {:all? true} true)
+      (let [file    (fs/file dir "posts" "a-week-in-lisbon" "comments.edn")
+            before  (edn/read-string (slurp file))
+            reply   {:id "7fc28009-0000-4000-8000-000000000000" :reply-to (:id (first before))
+                     :author? true :moment "2026-10-29T10:00:00.000Z" :text "A *reply*."}
+            request {:comments {"a-week-in-lisbon" (conj before reply)}
+                     :message  "Reply to a comment on a-week-in-lisbon"}]
+        (spit (fs/file dir "posts" "a-week-in-lisbon" "post.md") "# Not finished\n")
+        (let [{:keys [outcome message]} (publish! repo request true)]
+          (testing "the comments of a post are published, and its comments file is written and committed"
+            (is (= [:published "Reply to a comment on a-week-in-lisbon"] [outcome message]))
+            (is (= 7 (count (published-comments dir "a-week-in-lisbon"))))
+            (is (= 7 (:comment-count (listed dir "a-week-in-lisbon"))))
+            (is (= [{:kind :text :content ["A " {:kind :emphasis :content ["reply"]} "."]}]
+                   (:blocks (last (published-comments dir "a-week-in-lisbon")))))
+            (is (= (conj before reply) (edn/read-string (slurp file))))
+            (is (pushed? repo)))
+          (testing "an unfinished edit of the post stays out of the pages and the commit"
+            (is (= "A week in Lisbon" (:title (listed dir "a-week-in-lisbon"))))
+            (is (= #{"posts/a-week-in-lisbon/comments.edn"}
+                   (set (remove #(str/starts-with? % "docs/") (:paths (committed dir))))))
+            (is (= "M posts/a-week-in-lisbon/post.md" (sh dir "status" "--porcelain"))))))
+      (testing "with its last comment removed, the published post shows no comments"
+        (let [file (fs/file dir "posts" "a-week-in-lisbon" "comments.edn")]
+          (is (= :published (:outcome (publish! repo {:comments {"a-week-in-lisbon" []}
+                                                      :message  "Remove a comment on a-week-in-lisbon"}
+                                                true))))
+          (is (nil? (published-comments dir "a-week-in-lisbon")))
+          (is (not (contains? (listed dir "a-week-in-lisbon") :comment-count)))
+          (is (= [] (edn/read-string (slurp file))))))
+      (testing "a post that is not published is refused, and nothing is written"
+        (let [before (head dir)
+              {:keys [outcome why]} (publish! repo {:comments {"a-new-idea" []}} true)]
+          (is (= [:refused "Not a published post: a-new-idea."] [outcome why]))
+          (is (= before (head dir)))
+          (is (not (fs/exists? (fs/path dir "drafts" "a-new-idea" "comments.edn")))))))))
+
+(deftest comments-off-test
+  (with-repo
+    (fn [{:keys [dir] :as repo}]
+      (spit (fs/file dir "blog.edn")
+            (str/replace (slurp (fs/file dir "blog.edn")) #"\}\s*$" " :comments {:script \"https://s\" :on? false}}\n"))
+      (publish! repo {:all? true} true)
+      (spit (fs/file dir "posts" "hello-bareblog" "post.md") "# Hello again\n")
+      (testing "settings with comments that are off are as they were published"
+        (let [{:keys [outcome said]} (publish! repo {:folder "hello-bareblog"} true)]
+          (is (= :published outcome))
+          (is (not-any? #(re-find #"not as it was published" %) said)))))))
+
 (deftest removal-test
   (with-repo
     (fn [{:keys [dir] :as repo}]
@@ -368,14 +425,33 @@
 (deftest push-fails-test
   (with-repo
     (fn [{:keys [dir remote] :as repo}]
-      (fs/delete-tree remote)
+      (sh dir "remote" "set-url" "origin" (str remote ".gone"))
       (let [{:keys [outcome message said]} (publish! repo {:all? true} true)]
-        (testing "a push that fails leaves the commit, and says how to push it"
+        (testing "a push that fails leaves the commit, and says to publish again"
           (is (= [:not-pushed "Publish the whole blog"] [outcome message]))
           (is (not (run/done? outcome)))
           (is (= "Publish the whole blog" (:message (committed dir))))
-          (is (re-find #"could not push" (last said)))
-          (is (re-find #"git push" (last said))))))))
+          (is (re-find #"^Committed as \"Publish the whole blog\", and git could not push\."
+                       (last said)))
+          (is (str/ends-with? (last said)
+                              "When git can push, publish again with: bareblog publish --all"))))
+      (testing "publishing again while git still cannot push says so, with nothing new committed"
+        (let [before                         (head dir)
+              {:keys [outcome message said]} (publish! repo {:all? true} true)]
+          (is (= [:not-pushed nil] [outcome message]))
+          (is (= before (head dir)))
+          (is (re-find #"^Git could not push\." (last said)))))
+      (sh dir "remote" "set-url" "origin" remote)
+      (testing "once git can push, publishing again pushes what was committed before"
+        (let [before                (head dir)
+              {:keys [outcome said]} (publish! repo {:all? true} true)]
+          (is (= :pushed outcome))
+          (is (run/done? outcome))
+          (is (= before (head dir)))
+          (is (pushed? repo))
+          (is (= "Nothing changed. What was committed before is pushed now." (last said)))))
+      (testing "and after that, nothing changed is said as before"
+        (is (= :unchanged (:outcome (publish! repo {:all? true} true))))))))
 
 (deftest link-preview-test
   (with-repo
@@ -443,6 +519,10 @@
         (is (= "M blog.edn" (sh dir "status" "--porcelain"))))
       (testing "paths with nothing changed under them commit nothing"
         (is (= {:committed? false} (git/commit! dir ["posts"] "Nothing"))))
+      (testing "a branch with a commit that is not pushed is ahead, and one that is pushed is not"
+        (is (git/ahead? dir))
+        (git/push! dir)
+        (is (not (git/ahead? dir))))
       (testing "a push sends the branch, and says why when it cannot"
         (is (= {} (git/push! dir)))
         (is (= (head dir) (sh remote "rev-parse" "main")))

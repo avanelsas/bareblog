@@ -8,34 +8,46 @@
 
 (def words
   "Every word that a blog template puts in a page that is not from the blog."
-  {:archive     "Archive"
-   :feed        "Feed"
-   :draft       "Draft"
-   :unpublished "Not published"
-   :page-numbers "Pages"
-   :page        "Page"
-   :others      "Other posts"
-   :content     "Content"
-   :part        "Part"
-   :of          "of"
-   :in-series   "In this series"
-   :next-part   "Next part"
-   :no-date     "No date"
-   :no-posts    "There are no posts yet."
-   :search      "Search"
-   :search-key  {:command "\u2318K" :control "Ctrl K"}
-   :pages       "Pages"
-   :theme       "Theme"
-   :all-tags    "Tags"
-   :clear       "Show all posts"
-   :found       {:none "No posts found" :one "post found" :many "posts found"}
-   :posts       "Posts"
-   :menu        "Menu"
-   :close       "Close"
-   :not-found   "Not found"
-   :not-here    "This page is not here."
-   :to-home     "To the home page"
-   :powered-by  "Powered by "})
+  {:archive       "Archive"
+   :feed          "Feed"
+   :draft         "Draft"
+   :unpublished   "Not published"
+   :page-numbers  "Pages"
+   :page          "Page"
+   :others        "Other posts"
+   :content       "Content"
+   :part          "Part"
+   :of            "of"
+   :in-series     "In this series"
+   :next-part     "Next part"
+   :no-date       "No date"
+   :no-posts      "There are no posts yet."
+   :search        "Search"
+   :search-key    {:command "\u2318K" :control "Ctrl K"}
+   :pages         "Pages"
+   :theme         "Theme"
+   :all-tags      "Tags"
+   :clear         "Show all posts"
+   :found         {:none "No posts found" :one "post found" :many "posts found"}
+   :posts         "Posts"
+   :menu          "Menu"
+   :close         "Close"
+   :not-found     "Not found"
+   :not-here      "This page is not here."
+   :to-home       "To the home page"
+   :powered-by    "Powered by "
+   :comments      "Comments"
+   :comment-count {:one "comment" :many "comments"}
+   :markdown      "Supports Markdown"
+   :copy          "Copy"
+   :sending       "Sending your comment\u2026"
+   :received      "Received. Your comment shows here once the author has read it."
+   :not-sent      "Your comment was not sent"
+   :not-sent-why  {:closed "comments are closed."
+                   :name   "the name is empty or too long."
+                   :text   "the comment is empty or too long."
+                   :failed "the blog could not take it just now."}
+   :copy-it       "Copy it from here to send it again:"})
 
 (def wide-from
   "The width of a window in pixels from which `x-navbar` shows what it holds. A narrower window
@@ -154,10 +166,21 @@
 (def ^:private block
   {:fixed-of blocks/template})
 
+(def ^:private no-comment-count? (comp nil? :comment-count))
+
+(defn- comment-count-text [{n :comment-count}]
+  (str n " " (get-in words [:comment-count (if (= 1 n) :one :many)])))
+
+(def comment-count
+  "How many comments a post in a list has, where it has some."
+  [:span {:class "comment-count" :hidden no-comment-count?} comment-count-text])
+
 (def meta-line
-  "What a post shows below its title: its date, whether it is a draft, and its tags."
+  "What a post shows below its title: its date, how many comments it has in a list, whether it
+   is a draft, and its tags."
   [:div {:class "meta"}
    [:time {:class "date"} :date]
+   comment-count
    draft
    [:ul {:class "tags" :data-x-part "tags"}]])
 
@@ -237,6 +260,69 @@
     [:a {:class "series-next" :href (comp :href next-part) :aria-label next-label :hidden no-next?}
      (comp :title next-part)]]])
 
+(def ^:private comment-depth
+  "The deepest indent of a reply. A deeper one stands there, and says whom it answers."
+  3)
+
+(defn- short-id-line
+  "The short id of a comment, with a button that copies it, for its author in a preview."
+  [short-id]
+  [:span {:slot "meta" :class "short-id"}
+   [:code short-id]
+   [:x-copy {:text short-id} (:copy words)]])
+
+(defn- comment-template
+  "The fixed template of a comment, with its blocks as its text."
+  [{:keys [id name day depth reply-to-name author? short-id blocks]}]
+  (into [:x-comment (blocks/known {:comment-id id :name name :datetime day :depth (str depth)
+                                   :max-depth (str comment-depth) :reply-to-name reply-to-name
+                                   :author (when author? true)})]
+        (cond-> (mapv blocks/template blocks)
+          short-id (conj (short-id-line short-id)))))
+
+(def ^:private a-comment
+  {:fixed-of comment-template})
+
+(def ^:private no-comments? (complement :comments?))
+
+(defn- unless-sent
+  "True of an item whose last send has nothing under `k`."
+  [k]
+  (complement (comp k :sent)))
+
+(defn- not-sent-line [item]
+  (str (:not-sent words) ": " (get-in words [:not-sent-why (get-in item [:sent :error])]) " "
+       (:copy-it words)))
+
+;; The form clears when a comment is sent, before the script answers. A comment that was not
+;; sent is shown under the form, so that the reader can copy it.
+(def ^:private comment-notice
+  "What stands under the form: that a comment is on its way, and what came of the last send."
+  [:div {:slot "notice" :class "comment-notice"}
+   [:p {:class "comment-sending" :hidden (unless-sent :sending?) :role "status"} (:sending words)]
+   [:p {:class "comment-received" :hidden (unless-sent :received?)} (:received words)]
+   [:div {:class "comment-not-sent" :hidden (unless-sent :error)}
+    [:p not-sent-line]
+    [:pre (comp :text :sent)]]])
+
+;; The title of the form is inside x-comments. `blog.css` puts the words of the hint after it,
+;; from the custom property that reaches into the component.
+(def ^:private comment-thread
+  "The comments of a post under its text, with the form to send one while comments are on."
+  [:x-comments {:class          "comments"
+                :style          (str "--comments-hint: \"" (:markdown words) "\"")
+                :closed         :closed?
+                :reply-to       :reply-to
+                :commenter-name :commenter
+                :name-max       (str (:name-max wire/comment-limits))
+                :text-max       (str (:text-max wire/comment-limits))
+                :heading-label  (:comments words)
+                :hidden         no-comments?
+                :data-x-part    "comments"
+                :on             {"x-comments-reply-request" :reply-to
+                                 "x-comments-submit"        :send-comment}}
+   comment-notice])
+
 (defn- post-layout
   "The text of a post beside its contents, in an article that opens with the elements
    `opening`."
@@ -245,6 +331,7 @@
    (-> [:article {:class "post"} read-progress]
        (into opening)
        (conj [:div {:class "post-blocks" :id "post-text" :data-x-part "blocks"}]
+             comment-thread
              [:footer {:class "post-foot"}
               series-group
               [:nav {:class "foot-group neighbours" :aria-label (:others words)}
@@ -257,9 +344,10 @@
 
 (defn- post-node [node-name root]
   {:split (template/split node-name root)
-   :lists {:tags   {:part "tags" :row tag}
-           :blocks {:part "blocks" :row block}
-           :parts  {:part "parts" :row series-part}}})
+   :lists {:tags     {:part "tags" :row tag}
+           :blocks   {:part "blocks" :row block}
+           :parts    {:part "parts" :row series-part}
+           :comments {:part "comments" :row a-comment}}})
 
 (defn post-page
   "The node of the page of a post, named `node-name`, whose article opens with `header`: an
@@ -353,6 +441,7 @@
            [:li {:class "archive-row"}
             [:span {:class "year"} year-shown]
             [:a {:href :href} :title]
+            comment-count
             [:time {:class "date"} :date]
             draft])})
 

@@ -4,6 +4,7 @@
    The edge of the command. It is run in the directory of a blog, and is told where BareBlog
    is."
   (:require [babashka.fs :as fs]
+            [babashka.process :as process]
             [bareblog.blog.font :as font]
             [bareblog.command.start :as start]
             [bareblog.read.source :as source]
@@ -35,6 +36,23 @@
              "                                  as its font, in place of the one before"
              "bareblog font --none              the font taken away, back to that of the theme"
              "              --yes               with a yes to the question"
+             "bareblog comments                 the walk-through of the comments in the inbox"
+             "bareblog comments connect         the inbox of the comments, from the template sheet"
+             "bareblog comments connect <address>"
+             "                                  the inbox at the address of its web app"
+             "bareblog comments check           whether the inbox works, and tells it the setting"
+             "bareblog comments reply <short-id> \"A reply\""
+             "                                  a reply to a published comment, and its post"
+             "                                  published"
+             "bareblog comments reply <short-id>"
+             "                                  the same, with the reply written in the editor"
+             "bareblog comments remove <short-id>"
+             "                                  a published comment and every reply under it"
+             "                                  taken out, and its post published"
+             "bareblog comments --on            comments on, and every page published"
+             "bareblog comments --off           comments off, the inbox closed, and every page"
+             "                                  published"
+             "                  --yes           with a yes to the question"
              "bareblog version                  the version of BareBlog"
              "bareblog update                   BareBlog, brought to its latest release"
              "                --yes             with a yes to the question"]))
@@ -118,6 +136,33 @@
 
 (defn- asks-nothing [_args]
   {})
+
+(def ^:private reply-refusal
+  "What a reply that is not asked for well is refused with."
+  (str "Give the short id of a comment, and the reply in quotes or none: "
+       "bareblog comments reply 1f0c9a52 \"Thank you.\""))
+
+(def ^:private remove-refusal
+  "What a removal that is not asked for well is refused with."
+  "Give the short id of a comment: bareblog comments remove 1f0c9a52")
+
+(defn- asks-comments [args]
+  (let [[what address & more] (remove #{yes} args)
+        yes?                  (boolean (some #{yes} args))]
+    (cond
+      (and (= "connect" what) (empty? more))            {:connect true :address address :yes? yes?}
+      (and (= "check" what) (nil? address))             {:check true}
+      (and (#{"--on" "--off"} what) (nil? address))     {:on? (= "--on" what) :switch true :yes? yes?}
+      (and (= "reply" what) address (empty? (rest more)))
+      {:reply true :short-id address :text (first more) :yes? yes?}
+
+      (= "reply" what)                                  {:refuse reply-refusal}
+      (and (= "remove" what) address (empty? more))     {:remove true :short-id address :yes? yes?}
+      (= "remove" what)                                 {:refuse remove-refusal}
+      (empty? args)                                     {:walk true}
+      :else
+      {:refuse (str "Give nothing for the walk-through, or connect, check, reply, remove, --on or "
+                    "--off: bareblog comments connect")})))
 
 (defn- asks-update [args]
   (if (every? #{yes} args)
@@ -205,6 +250,43 @@
       none?  ((requiring-resolve 'bareblog.command.font/none!) how dir)
       :else  ((requiring-resolve 'bareblog.command.font/list!) how dir))))
 
+(defn- edit!
+  "Opens the editor of the author on a file that holds `text`, and gives what they saved."
+  [text]
+  (let [file (fs/create-temp-file {:prefix "bareblog-reply-" :suffix ".md"})]
+    (try
+      (spit (fs/file file) text)
+      (process/shell (or (System/getenv "EDITOR") "vi") (str file))
+      (slurp (fs/file file))
+      (finally
+        (fs/delete-if-exists file)))))
+
+(defn- prompt!
+  "Puts `question` to the author, and gives the line they type."
+  [question]
+  (print (str question " "))
+  (flush)
+  (read-line))
+
+;; Comments are walked through, connected, switched, replied to and removed by name, as the font
+;; is. Switching them publishes every page, and the rest the posts they change, as a publish does.
+(defn- run-comments!
+  [where {removing :remove :keys [walk connect address check switch on? reply short-id text yes?]}]
+  (let [how {:say               println
+             :ask               (if yes? say-yes! ask!)
+             :prompt            prompt!
+             :browse!           browse/browse-url
+             :edit!             edit!
+             :publish-all!      #(run-publish! where {:all? true :yes? true})
+             :publish-comments! #(run-publish! where (assoc % :yes? true))}]
+    (cond
+      walk     ((requiring-resolve 'bareblog.command.comments/walk!) how where)
+      connect  ((requiring-resolve 'bareblog.command.inbox/connect!) how where address)
+      check    ((requiring-resolve 'bareblog.command.inbox/check!) how where)
+      switch   ((requiring-resolve 'bareblog.command.inbox/switch!) how where on?)
+      reply    ((requiring-resolve 'bareblog.command.comments/reply!) how where short-id text)
+      removing ((requiring-resolve 'bareblog.command.comments/remove!) how where short-id))))
+
 ;; The version and an update are asked for by name, as a publish is.
 (defn- run-version! [{:keys [home]} _asked]
   ((requiring-resolve 'bareblog.command.update/version!) {:say println} home))
@@ -227,6 +309,7 @@
    "tags"    {:asks asks-tags :run run-tags! :in-a-blog? true}
    "series"  {:asks asks-series :run run-series! :in-a-blog? true}
    "font"    {:asks asks-font :run run-font! :in-a-blog? true}
+   "comments" {:asks asks-comments :run run-comments! :in-a-blog? true}
    "version" {:asks asks-nothing :run run-version!}
    "update"  {:asks asks-update :run run-update!}
    "help"    {:asks asks-nothing :run run-help!}})

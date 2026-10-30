@@ -6,6 +6,8 @@
             [bareblog.blog.shape :as shape]
             [bareblog.blog.wire :as wire]
             [baremirror.alpha.template :as template]
+            [clojure.set :as set]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]))
 
 (def site
@@ -157,10 +159,15 @@
         two-pages   (assoc-in site [:blog :per-page] 1)
         older       {:folder "0" :title "Zero" :date "2024-01-01"}
         newer       {:folder "c" :title "Third" :date "2027-01-01"}
+        a-comment   {:id "c1" :name "Ann" :moment "2026-10-20T09:00:00Z" :blocks []}
         post-of     (fn [folder title blocks]
-                      {:page {:kind :post :folder folder} :text {:folder folder :title title :blocks blocks}})
+                      {:page {:kind :post :folder folder}
+                       :text {:folder folder :title title :blocks blocks :comments [a-comment]}})
         second-post (post-of "b" "Second" [{:kind :photo :src "b.jpg"}])
-        first-post  (post-of "a" "First" [{:kind :photo :src "a.jpg"}])]
+        first-post  (post-of "a" "First" [{:kind :photo :src "a.jpg"}])
+        nothing-sent #{"p.comment-sending" "p.comment-received" "div.comment-not-sent"}
+        post-hidden (fn [& args] (disj (set/difference (apply hidden args) nothing-sent)
+                                       "span.comment-count"))]
     (testing "a home page on one page hides its heading, the way back to all posts, the text for
               no posts and its page numbers"
       (is (= #{"div.heading" "button.clear" "p.empty" "x-pagination"} (hidden site (:home pages)))))
@@ -178,21 +185,34 @@
       (is (= #{"p.empty"} (hidden site (:archive pages))))
       (is (= #{} (hidden empty-site (:archive pages)))))
     (testing "the page of a draft with a newer and an older post hides nothing"
-      (is (= #{} (hidden (update site :posts (partial into [newer])) second-post reading))))
+      (is (= #{} (post-hidden (update site :posts (partial into [newer])) second-post reading))))
     (testing "the page of the newest post, a draft, hides the link to a newer one"
-      (is (= #{"a.newer"} (hidden site second-post reading))))
+      (is (= #{"a.newer"} (post-hidden site second-post reading))))
     (testing "the page of a published post with both neighbours hides the badge of a draft"
-      (is (= #{"x-badge.draft"} (hidden (update site :posts conj older) first-post reading))))
+      (is (= #{"x-badge.draft"} (post-hidden (update site :posts conj older) first-post reading))))
     (testing "the page of the oldest post hides the link to an older one too, and as the last part
               of its series the link to the next part"
-      (is (= #{"x-badge.draft" "a.older" "a.series-next"} (hidden site first-post reading))))
+      (is (= #{"x-badge.draft" "a.older" "a.series-next"} (post-hidden site first-post reading))))
     (testing "the page of a post in no series hides the series"
       (is (= #{"a.newer" "x-card.series-group" "a.series-next"}
-             (hidden (dissoc site :series) second-post reading))))
+             (post-hidden (dissoc site :series) second-post reading))))
     (testing "the page of a post that fits in the window hides the line of how far it is read"
-      (is (= #{"a.newer" "x-progress.read-progress"} (hidden site second-post))))
+      (is (= #{"a.newer" "x-progress.read-progress"} (post-hidden site second-post))))
     (testing "the page of a post with no cover hides the place of its cover"
-      (is (= #{"a.newer" "figure.post-cover"} (hidden site (post-of "b" "Second" []) reading))))))
+      (is (= #{"a.newer" "figure.post-cover"} (post-hidden site (post-of "b" "Second" []) reading))))
+    (testing "the page of a post with no comments hides its thread"
+      (is (= #{"a.newer" "x-comments.comments"}
+             (post-hidden site (update second-post :text dissoc :comments) reading))))
+    (testing "the page of a post hides how many comments it has, which its thread shows"
+      (is (contains? (hidden site second-post reading) "span.comment-count")))
+    (testing "the page of a post hides what a send says until there was one"
+      (is (= nothing-sent (set/intersection nothing-sent (hidden site second-post reading)))))
+    (testing "a comment on its way is said, one that was received is said, and one that was not
+              sent shows its error"
+      (let [shown (fn [sent] (set/difference nothing-sent (hidden site second-post (assoc reading :sent sent))))]
+        (is (= #{"p.comment-sending"} (shown {:sending? true})))
+        (is (= #{"p.comment-received"} (shown {:received? true})))
+        (is (= #{"div.comment-not-sent"} (shown {:error :failed :text "Hi."})))))))
 
 (deftest contents-test
   (doseq [template-name (keys templates/by-name)
@@ -618,8 +638,8 @@
       (is (= (conj (set shell) "x-badge") (tags-of (:archive pages)))))
     (testing (str template-name ": the page of a post has those of its blocks, at any depth")
       (is (= (-> (set shell)
-                 (into ["x-badge" "x-card" "x-code" "x-collapse" "x-image" "x-progress" "x-table"
-                       "x-table-cell" "x-table-row" "x-timeline" "x-toc" "x-typography"])
+                 (into ["x-badge" "x-card" "x-code" "x-collapse" "x-comments" "x-image" "x-progress"
+                       "x-table" "x-table-cell" "x-table-row" "x-timeline" "x-toc" "x-typography"])
                  (into (post-elements template-name)))
              (tags-of (:post pages))))))
   (testing "the page of a post in a series has the steps of the path of its parts"
@@ -639,7 +659,9 @@
   #{["page-change-request" :to-page]
     ["click" :tag]
     ["click" :tag-link]
-    ["click" :clear]})
+    ["click" :clear]
+    ["x-comments-reply-request" :reply-to]
+    ["x-comments-submit" :send-comment]})
 
 (def ^:private shell-events
   "The events of the document of each blog template."
@@ -701,3 +723,79 @@
   (testing "the blog template of a blog is the one its settings name, or the default"
     (is (= (templates/named :notebook) (templates/of-blog {:template :notebook})))
     (is (= (templates/named shape/default-template) (templates/of-blog {})))))
+
+(deftest comment-test
+  (let [row  (:fixed-of (get-in (templates/row-node (get-in (templates/named :journal) [:lists :main]) "post")
+                                [:lists :comments :row]))
+        item {:id "c1" :name "Bo" :day "2026-10-01" :depth 4 :reply-to-name "Ann" :author? false
+              :blocks [{:kind :text :content ["Hi."]}]}]
+    (testing "a comment is an x-comment with its facts, as deep as it is up to three indents, and
+              its blocks as its text"
+      (is (= [:x-comment {:comment-id "c1" :name "Bo" :datetime "2026-10-01" :depth "4" :max-depth "3"
+                          :reply-to-name "Ann"}
+              [:p "Hi."]]
+             (row item))))
+    (testing "a comment of the author is marked, and a top-level one answers no one"
+      (is (= {:comment-id "c1" :name "Bo" :datetime "2026-10-01" :depth "0" :max-depth "3" :author true}
+             (second (row (assoc item :depth 0 :reply-to-name nil :author? true))))))
+    (testing "a comment with a short id shows it with a button that copies it, and one without
+              shows none"
+      (is (= [:span {:slot "meta" :class "short-id"} [:code "c1234567"] [:x-copy {:text "c1234567"} "Copy"]]
+             (last (row (assoc item :short-id "c1234567")))))
+      (is (not-any? #{"x-copy"} (map (comp name first) (filter vector? (tree-seq vector? seq (row item)))))))))
+
+(deftest comment-from-the-view-test
+  (testing "a comment that the view gives a post is the x-comment of the page, with its facts"
+    (let [told  {:page {:kind :post :folder "a"}
+                 :text {:folder "a" :title "First" :blocks []
+                        :comments [{:id "c1" :name "Bo" :moment "2026-10-01T09:00:00Z"
+                                    :blocks [{:kind :text :content ["Hi."]}]}]}}
+          page  (view/page "/" site told {})
+          fixed (templates/fixed-templates (templates/named :journal) page)]
+      (is (some #{[:x-comment {:comment-id "c1" :name "Bo" :datetime "2026-10-01" :depth "0" :max-depth "3"}
+                   [:p "Hi."]]}
+                fixed)))))
+
+(defn- comment-count-write
+  "What the row node `row` writes in its count of comments for `item`."
+  [row item]
+  (let [split (:split row)]
+    (some (fn [[part-name write]]
+            (when (= "span.comment-count" (named-part (:fixed split) part-name))
+              write))
+          (template/writes split (merge {:title "T" :href "/a/" :draft? false} item)))))
+
+(deftest comment-count-test
+  (doseq [[list-name row] {"an entry"             pages/entry
+                           "a row of the archive" (get-in pages/archive [:lists :rows :row])}]
+    (testing (str list-name " says how many comments its post has")
+      (is (= {:attrs {:hidden false} :text "3 comments"}
+             (comment-count-write row {:comment-count 3})))
+      (is (= "1 comment" (:text (comment-count-write row {:comment-count 1})))))
+    (testing (str list-name " of a post with no comments says nothing of them")
+      (is (true? (get-in (comment-count-write row {:comment-count nil}) [:attrs :hidden]))))))
+
+(defn- written-texts
+  "Every text that the node of the page `told` of `site` writes, for what is `local`."
+  [site told local]
+  (let [page            (view/page "/" site told local)
+        k               (first (get-in page [:lists :main :order]))
+        {:keys [split]} (templates/row-node (get-in (templates/named :journal) [:lists :main]) k)]
+    (keep :text (vals (template/writes split (:item (get-in page [:lists :main :by-key k])))))))
+
+(deftest not-sent-test
+  (let [told {:page {:kind :post :folder "b"} :text {:folder "b" :title "Second" :blocks []}}
+        said (fn [kind] (some #(when (str/starts-with? (str %) "Your comment") %)
+                              (written-texts site told {:sent {:error kind :text "Hi."}})))]
+    (testing "a comment that was not sent says why in the words of the page, not those of Google"
+      (is (= (str "Your comment was not sent: the blog could not take it just now. "
+                  "Copy it from here to send it again:")
+             (said :failed)))
+      (is (= "Your comment was not sent: comments are closed. Copy it from here to send it again:"
+             (said :closed))))))
+
+(deftest markdown-hint-test
+  (testing "the thread of a post carries the words of the hint beside the title of its form"
+    (let [[_ attrs] (first (filter (comp #{:x-comments} first)
+                                   (elements (:fixed (:split pages/post)))))]
+      (is (= "--comments-hint: \"Supports Markdown\"" (:style attrs))))))

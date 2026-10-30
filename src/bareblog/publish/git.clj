@@ -131,6 +131,13 @@
           {:committed? true}
           {:problem (or (why (:err said)) (why (:out said)))})))))
 
+(defn ahead?
+  "True when the branch of the repository in `dir` has commits that the branch it is pushed to
+   does not have, as git last saw that branch. False when it is pushed nowhere."
+  [dir]
+  (let [said (git dir "rev-list" "--count" "@{upstream}..HEAD")]
+    (and (ok? said) (pos? (parse-long (str/trim (:out said)))))))
+
 (defn push!
   "Pushes the branch of the repository in `dir` to where it is pushed. Gives a `:problem` when
    git could not."

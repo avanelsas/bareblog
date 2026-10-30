@@ -6,6 +6,7 @@
   (:require [bareblog.app.card :as card]
             [bareblog.app.templates :as templates]
             [bareblog.blog.address :as address]
+            [bareblog.blog.comments :as comments]
             [bareblog.blog.series :as series]
             [bareblog.blog.shape :as shape]
             [bareblog.blog.site :as site]
@@ -71,8 +72,12 @@
 
 (defn- listed
   "What a post shows of itself wherever it stands in a list."
-  [{:keys [title date href draft?]}]
-  {:title title :date (site/day date) :href href :draft? (boolean draft?)})
+  [{:keys [title date href draft? comment-count]}]
+  {:title         title
+   :date          (site/day date)
+   :href          href
+   :draft?        (boolean draft?)
+   :comment-count comment-count})
 
 (defn- entry-row [{:keys [root blog]} front? first-picture? {:keys [folder summary picture tags] :as entry}]
   [folder {:item  (assoc (listed entry)
@@ -286,6 +291,41 @@
   [folder {:keys [parts number] :as in-series}]
   (rows (when in-series (map-indexed (partial part-row number folder) parts))))
 
+(defn- commenter
+  "The name that `comment` shows, where `author` is the name of the author of the blog."
+  [author {:keys [author?] commenter-name :name}]
+  (if author? author commenter-name))
+
+(defn- comment-row
+  "The row of `comment`, with the name of the comment it answers among `by-id`. A comment is a
+   fixed template, as a block is, so its row is what the template is made from."
+  [author by-id {:keys [id reply-to moment depth author? short-id blocks] :as comment}]
+  [id (cond-> {:id            id
+               :name          (commenter author comment)
+               :day           (site/day moment)
+               :depth         depth
+               :reply-to-name (some->> (by-id reply-to) (commenter author))
+               :author?       (boolean author?)
+               :blocks        blocks}
+        short-id (assoc :short-id short-id))])
+
+;; A comment of the author holds no name, so that a new name in the settings reaches every one.
+(defn- comment-rows
+  "The comments of a post, as a thread shows them, in the blog with the settings `blog`."
+  [blog shown-comments]
+  (let [author (or (:author blog) (:title blog))
+        by-id  (into {} (map (juxt :id identity)) shown-comments)]
+    (rows (map (partial comment-row author by-id) (comments/thread shown-comments)))))
+
+(defn- comment-form
+  "What the form of comments of a post is given: whether it is closed, the comment it answers,
+   the name of the reader, and what came of the last send."
+  [blog {:keys [reply-to commenter sent]}]
+  {:closed?   (not (site/comments-on? blog))
+   :reply-to  reply-to
+   :commenter commenter
+   :sent      sent})
+
 (defn- post [{:keys [site local] {:keys [folder title date tags] :as shown} :text}]
   (if shown
     (let [{:keys [cover blocks]} (text/split-cover shown)
@@ -299,11 +339,15 @@
                               :cover            cover
                               :series           (some-> in-series series-item)
                               :read             (:read local)
-                              :gradient-titles? (site/gradient-titles? (:blog site))}
+                              :gradient-titles? (site/gradient-titles? (:blog site))
+                              :comments?        (boolean (or (seq (:comments shown))
+                                                             (site/comments-on? (:blog site))))}
+                             (comment-form (:blog site) local)
                              (neighbours site folder))
-               :lists {:tags   (tag-rows (:root site) tags)
-                       :blocks (block-rows blocks)
-                       :parts  (part-rows folder in-series)}}})
+               :lists {:tags     (tag-rows (:root site) tags)
+                       :blocks   (block-rows blocks)
+                       :parts    (part-rows folder in-series)
+                       :comments (comment-rows (:blog site) (:comments shown))}}})
     (not-found site)))
 
 ;; A page of the author that is no post is shown as its text alone: it has no date, no tags

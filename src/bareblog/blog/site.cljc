@@ -15,6 +15,12 @@
       picture (assoc :picture picture)
       draft?  (assoc :draft? true))))
 
+(defn with-comment-count
+  "The entry `entry` of a post with the number `n` of its published comments, which it holds
+   only when there are some."
+  [entry n]
+  (if (pos? n) (assoc entry :comment-count n) (dissoc entry :comment-count)))
+
 ;; The date of a post is the moment it was first published, on the clock of its author:
 ;; `2026-10-12T14:03:22+02:00`. It is compared as text, which is the order of time for as long
 ;; as that clock is not set back. A post that was never published has none. It goes first,
@@ -146,11 +152,26 @@
           (font/settings-problems settings)
           (pictures/settings-problems settings)))
 
+;; The address of the script of comments is in the data of every page only while comments are
+;; on. A bot that kept it is refused by the script, which `--off` closes.
+(defn given-settings
+  "The settings `settings` as the pages are given them: comments with the address of their
+   script while they are on, and no comments while they are off."
+  [{{:keys [script on?]} :comments :as settings}]
+  (if (and on? script)
+    (assoc settings :comments {:script script :on? true})
+    (dissoc settings :comments)))
+
+(defn comments-on?
+  "True when the blog with the settings `blog`, as the pages are given them, takes comments."
+  [blog]
+  (boolean (get-in blog [:comments :on?])))
+
 (defn site
   "The data that every page loads, from the settings of the blog and the entries of its posts.
    `problems` are texts that say what is wrong with the blog."
   [settings entries problems]
-  (with-problems {:blog settings :posts (listed entries)} problems))
+  (with-problems {:blog (given-settings settings) :posts (listed entries)} problems))
 
 ;; What is wrong with a blog is for its author. A reader is not told.
 (defn published
