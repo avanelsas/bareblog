@@ -1,6 +1,6 @@
 {
   "name": "bareblog",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A blog publishing tool built on BareDOM components and the BareMirror runtime.",
   "private": true,
   "type": "module",
