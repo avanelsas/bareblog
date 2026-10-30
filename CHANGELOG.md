@@ -4,6 +4,25 @@ All notable changes to BareBlog are listed here. From 1.0.0 on, a release that c
 settings, the layout of a blog or the commands in a way that a blog must follow is a new major
 version.
 
+## [1.0.1] - 2026-10-30
+
+BareBlog needs BareDOM 4.17.0. A blog with comments keeps working with the script it has. The
+newer one holds the fixes of the sheet below: `bareblog comments check` writes it to a file and
+names the deployment that gets it, as a new version, so that its address stays.
+
+### Fixed
+
+- **A comment is written to the sheet as the reader wrote it.** The sheet took a comment such
+  as `+1`, `42` or `=1+1` as a number or a formula, and the publish of an approved one failed.
+  The walk-through takes each value of a row as text, also from an older script.
+- **At most 100 comments wait.** Once 100 wait, the script refuses more, and the page tells
+  the reader to try again later, so that a flood stops at what the author can read. A request
+  for a post or an answer that no page sends is taken as a trap.
+- **A comment cannot rewrite the terminal.** What `bareblog` tells the author shows a control
+  character as its escape, so that what the walk-through shows is what was sent.
+- **`check` names the deployment** that gets the newer script, by the start of its ID. A new
+  deployment would get another address.
+
 ## [1.0.0] - 2026-10-30
 
 BareBlog needs BareDOM 4.17.0.
