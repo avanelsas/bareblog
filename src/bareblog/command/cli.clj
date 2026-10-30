@@ -169,20 +169,37 @@
     {:yes? (boolean (seq args))}
     {:refuse "Give nothing, or --yes: bareblog update"}))
 
+;; What the terminal is told may hold what a reader wrote, so a control in it is shown and not
+;; acted on.
+(def ^:private hidden
+  "The characters that a terminal acts on or reorders, and does not show: the controls but a new
+   line and a tab, and the marks of direction."
+  #"[\p{Cc}&&[^\n\t]]|[\u202A-\u202E\u2066-\u2069]")
+
+(defn visible
+  "The text `s` with each character that a terminal would act on written as its escape."
+  [s]
+  (str/replace s hidden #(format "\\u%04X" (int (first %)))))
+
+(defn- say!
+  "Tells the author `text`."
+  [text]
+  (println (visible (str text))))
+
 ;; The doing. Each function below gives the number that the process ends with.
 
 (defn- run-init! [{:keys [dir]} {:keys [title]}]
   (let [{:keys [said problem]} (start/blog! dir title)]
     (if problem
-      (do (println problem) 1)
-      (do (println (str "A blog in " dir ". " said))
-          (println)
-          (println start/next-steps)
+      (do (say! problem) 1)
+      (do (say! (str "A blog in " dir ". " said))
+          (say! "")
+          (say! start/next-steps)
           0))))
 
 (defn- run-new! [{:keys [dir]} {:keys [title page?]}]
   (let [{:keys [file problem]} ((if page? start/page! start/draft!) dir title)]
-    (println (or problem (str "Write it in " file)))
+    (say! (or problem (str "Write it in " file)))
     (if problem 1 0)))
 
 ;; The server is asked for by name, so that a command that serves nothing does not load it.
@@ -195,13 +212,13 @@
       (browse/browse-url (str "http://localhost:" port "/")))
     @(promise)
     (catch java.net.BindException _
-      (println (str "The port " port " is taken. Give another: bareblog preview " (inc port)))
+      (say! (str "The port " port " is taken. Give another: bareblog preview " (inc port)))
       1)))
 
 (defn- ask!
   "Puts `question` to the author, and gives true for a yes."
   [question]
-  (print (str question " [y/N] "))
+  (print (str (visible question) " [y/N] "))
   (flush)
   (contains? #{"y" "yes"} (str/lower-case (str/trim (or (read-line) "")))))
 
@@ -209,7 +226,7 @@
   "Says `question` and that the answer is yes, so that what a yes to every question let
    through is on record. Gives true."
   [question]
-  (println (str question " yes"))
+  (say! (str question " yes"))
   true)
 
 ;; A text gets the moment of its first publish as its date, on the clock of the author, so
@@ -223,28 +240,28 @@
         publish!                    (requiring-resolve 'bareblog.publish.run/publish!)
         done?                       (requiring-resolve 'bareblog.publish.run/done?)]
     (if refusal
-      (do (println refusal) 1)
-      (let [how  (assoc ready :say println :ask (if yes? say-yes! ask!))
+      (do (say! refusal) 1)
+      (let [how  (assoc ready :say say! :ask (if yes? say-yes! ask!))
             came (publish! how dir (assoc asked :now (now)))]
         (if (done? (:outcome came)) 0 1)))))
 
 ;; The tags are changed by name, as a publish is.
 (defn- run-tags! [{:keys [dir]} {:keys [rename yes?]}]
-  (let [how {:say println :ask (if yes? say-yes! ask!)}]
+  (let [how {:say say! :ask (if yes? say-yes! ask!)}]
     (if-some [[from to] rename]
       ((requiring-resolve 'bareblog.command.tags/rename!) how dir from to)
       ((requiring-resolve 'bareblog.command.tags/list!) how dir))))
 
 ;; The series are changed by name, as the tags are.
 (defn- run-series! [{:keys [dir]} {:keys [series-name named yes?]}]
-  (let [how {:say println :ask (if yes? say-yes! ask!)}]
+  (let [how {:say say! :ask (if yes? say-yes! ask!)}]
     (if series-name
       ((requiring-resolve 'bareblog.command.series/make!) how dir series-name named)
       ((requiring-resolve 'bareblog.command.series/list!) how dir))))
 
 ;; The font is changed by name, as the series are.
 (defn- run-font! [{:keys [dir]} {:keys [family none? yes?]}]
-  (let [how {:say println :ask (if yes? say-yes! ask!)}]
+  (let [how {:say say! :ask (if yes? say-yes! ask!)}]
     (cond
       family ((requiring-resolve 'bareblog.command.font/fetch!) how dir family)
       none?  ((requiring-resolve 'bareblog.command.font/none!) how dir)
@@ -264,7 +281,7 @@
 (defn- prompt!
   "Puts `question` to the author, and gives the line they type."
   [question]
-  (print (str question " "))
+  (print (str (visible question) " "))
   (flush)
   (read-line))
 
@@ -272,7 +289,7 @@
 ;; is. Switching them publishes every page, and the rest the posts they change, as a publish does.
 (defn- run-comments!
   [where {removing :remove :keys [walk connect address check switch on? reply short-id text yes?]}]
-  (let [how {:say               println
+  (let [how {:say               say!
              :ask               (if yes? say-yes! ask!)
              :prompt            prompt!
              :browse!           browse/browse-url
@@ -289,13 +306,15 @@
 
 ;; The version and an update are asked for by name, as a publish is.
 (defn- run-version! [{:keys [home]} _asked]
-  ((requiring-resolve 'bareblog.command.update/version!) {:say println} home))
+  ((requiring-resolve 'bareblog.command.update/version!) {:say say!} home))
 
 (defn- run-update! [{:keys [home]} {:keys [yes?]}]
-  ((requiring-resolve 'bareblog.command.update/update!) {:say println :ask (if yes? say-yes! ask!)} home))
+  ((requiring-resolve 'bareblog.command.update/update!)
+   {:say say! :ask (if yes? say-yes! ask!)}
+   home))
 
 (defn- run-help! [_where _asked]
-  (println usage)
+  (say! usage)
   0)
 
 (def ^:private commands
@@ -326,9 +345,9 @@
 (defn- refuse!
   "Says `text` and how the command is used."
   [text]
-  (println text)
-  (println)
-  (println usage)
+  (say! text)
+  (say! "")
+  (say! usage)
   1)
 
 (defn main
