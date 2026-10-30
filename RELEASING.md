@@ -50,7 +50,7 @@ git tag -f vX.Y.Z && git push -f origin vX.Y.Z
 
 `bareblog comments connect` opens the template sheet, which every blog copies to get its inbox of
 comments with the script in it. It is a Google Sheet of the maintainer, shared so that anyone with
-its link may view it. Its link is `template-link` in `bareblog.command.comments`, and nowhere
+its link may view it. Its link is `template-link` in `bareblog.command.inbox`, and nowhere
 else. It is made again when it is lost, and when the script changes:
 
 1. Open https://sheets.new, and name the sheet "BareBlog comments".
