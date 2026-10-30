@@ -16,6 +16,7 @@
    ends with. It gives that number too."
   (:require [babashka.fs :as fs]
             [babashka.http-client :as http]
+            [bareblog.blog.text :as text]
             [bareblog.blog.wire :as wire]
             [bareblog.command.settings :as settings]
             [bareblog.read.source :as source]
@@ -34,12 +35,14 @@
 ;; The script. Pure.
 
 (defn script-text
-  "The text of the script, from `template`, with the version and the limits of a comment
-   written in."
+  "The text of the script, from `template`, with the version, the limits of a comment and the
+   pattern of a folder written in."
   [template]
   (reduce-kv (fn [text k v] (str/replace text (str "{{" (name k) "}}") (str v)))
              template
-             (assoc wire/comment-limits :version script-version)))
+             (assoc wire/comment-limits
+                    :version        script-version
+                    :folder-pattern text/folder-pattern)))
 
 ;; What a line and an answer mean. Pure.
 
@@ -108,6 +111,10 @@
   "What is wrong when the script answered `answered` to a test comment, with comments `on?`."
   [on? answered]
   (cond
+    (and on? (= :full (wire/refusal (:error answered))))
+    (str "The inbox is full: " (:waiting-max wire/comment-limits) " comments wait, and readers "
+         "can send no more. Read them with: bareblog comments")
+
     (and on? (not (:ok answered)))
     (str "The script refused a test comment: " (:error answered) ".")
 

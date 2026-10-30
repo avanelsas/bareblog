@@ -98,6 +98,7 @@ and `--off`.
 | Nothing answers there (404), or Google refused it (403) | The address is not that of the deploy, or the deploy is not for Anyone. Deploy again as in step 3 |
 | Another secret came first | The sheet was connected from another computer. Copy `~/.bareblog/comments-secret` from that computer to the same place on this one, readable by you only. Or in the sheet: Extensions, Apps Script, Project Settings, Script Properties, delete secret, and connect again |
 | The script of the sheet is older than this BareBlog's | `check` wrote the newer script to a file, and says where. In the sheet: Extensions, Apps Script, paste it over the code, save, and deploy a new version under Manage deployments |
+| The inbox is full | 100 comments wait, and readers can send no more until you read them with `bareblog comments`, or delete rows in the sheet |
 | git could not push | The comments are published on your machine. When git can push, publish again with `bareblog publish --all`. The next walk-through deletes their rows |
 
 The rows are the comments that wait. You can read them in the sheet at any time, and delete a

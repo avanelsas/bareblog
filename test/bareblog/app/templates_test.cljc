@@ -792,7 +792,10 @@
                   "Copy it from here to send it again:")
              (said :failed)))
       (is (= "Your comment was not sent: comments are closed. Copy it from here to send it again:"
-             (said :closed))))))
+             (said :closed)))
+      (is (= (str "Your comment was not sent: the author has many comments to read. Try again "
+                  "later. Copy it from here to send it again:")
+             (said :full))))))
 
 (deftest markdown-hint-test
   (testing "the thread of a post carries the words of the hint beside the title of its form"

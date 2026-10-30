@@ -13,15 +13,17 @@
       (is (str/includes? text (str "var VERSION = " inbox/script-version ";")))
       (is (str/includes? text (str "var TEXT_MAX = " (:text-max wire/comment-limits) ";")))
       (is (str/includes? text (str "var OPEN_MIN_MS = " (:open-min-ms wire/comment-limits) ";")))
+      (is (str/includes? text (str "var WAITING_MAX = " (:waiting-max wire/comment-limits) ";")))
+      (is (str/includes? text "var FOLDER = /^(?:[a-z0-9][a-z0-9-]*)?$/;"))
       (is (not (str/includes? text "{{"))))))
 
 (deftest refusals-test
-  (let [text     (inbox/script-text (slurp "resources/comments/inbox.gs"))
-        refusals (re-seq #"error: '(comments are closed|a name of[^']*|a comment of[^']*)'" text)]
-    (testing "each refusal of the script to a reader is one that the page names"
-      (is (= 3 (count refusals)))
-      (is (= [:closed :name :text]
-             (map (fn [[_ error]] (:error (state/outcome "Hi." {:ok false :error error}))) refusals))))))
+  (let [text (inbox/script-text (slurp "resources/comments/inbox.gs"))]
+    (testing "each refusal that the page and the command read is one that the script gives"
+      (is (every? #(str/includes? text (str "error: '" %)) (keys wire/refusals))))
+    (testing "the page tells a reader the kind of a refusal, and anything else as a failure"
+      (is (= :full (:error (state/outcome "Hi." {:ok false :error "the inbox is full"}))))
+      (is (= :failed (:error (state/outcome "Hi." {:ok false :error "Exception: Sheets"})))))))
 
 (deftest address-test
   (testing "the address of a web app is taken, with the spaces around it"
@@ -60,6 +62,8 @@
     (is (nil? (inbox/sent-problem true {:ok true :id "a"})))
     (is (re-find #"no id" (inbox/sent-problem true {:ok true})))
     (is (re-find #"refused" (inbox/sent-problem true {:ok false :error "comments are closed"})))
+    (is (re-find #"The inbox is full: 100 comments wait.*bareblog comments"
+                 (inbox/sent-problem true {:ok false :error "the inbox is full"})))
     (is (nil? (inbox/sent-problem false {:ok false :error "comments are closed"})))
     (is (re-find #"while comments are off" (inbox/sent-problem false {:ok true :id "a"}))))
   (testing "the test comment is in the rows, and is deleted"

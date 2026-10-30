@@ -46,6 +46,7 @@
    :not-sent-why  {:closed "comments are closed."
                    :name   "the name is empty or too long."
                    :text   "the comment is empty or too long."
+                   :full   "the author has many comments to read. Try again later."
                    :failed "the blog could not take it just now."}
    :copy-it       "Copy it from here to send it again:"})
 
