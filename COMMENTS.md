@@ -33,17 +33,17 @@ Pick the type Web app, with:
 
 Click Deploy. Google warns that it has not verified the app. The app is the script in your copy,
 and the developer it names is you: Google warns about any script that may send email, until it
-has checked it. Click Advanced, and Go to BareBlog comments.
+has checked it. Click Advanced, and Go to … (unsafe).
 
-Google then asks for three permissions, over two screens: your email address, and then this sheet
-and sending email as you. On the second screen, tick Select all, and Continue. The
-script uses them to keep the comments in this sheet and to email you that comments wait.
+Google then asks you to sign in to it: Continue. And then for two permissions: this sheet, and
+sending email as you. Tick Select all, and Continue. The script uses them to keep the comments in
+this sheet and to email you that comments wait.
 
 **4. Paste the address.** The deploy shows the address of the web app, ending in `/exec`. Copy
 it, and paste it in the terminal, where `connect` waits for it.
 
 `connect` then asks to turn comments on. Say yes, and every page is published with the form
-under each post. It asks too whether to email you when a comment waits.
+under each post. It asks too whether to email you when a comment waits, and to which address.
 
 ## Read and approve
 
@@ -87,15 +87,15 @@ machine. A removed comment is gone from the blog, and still in the history of gi
 
 ## Notices
 
-With notices on, the script emails you when a comment waits, at most once an hour. The email
-names the post and says how many comments wait. It holds nothing that a reader wrote: you read
-the comments with `bareblog comments`, as always. A sheet copied before notices came keeps
-working without them.
+With notices on, the script emails you when a comment waits, at most once an hour, at the
+address you give. The email names the post and says how many comments wait. It holds nothing
+that a reader wrote: you read the comments with `bareblog comments`, as always. A sheet copied
+before notices came keeps working without them.
 
 | You want to | Do this |
 |---|---|
 | Know whether notices are on | `bareblog comments notify` |
-| Turn them on | `bareblog comments notify --on` |
+| Turn them on, or give another address | `bareblog comments notify --on`. It asks for the address, and sends a test email to it at once |
 | Turn them off | `bareblog comments notify --off` |
 
 ## Turn comments off or on, and check
@@ -118,7 +118,8 @@ and `--off`.
 | Google refused it (403), or the script may not send email | A permission was not given. In Apps Script, click Run, tick Select all, and Continue |
 | Another secret came first | The sheet was connected from another computer. Copy `~/.bareblog/comments-secret` from that computer to the same place on this one, readable by you only. Or in the sheet: Extensions, Apps Script, Project Settings, Script Properties, delete secret, and connect again |
 | The script of the sheet is older than this BareBlog needs | `check` shows what to do, with the newer script on the clipboard: paste it over the code, save, and give the deployment it names a new version, not a new deployment. Press Enter, and it checks again until the script is the newer one and works |
-| No email came | Notices are off, one came within the hour, or the sheet was copied before notices came. `bareblog comments notify` says which. Look in the spam folder too |
+| No email came | Notices are off, one came within the hour, or the sheet was copied before notices came. `bareblog comments notify` says which, and to which address. Look in the spam folder too |
+| The test email did not come | The address is wrong. Give it again with `bareblog comments notify --on` |
 | The inbox is full | 100 comments wait, and readers can send no more until you read them with `bareblog comments`, or delete rows in the sheet |
 | git could not push | The comments are published on your machine. When git can push, publish again with `bareblog publish --all`. The next walk-through deletes their rows |
 

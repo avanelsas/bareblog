@@ -11,6 +11,7 @@ var TEXT_MAX = {{text-max}};
 var OPEN_MIN_MS = {{open-min-ms}};
 var WAITING_MAX = {{waiting-max}};
 var NOTICE_GAP_MS = {{notice-gap-ms}};
+var EMAIL = /^(?:{{email-pattern}})$/;
 var FOLDER = /^(?:{{folder-pattern}})?$/;
 // The shape of a UUID, as Google and BareBlog make them.
 var ID = /^(?:[0-9a-f-]{36})?$/;
@@ -50,7 +51,7 @@ function notice(post) {
   var last = Number(props().getProperty('noticed') || 0);
   if (props().getProperty('notify') !== 'yes' || Date.now() - last < NOTICE_GAP_MS) return;
   try {
-    MailApp.sendEmail(Session.getEffectiveUser().getEmail(), 'A comment waits on your blog',
+    MailApp.sendEmail(props().getProperty('to'), 'A comment waits on your blog',
                       (post ? 'A new comment is on the post ' + post + '. ' : '') +
                       'Comments that wait: ' + sheet().getLastRow() + '.\n\n' +
                       'Read them with: bareblog comments');
@@ -90,11 +91,33 @@ function authorAction(data) {
     props().setProperty('open', data.open ? 'yes' : 'no');
     return answer({});
   }
-  if (data.action === 'notify') {
-    if (typeof data.on === 'boolean') props().setProperty('notify', data.on ? 'yes' : 'no');
-    return answer({});
-  }
+  if (data.action === 'notify') return notify(data);
   return { ok: false, version: VERSION, error: 'unknown action' };
+}
+
+function notify(data) {
+  if (data.on === true) return notifyTo(data.to || '');
+  if (data.on === false) props().setProperty('notify', 'no');
+  return answer({});
+}
+
+// Notices go on only once Google took a test email to the address, so that the author learns of
+// a wrong address while setting it.
+function notifyTo(to) {
+  if (!EMAIL.test(to)) {
+    return { ok: false, version: VERSION, error: 'an address to email is needed' };
+  }
+  try {
+    MailApp.sendEmail(to, 'Notices of your blog come here',
+                      'BareBlog emails this address when a comment waits on your blog, at most ' +
+                      'once an hour.\n\nTurn the notices off with: bareblog comments notify --off');
+  } catch (err) {
+    return { ok: false, version: VERSION,
+             error: 'the test email could not be sent: ' + err.message };
+  }
+  props().setProperty('to', to);
+  props().setProperty('notify', 'yes');
+  return answer({});
 }
 
 function answer(o) {
@@ -102,6 +125,7 @@ function answer(o) {
   o.version = VERSION;
   o.open = props().getProperty('open') === 'yes';
   o.notify = props().getProperty('notify') === 'yes';
+  o.to = props().getProperty('to') || '';
   o.authorized = ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL)
     .getAuthorizationStatus() === ScriptApp.AuthorizationStatus.NOT_REQUIRED;
   return o;
