@@ -31,8 +31,12 @@ Pick the type Web app, with:
 - Execute as: Me
 - Who has access: Anyone
 
-Click Deploy. Google asks for three permissions, over two screens: your email address, and then
-this sheet and sending email as you. On the second screen, tick Select all, and Continue. The
+Click Deploy. Google warns that it has not verified the app. The app is the script in your copy,
+and the developer it names is you: Google warns about any script that may send email, until it
+has checked it. Click Advanced, and Go to BareBlog comments.
+
+Google then asks for three permissions, over two screens: your email address, and then this sheet
+and sending email as you. On the second screen, tick Select all, and Continue. The
 script uses them to keep the comments in this sheet and to email you that comments wait.
 
 **4. Paste the address.** The deploy shows the address of the web app, ending in `/exec`. Copy
