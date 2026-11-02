@@ -4,7 +4,10 @@ All notable changes to BareBlog are listed here. From 1.0.0 on, a release that c
 settings, the layout of a blog or the commands in a way that a blog must follow is a new major
 version.
 
-## [Unreleased]
+## [1.1.0] - 2026-11-02
+
+BareBlog needs BareDOM 4.17.0. A blog with comments keeps working with the sheet it has. Notices
+come with a sheet copied from the template from now on.
 
 ### Added
 
