@@ -31,7 +31,7 @@
 
 (def script-version
   "The version of the script that this BareBlog holds, as the template sheet has it."
-  3)
+  4)
 
 (def script-needs
   "The least version of the script that this BareBlog works with. A sheet copied before keeps
@@ -40,7 +40,15 @@
 
 (def ^:private notices-version
   "The first version of the script that sends notices."
-  3)
+  4)
+
+(def email-pattern
+  "The shape of an address to email, as a pattern: one @, no space, and a dot after the @."
+  "[^@\\s]+@[^@\\s]+\\.[^@\\s]+")
+
+(def ^:private email-shape
+  "The shape of an address to email, compiled once from `email-pattern`."
+  (re-pattern email-pattern))
 
 (def notice-gap-ms
   "The least time between two emails that tell the author that comments wait."
@@ -50,13 +58,14 @@
 
 (defn script-text
   "The text of the script, from `template`, with the version, the limits of a comment, the gap
-   between two notices and the pattern of a folder written in."
+   between two notices, and the patterns of an address to email and of a folder written in."
   [template]
   (reduce-kv (fn [text k v] (str/replace text (str "{{" (name k) "}}") (str v)))
              template
              (assoc wire/comment-limits
                     :version        script-version
                     :notice-gap-ms  notice-gap-ms
+                    :email-pattern  email-pattern
                     :folder-pattern text/folder-pattern)))
 
 ;; What a line and an answer mean. Pure.
@@ -123,22 +132,49 @@
 
 (defn notices-of
   "What the script that gave `answered` does of notices: `:none` for one too old to send them,
-   `:off`, `:on`, or `:blocked` when they are on and the script lacks the permission to send."
+   `:off`, `:on`, or `:blocked` when they are on and the script lacks the permission to send.
+   Notices with no address to send them to are off."
   [answered]
   (cond
     (< (version-of answered) notices-version) :none
     (not (:notify answered))                  :off
+    (str/blank? (:to answered))               :off
     (:authorized answered)                    :on
     :else                                     :blocked))
 
-(def notices-texts
-  "What tells the author what the script does of notices, by what `notices-of` gives."
-  {:none    (str "The script of this sheet sends no notices. A new copy of the template sheet "
-                 "does, which bareblog comments connect sets up.")
-   :off     "Email notices are off. Turn them on with: bareblog comments notify --on"
-   :on      "Email notices are on: an email comes when a comment waits, at most one an hour."
-   :blocked (str "Email notices are on, but the script may not send email. In Apps Script click "
-                 "Run, tick Select all, and Continue.")})
+(defn notices-text
+  "What tells the author what the script does of notices, `sends` as `notices-of` gives it, to
+   the address `to`."
+  [sends to]
+  (case sends
+    :none    (str "The script of this sheet sends no notices. A new copy of the template sheet "
+                  "does, which bareblog comments connect sets up.")
+    :off     "Email notices are off. Turn them on with: bareblog comments notify --on"
+    :on      (str "Email notices are on, to " to ": an email comes when a comment waits, at most "
+                  "one an hour.")
+    :blocked (str "Email notices are on, but the script may not send email. In Apps Script click "
+                  "Run, tick Select all, and Continue.")))
+
+(defn tested-text
+  "What tells the author that a test email went to the address `to`, and how to set another."
+  [to]
+  (str "A test email is on its way to " to ". If none comes within a few minutes, set the address "
+       "again with: bareblog comments notify --on"))
+
+(defn email-question
+  "What the author is asked for the address to email, which is `current` now, or none."
+  [current]
+  (str "The address to email" (when (seq current) (str " (now " current ")")) ":"))
+
+(defn email
+  "What the line `line` that the author typed is, as the address to email that is `current`
+   now: the address `:to`, `:stop` when it is empty and there is none, or what is `:wrong`."
+  [line current]
+  (let [s (str/trim (or line ""))]
+    (cond
+      (str/blank? s)             (if (seq current) {:to current} {:stop true})
+      (re-matches email-shape s) {:to s}
+      :else                      {:wrong "That is no address to email. It looks like ann@example.com"})))
 
 ;; What a check found. Pure. A check is a list of steps, and each gives what was wrong, or nil.
 
@@ -206,15 +242,15 @@
       {:failed problem}
       (cond
         (older? answered)  {:older (version-of answered)}
-        (= :blocked sends) {:failed (:blocked notices-texts)}
-        :else              {:works true :notices sends}))))
+        (= :blocked sends) {:failed (notices-text :blocked nil)}
+        :else              {:works true :notices sends :to (:to answered)}))))
 
 ;; A script before notices refuses to be told of them, as an action it does not know, so what it
 ;; is goes before what it answered.
 (defn notify-outcome
   "What the script answered `answered` to being told that it sends notices when `on?`, or to
-   being asked whether it does when `on?` is nil: what it does of `:notices`, or what is
-   `:wrong`."
+   being asked whether it does when `on?` is nil: what it does of `:notices` and the address
+   it sends them `:to`, or what is `:wrong`."
   [on? answered]
   (let [sends (notices-of answered)]
     (cond
@@ -228,7 +264,7 @@
       {:wrong "The script did not take the notices."}
 
       :else
-      {:notices sends})))
+      {:notices sends :to (:to answered)})))
 
 (def test-comment
   "What the check sends as a page would: open long enough, and for no post, so that one that is
@@ -340,7 +376,7 @@
 (defn outcome-text
   "What tells the author what a check of the script at `url` with comments `on?` came to,
    `outcome`."
-  [url on? {:keys [failed older notices]}]
+  [url on? {:keys [failed older notices to]}]
   (cond
     failed (str "The check failed. " failed)
     older  (str "The script is still version " older " at " (deployment-name url) ", and this "
@@ -348,7 +384,7 @@
                 "deployment a new version. A new deployment gets another address, which the "
                 "blog does not call.")
     :else  (str "The script works, and comments are " (if on? "on" "off") "."
-                (when-not (= :none notices) (str " " (notices-texts notices))))))
+                (when-not (= :none notices) (str " " (notices-text notices to))))))
 
 (defn- newer-script!
   "Writes the script that this BareBlog holds to a file outside the blog, puts it on the
@@ -444,8 +480,8 @@
     (browse! template-link)
     (say (str "The template sheet is open in the browser: " template-link))
     (say (str "Make a copy. In the copy: Extensions, Apps Script, Deploy, New deployment, Web app, "
-              "Execute as Me, access for Anyone. When Google asks, tick Select all, and Continue. "
-              "Copy the web app address.")))
+              "Execute as Me, access for Anyone. When Google warns, click Advanced and Go to \u2026 "
+              "(unsafe), then Continue, and tick Select all. Copy the web app address.")))
   (if-some [url (reachable-address! how asked)]
     (do
       (say "Connecting\u2026")
@@ -498,39 +534,70 @@
 ;; The notices. A page has nothing of them, so they live in the script alone.
 
 (defn- notices!
-  "What the script at `url` sends of notices, after it is told that it sends them when `on?`, or
-   is only asked when `on?` is nil: what it does of `:notices`, or what is `:wrong`."
-  [url on?]
-  (let [{:keys [wrong script]} (author! url "notify" (if (nil? on?) {} {:on on?}))]
+  "What the script at `url` sends of notices, after it is told that it sends them when `on?`, to
+   `to`, or not, or is only asked when `on?` is nil, as `notify-outcome` gives it."
+  [url on? to]
+  (let [{:keys [wrong script]} (author! url "notify" (cond-> {}
+                                                       (some? on?) (assoc :on on?)
+                                                       to          (assoc :to to)))]
     (if wrong {:wrong wrong} (notify-outcome on? script))))
 
 (defn- told-notices!
-  "Tells the script at `url` to send notices when `on?`, or not, or only asks when `on?` is nil,
+  "Tells the script at `url` to send no notices when `on?` is false, or only asks when it is nil,
    and says what it sends."
   [{:keys [say]} url on?]
-  (let [{:keys [wrong notices]} (notices! url on?)]
-    (say (or wrong (notices-texts notices)))
-    (if (or wrong (and (some? on?) (#{:none :blocked} notices))) 1 0)))
+  (let [{:keys [wrong notices to]} (notices! url on? nil)]
+    (say (or wrong (notices-text notices to)))
+    (if (or wrong (and (some? on?) (= :none notices))) 1 0)))
+
+(defn- email!
+  "The address to email that the author types, asked again after a wrong one, with `current`
+   kept on an empty line. Nil when the author stops."
+  [{:keys [say prompt]} current]
+  (loop []
+    (let [{:keys [to wrong]} (email (prompt (email-question current)) current)]
+      (cond
+        to    to
+        wrong (do (say wrong) (recur))))))
+
+(defn- notices-on!
+  "Turns the notices of the script at `url` on, to an address the author types, which is
+   `current` now."
+  [{:keys [say] :as how} url current]
+  (if-some [to (email! how current)]
+    (let [{:keys [wrong notices]} (notices! url true to)]
+      (if wrong
+        (do (say wrong) 1)
+        (do (say (tested-text to))
+            (say (notices-text notices to))
+            (if (= :on notices) 0 1))))
+    (do (say "Nothing was changed.") 1)))
 
 (defn notify!
-  "Tells the script of the blog in `dir` to send notices when `on?`, or not, or says whether it
-   does when `on?` is nil."
+  "Tells the script of the blog in `dir` to send notices when `on?`, to an address the author
+   types, or not, or says whether it does when `on?` is nil."
   [{:keys [say] :as how} {:keys [dir]} on?]
   (if-some [{:keys [script]} (read-setting dir)]
-    (told-notices! how script on?)
+    (if on?
+      (let [{:keys [wrong notices to]} (notices! script nil nil)]
+        (cond
+          wrong             (do (say wrong) 1)
+          (= :none notices) (do (say (notices-text :none nil)) 1)
+          :else             (notices-on! how script to)))
+      (told-notices! how script on?))
     (do (say not-connected) 1)))
 
 (defn- offer-notices!
   "Asks the author whether the script at `url` should send notices, when it can and does not
    yet."
   [{:keys [say ask] :as how} url]
-  (let [{:keys [wrong notices]} (notices! url nil)]
+  (let [{:keys [wrong notices to]} (notices! url nil nil)]
     (cond
       wrong               (do (say wrong) 1)
       (not= :off notices) 0
       (ask "Email you when a comment waits, at most once an hour?")
-      (told-notices! how url true)
-      :else               (do (say (:off notices-texts)) 0))))
+      (notices-on! how url to)
+      :else               (do (say (notices-text :off nil)) 0))))
 
 ;; The rows, for the walk-through.
 

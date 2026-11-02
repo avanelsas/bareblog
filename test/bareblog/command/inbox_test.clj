@@ -63,8 +63,8 @@
       (is (re-find #"Manage deployments, the deployment of the blog: its pencil"
                    (inbox/newer-script-text "/tmp/a.gs" nil false))))
     (testing "a check says that the script works, why it failed, or at which deployment it is still older"
-      (is (= "The script works, and comments are on. Email notices are on: an email comes when a comment waits, at most one an hour."
-             (inbox/outcome-text url true {:works true :notices :on})))
+      (is (= "The script works, and comments are on. Email notices are on, to ann@example.com: an email comes when a comment waits, at most one an hour."
+             (inbox/outcome-text url true {:works true :notices :on :to "ann@example.com"})))
       (is (re-find #"comments are off\. Email notices are off\. Turn them on with: bareblog comments notify --on"
                    (inbox/outcome-text url false {:works true :notices :off})))
       (is (= "The script works, and comments are on." (inbox/outcome-text url true {:works true :notices :none})))
@@ -77,8 +77,8 @@
   (let [state   (fn [version] {:script {:ok true :open false :version version}})
         refused {:script {:ok false :error "comments are closed"}}]
     (testing "a check that works is older by the version of the script"
-      (is (= {:works true :notices :off} (inbox/check-outcome false {:state (state inbox/script-version) :sent refused})))
-      (is (= {:works true :notices :none} (inbox/check-outcome false {:state (state inbox/script-needs) :sent refused})))
+      (is (= {:works true :notices :off :to nil} (inbox/check-outcome false {:state (state inbox/script-version) :sent refused})))
+      (is (= {:works true :notices :none :to nil} (inbox/check-outcome false {:state (state inbox/script-needs) :sent refused})))
       (is (= {:older 1} (inbox/check-outcome false {:state (state 1) :sent refused})))
       (is (= {:older 0} (inbox/check-outcome false {:state (state nil) :sent refused}))))
     (testing "a check that failed is failed, also for an older script"
@@ -124,29 +124,56 @@
       (is (re-find #"not updated.*bareblog comments check" (last said))))))
 
 (deftest notices-test
-  (let [answered {:ok true :version inbox/script-version :notify true :authorized true}]
+  (let [answered {:ok true :version inbox/script-version :notify true :authorized true :to "ann@example.com"}]
     (testing "a script sends notices when they are on and it may, and one before them sends none"
       (is (= :on (inbox/notices-of answered)))
       (is (= :off (inbox/notices-of (assoc answered :notify false))))
+      (is (= :off (inbox/notices-of (assoc answered :to ""))))
       (is (= :blocked (inbox/notices-of (assoc answered :authorized false))))
-      (is (= :none (inbox/notices-of {:ok false :version 2 :error "unknown action"}))))
+      (is (= :none (inbox/notices-of {:ok false :version 2 :error "unknown action"})))
+      (is (= :none (inbox/notices-of {:ok true :version 3 :notify true :authorized true}))))
     (testing "notices that are on and may not be sent fail a check, with how to give the permission"
       (is (re-find #"tick Select all"
                    (:failed (inbox/check-outcome false {:state {:script (assoc answered :open false :authorized false)}
                                                         :sent  {:script {:ok false :error "comments are closed"}}})))))
     (testing "a script that took the notices, or was only asked, gives what it does of them"
-      (is (= {:notices :on} (inbox/notify-outcome true answered)))
-      (is (= {:notices :off} (inbox/notify-outcome nil (assoc answered :notify false)))))
+      (is (= {:notices :on :to "ann@example.com"} (inbox/notify-outcome true answered)))
+      (is (= {:notices :off :to "ann@example.com"} (inbox/notify-outcome nil (assoc answered :notify false)))))
+    (testing "a test email that could not be sent refuses the notices, and says why"
+      (is (re-find #"refused: the test email could not be sent: Invalid email"
+                   (:wrong (inbox/notify-outcome true {:ok false :version inbox/script-version
+                                                       :error "the test email could not be sent: Invalid email"})))))
     (testing "a script before notices refuses them as an unknown action, and sends none"
       (is (= {:notices :none} (inbox/notify-outcome true {:ok false :version 2 :error "unknown action"}))))
     (testing "a refusal and a script that did not take them each say so"
       (is (re-find #"refused: wrong secret" (:wrong (inbox/notify-outcome true (assoc answered :ok false :error "wrong secret")))))
       (is (re-find #"did not take" (:wrong (inbox/notify-outcome false answered)))))))
 
+(deftest email-pattern-test
+  (testing "the script takes an address of the shape that the command takes"
+    (is (str/includes? (inbox/script-text (slurp "resources/comments/inbox.gs"))
+                       (str "var EMAIL = /^(?:" inbox/email-pattern ")$/;")))))
+
+(deftest email-test
+  (testing "an address of one @, no space and a dot after the @ is taken, with the spaces around it"
+    (is (= {:to "ann@example.com"} (inbox/email " ann@example.com " nil))))
+  (testing "an empty line keeps the address there is, and stops when there is none"
+    (is (= {:to "ann@example.com"} (inbox/email "" "ann@example.com")))
+    (is (= {:stop true} (inbox/email "" "")))
+    (is (= {:stop true} (inbox/email nil nil))))
+  (testing "an address of another shape is wrong"
+    (is (every? (comp :wrong #(inbox/email % nil))
+                ["ann.example.com" "ann@example" "ann @example.com" "ann@@example.com"])))
+  (testing "the question shows the address there is"
+    (is (= "The address to email:" (inbox/email-question "")))
+    (is (= "The address to email (now ann@example.com):" (inbox/email-question "ann@example.com"))))
+  (testing "the author is told where the test email went, and how to set another address"
+    (is (re-find #"on its way to ann@example\.com\. .*bareblog comments notify --on"
+                 (inbox/tested-text "ann@example.com")))))
+
 (deftest manifest-test
-  (testing "the script asks for the sheet it is in, the address of its owner and email, and no more"
+  (testing "the script asks for the sheet it is in and email, and no more"
     (is (= ["https://www.googleapis.com/auth/spreadsheets.currentonly"
-            "https://www.googleapis.com/auth/userinfo.email"
             "https://www.googleapis.com/auth/script.send_mail"]
            (:oauthScopes (json/parse-string (slurp "resources/comments/appsscript.json") true))))))
 

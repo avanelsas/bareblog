@@ -10,12 +10,12 @@ version.
 
 - **An email when a comment waits.** With notices on, the script emails the author at most once
   an hour, with the post and how many comments wait, and nothing a reader wrote.
-  `bareblog comments notify --on` and `--off` turn them on and off, and `connect` asks. A sheet
-  copied from the template from now on sends them. One copied before keeps working without
-  them.
-- **The script names its permissions:** the sheet, the address of its owner, and email to that
-  address. Google asks for them when it is deployed, and `COMMENTS.md` says to tick Select all.
-  `check` says when one was not given, and how to give it.
+  `bareblog comments notify --on` asks for the address and sends a test email to it at once,
+  `--off` turns notices off, and `connect` asks. A sheet copied from the template from now on
+  sends them. One copied before keeps working without them.
+- **The script names its permissions:** the sheet, and sending email. Google asks for them when
+  it is deployed, and `COMMENTS.md` says to tick Select all. `check` says when one was not
+  given, and how to give it.
 
 ### Changed
 
