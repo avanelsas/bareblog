@@ -1,8 +1,8 @@
 /**
  * The inbox of the comments of a BareBlog blog. It is bound to the sheet that holds them.
  * `bareblog comments connect` says how it is set up. The numbers below are written in by
- * BareBlog: change a number there, not here.
- * @OnlyCurrentDoc
+ * BareBlog: change a number there, not here. What the script may do is named in
+ * appsscript.json.
  */
 
 var VERSION = {{version}};
@@ -10,6 +10,7 @@ var NAME_MAX = {{name-max}};
 var TEXT_MAX = {{text-max}};
 var OPEN_MIN_MS = {{open-min-ms}};
 var WAITING_MAX = {{waiting-max}};
+var NOTICE_GAP_MS = {{notice-gap-ms}};
 var FOLDER = /^(?:{{folder-pattern}})?$/;
 // The shape of a UUID, as Google and BareBlog make them.
 var ID = /^(?:[0-9a-f-]{36})?$/;
@@ -38,7 +39,25 @@ function comment(data) {
   var id = Utilities.getUuid();
   sheet().appendRow([id, new Date().toISOString(), data.post || '', data.replyTo || '',
                      data.name, data.text].map(asText));
+  notice(data.post || '');
   return { ok: true, id: id };
+}
+
+// The author is told by email that comments wait, at most once in a gap, and with nothing a
+// reader wrote. A notice that cannot be sent is tried again with the next comment, and never
+// refuses the comment.
+function notice(post) {
+  var last = Number(props().getProperty('noticed') || 0);
+  if (props().getProperty('notify') !== 'yes' || Date.now() - last < NOTICE_GAP_MS) return;
+  try {
+    MailApp.sendEmail(Session.getEffectiveUser().getEmail(), 'A comment waits on your blog',
+                      (post ? 'A new comment is on the post ' + post + '. ' : '') +
+                      'Comments that wait: ' + sheet().getLastRow() + '.\n\n' +
+                      'Read them with: bareblog comments');
+    props().setProperty('noticed', String(Date.now()));
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 // A cell keeps what starts with a quote as the text after it, so that a comment such as +1 or
@@ -71,6 +90,10 @@ function authorAction(data) {
     props().setProperty('open', data.open ? 'yes' : 'no');
     return answer({});
   }
+  if (data.action === 'notify') {
+    if (typeof data.on === 'boolean') props().setProperty('notify', data.on ? 'yes' : 'no');
+    return answer({});
+  }
   return { ok: false, version: VERSION, error: 'unknown action' };
 }
 
@@ -78,6 +101,9 @@ function answer(o) {
   o.ok = true;
   o.version = VERSION;
   o.open = props().getProperty('open') === 'yes';
+  o.notify = props().getProperty('notify') === 'yes';
+  o.authorized = ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL)
+    .getAuthorizationStatus() === ScriptApp.AuthorizationStatus.NOT_REQUIRED;
   return o;
 }
 

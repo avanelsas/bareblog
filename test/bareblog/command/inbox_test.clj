@@ -4,6 +4,7 @@
             [bareblog.command.inbox :as inbox]
             [bareblog.example :as example]
             [bareblog.read.source :as source]
+            [cheshire.core :as json]
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]))
 
@@ -14,6 +15,7 @@
       (is (str/includes? text (str "var TEXT_MAX = " (:text-max wire/comment-limits) ";")))
       (is (str/includes? text (str "var OPEN_MIN_MS = " (:open-min-ms wire/comment-limits) ";")))
       (is (str/includes? text (str "var WAITING_MAX = " (:waiting-max wire/comment-limits) ";")))
+      (is (str/includes? text (str "var NOTICE_GAP_MS = " inbox/notice-gap-ms ";")))
       (is (str/includes? text "var FOLDER = /^(?:[a-z0-9][a-z0-9-]*)?$/;"))
       (is (not (str/includes? text "{{"))))))
 
@@ -55,15 +57,104 @@
       (is (nil? (inbox/deployment nil))))
     (testing "the author is told where the script is, and which deployment gets a new version"
       (is (re-find #"in /tmp/a\.gs\. .*whose ID starts with AKfycbxJdhUN: its pencil"
-                   (inbox/newer-script-text "/tmp/a.gs" url)))
+                   (inbox/newer-script-text "/tmp/a.gs" url false)))
+      (is (re-find #"in /tmp/a\.gs, and on the clipboard\. "
+                   (inbox/newer-script-text "/tmp/a.gs" url true)))
       (is (re-find #"Manage deployments, the deployment of the blog: its pencil"
-                   (inbox/newer-script-text "/tmp/a.gs" nil))))))
+                   (inbox/newer-script-text "/tmp/a.gs" nil false))))
+    (testing "a check says that the script works, why it failed, or at which deployment it is still older"
+      (is (= "The script works, and comments are on. Email notices are on: an email comes when a comment waits, at most one an hour."
+             (inbox/outcome-text url true {:works true :notices :on})))
+      (is (re-find #"comments are off\. Email notices are off\. Turn them on with: bareblog comments notify --on"
+                   (inbox/outcome-text url false {:works true :notices :off})))
+      (is (= "The script works, and comments are on." (inbox/outcome-text url true {:works true :notices :none})))
+      (is (= "The check failed. Nothing answers there."
+             (inbox/outcome-text url true {:failed "Nothing answers there."})))
+      (is (re-find #"still version 1 at the deployment whose ID starts with AKfycbxJdhUN, and this BareBlog needs 2"
+                   (inbox/outcome-text url true {:older 1}))))))
+
+(deftest check-outcome-test
+  (let [state   (fn [version] {:script {:ok true :open false :version version}})
+        refused {:script {:ok false :error "comments are closed"}}]
+    (testing "a check that works is older by the version of the script"
+      (is (= {:works true :notices :off} (inbox/check-outcome false {:state (state inbox/script-version) :sent refused})))
+      (is (= {:works true :notices :none} (inbox/check-outcome false {:state (state inbox/script-needs) :sent refused})))
+      (is (= {:older 1} (inbox/check-outcome false {:state (state 1) :sent refused})))
+      (is (= {:older 0} (inbox/check-outcome false {:state (state nil) :sent refused}))))
+    (testing "a check that failed is failed, also for an older script"
+      (is (re-find #"while comments are off"
+                   (:failed (inbox/check-outcome false {:state (state 1) :sent {:script {:ok true :id "a"}}})))))))
+
+(defn- updating
+  "What `check!` says and gives in a copy of the example blog, when the script answers each check
+   with the next of `versions`, and the author presses Enter `presses` times before the input
+   ends."
+  [versions presses]
+  (example/with-copy {:comments {:script "https://script.google.com/macros/s/AKfycbxJdhUNq/exec"}}
+    (fn [dir]
+      (let [said     (atom [])
+            versions (atom versions)
+            presses  (atom presses)
+            answers  (fn [_url _on?]
+                       (let [version (first @versions)]
+                         (swap! versions rest)
+                         {:state {:script {:ok true :open false :version version}}
+                          :sent  {:script {:ok false :error "comments are closed"}}}))
+            how      {:say    #(swap! said conj %)
+                      :copy!  (constantly true)
+                      :prompt (fn [_] (when (pos? @presses) (swap! presses dec) ""))}
+            gave     (with-redefs-fn {#'inbox/check-answers! answers}
+                       #(inbox/check! how {:dir dir :home "."}))]
+        {:gave gave :said @said}))))
+
+(deftest check-update-test
+  (testing "a script that is up to date is checked once"
+    (let [{:keys [gave said]} (updating [inbox/script-version] 0)]
+      (is (= 0 gave))
+      (is (= ["Checking the script…" "The script works, and comments are off. Email notices are off. Turn them on with: bareblog comments notify --on"] said))))
+  (testing "an older script is checked again on each Enter, until it is the newer one"
+    (let [{:keys [gave said]} (updating [1 1 inbox/script-version] 2)]
+      (is (= 0 gave))
+      (is (some #(re-find #"on the clipboard" %) said))
+      (is (some #(re-find #"still version 1 at the deployment whose ID starts with AKfycbxJdhUN" %) said))
+      (is (= "The script works, and comments are off. Email notices are off. Turn them on with: bareblog comments notify --on" (last said)))))
+  (testing "an update that the author stops says how to check again"
+    (let [{:keys [gave said]} (updating [1] 0)]
+      (is (= 1 gave))
+      (is (re-find #"not updated.*bareblog comments check" (last said))))))
+
+(deftest notices-test
+  (let [answered {:ok true :version inbox/script-version :notify true :authorized true}]
+    (testing "a script sends notices when they are on and it may, and one before them sends none"
+      (is (= :on (inbox/notices-of answered)))
+      (is (= :off (inbox/notices-of (assoc answered :notify false))))
+      (is (= :blocked (inbox/notices-of (assoc answered :authorized false))))
+      (is (= :none (inbox/notices-of {:ok false :version 2 :error "unknown action"}))))
+    (testing "notices that are on and may not be sent fail a check, with how to give the permission"
+      (is (re-find #"tick Select all"
+                   (:failed (inbox/check-outcome false {:state {:script (assoc answered :open false :authorized false)}
+                                                        :sent  {:script {:ok false :error "comments are closed"}}})))))
+    (testing "a script that took the notices, or was only asked, gives what it does of them"
+      (is (= {:notices :on} (inbox/notify-outcome true answered)))
+      (is (= {:notices :off} (inbox/notify-outcome nil (assoc answered :notify false)))))
+    (testing "a script before notices refuses them as an unknown action, and sends none"
+      (is (= {:notices :none} (inbox/notify-outcome true {:ok false :version 2 :error "unknown action"}))))
+    (testing "a refusal and a script that did not take them each say so"
+      (is (re-find #"refused: wrong secret" (:wrong (inbox/notify-outcome true (assoc answered :ok false :error "wrong secret")))))
+      (is (re-find #"did not take" (:wrong (inbox/notify-outcome false answered)))))))
+
+(deftest manifest-test
+  (testing "the script asks for the sheet it is in, the address of its owner and email, and no more"
+    (is (= ["https://www.googleapis.com/auth/spreadsheets.currentonly"
+            "https://www.googleapis.com/auth/userinfo.email"
+            "https://www.googleapis.com/auth/script.send_mail"]
+           (:oauthScopes (json/parse-string (slurp "resources/comments/appsscript.json") true))))))
 
 (deftest older-test
-  (testing "a script with a lower version, or none, is older"
-    (is (inbox/older? {:version (dec inbox/script-version)}))
+  (testing "a script below the version this BareBlog needs, or with none, is older"
+    (is (inbox/older? {:version (dec inbox/script-needs)}))
     (is (inbox/older? {}))
-    (is (not (inbox/older? {:version inbox/script-version})))))
+    (is (not (inbox/older? {:version inbox/script-needs})))))
 
 (deftest check-test
   (testing "the script takes its state, or says why not"

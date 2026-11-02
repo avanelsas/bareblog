@@ -12,8 +12,9 @@
    blog. What an address and an answer mean, and what a check found, are pure, at the top. Each
    function at the end is given how, with `:say`, `:ask` that puts a question and gives true for
    a yes, `:prompt` that gives the line the author types, `:browse!` that opens an address in
-   the browser, and `:publish-all!` that publishes every page and gives the number the process
-   ends with. It gives that number too."
+   the browser, `:copy!` that puts a text on the clipboard and gives true when it did, and
+   `:publish-all!` that publishes every page and gives the number the process ends with. It
+   gives that number too."
   (:require [babashka.fs :as fs]
             [babashka.http-client :as http]
             [bareblog.blog.text :as text]
@@ -29,19 +30,33 @@
   "https://docs.google.com/spreadsheets/d/1FimDdTs7SaNtW98cFFYnhU-MXXoqz8S9FcTs3zmTb8k/copy")
 
 (def script-version
-  "The version of the script that this BareBlog holds."
+  "The version of the script that this BareBlog holds, as the template sheet has it."
+  3)
+
+(def script-needs
+  "The least version of the script that this BareBlog works with. A sheet copied before keeps
+   the script it has, and gets no feature of a newer one, such as notices."
   2)
+
+(def ^:private notices-version
+  "The first version of the script that sends notices."
+  3)
+
+(def notice-gap-ms
+  "The least time between two emails that tell the author that comments wait."
+  (* 60 60 1000))
 
 ;; The script. Pure.
 
 (defn script-text
-  "The text of the script, from `template`, with the version, the limits of a comment and the
-   pattern of a folder written in."
+  "The text of the script, from `template`, with the version, the limits of a comment, the gap
+   between two notices and the pattern of a folder written in."
   [template]
   (reduce-kv (fn [text k v] (str/replace text (str "{{" (name k) "}}") (str v)))
              template
              (assoc wire/comment-limits
                     :version        script-version
+                    :notice-gap-ms  notice-gap-ms
                     :folder-pattern text/folder-pattern)))
 
 ;; What a line and an answer mean. Pure.
@@ -86,8 +101,9 @@
       {:script parsed}
 
       (= 403 status)
-      {:wrong (str "Google refused it (403). Deploy the script of the copy of the sheet, with "
-                   "access for Anyone.")}
+      {:wrong (str "Google refused it (403). The deploy is not for Anyone, or the script lacks "
+                   "your permission. Deploy the script of the copy of the sheet with access for "
+                   "Anyone. Or in Apps Script click Run, tick Select all, and Continue.")}
 
       (= 404 status)
       {:wrong "Nothing answers there (404). Copy the address that the deploy shows."}
@@ -95,10 +111,34 @@
       :else
       {:wrong (str "That address answers with a page, not as the script (" status ").")})))
 
-(defn older?
-  "True when the script that gave `answered` is older than the one this BareBlog holds."
+(defn- version-of
+  "The version of the script that gave `answered`, which is 0 for one that names none."
   [answered]
-  (< (or (:version answered) 0) script-version))
+  (or (:version answered) 0))
+
+(defn older?
+  "True when the script that gave `answered` is older than the one this BareBlog needs."
+  [answered]
+  (< (version-of answered) script-needs))
+
+(defn notices-of
+  "What the script that gave `answered` does of notices: `:none` for one too old to send them,
+   `:off`, `:on`, or `:blocked` when they are on and the script lacks the permission to send."
+  [answered]
+  (cond
+    (< (version-of answered) notices-version) :none
+    (not (:notify answered))                  :off
+    (:authorized answered)                    :on
+    :else                                     :blocked))
+
+(def notices-texts
+  "What tells the author what the script does of notices, by what `notices-of` gives."
+  {:none    (str "The script of this sheet sends no notices. A new copy of the template sheet "
+                 "does, which bareblog comments connect sets up.")
+   :off     "Email notices are off. Turn them on with: bareblog comments notify --on"
+   :on      "Email notices are on: an email comes when a comment waits, at most one an hour."
+   :blocked (str "Email notices are on, but the script may not send email. In Apps Script click "
+                 "Run, tick Select all, and Continue.")})
 
 ;; What a check found. Pure. A check is a list of steps, and each gives what was wrong, or nil.
 
@@ -154,6 +194,41 @@
       (when on?
         (or (judged rows (partial read-problem (get-in sent [:script :id])))
             (judged deleted deleted-problem)))))
+
+(defn check-outcome
+  "What a check with comments `on?` that got `answers` came to: what `:failed`, the version of
+   an `:older` script that works, or that it `:works`, with what it does of `:notices`. Notices
+   that are on and cannot be sent fail it."
+  [on? answers]
+  (let [answered (get-in answers [:state :script])
+        sends    (notices-of answered)]
+    (if-some [problem (check-problem on? answers)]
+      {:failed problem}
+      (cond
+        (older? answered)  {:older (version-of answered)}
+        (= :blocked sends) {:failed (:blocked notices-texts)}
+        :else              {:works true :notices sends}))))
+
+;; A script before notices refuses to be told of them, as an action it does not know, so what it
+;; is goes before what it answered.
+(defn notify-outcome
+  "What the script answered `answered` to being told that it sends notices when `on?`, or to
+   being asked whether it does when `on?` is nil: what it does of `:notices`, or what is
+   `:wrong`."
+  [on? answered]
+  (let [sends (notices-of answered)]
+    (cond
+      (= :none sends)
+      {:notices :none}
+
+      (not (:ok answered))
+      {:wrong (str "The script refused: " (:error answered) ".")}
+
+      (and (some? on?) (not= on? (:notify answered)))
+      {:wrong "The script did not take the notices."}
+
+      :else
+      {:notices sends})))
 
 (def test-comment
   "What the check sends as a page would: open long enough, and for no post, so that one that is
@@ -222,7 +297,7 @@
 
 ;; Doing it.
 
-(declare switch!)
+(declare switch! offer-notices!)
 
 (def ^:private not-connected
   "What tells the author that comments are not connected, and how to connect them."
@@ -246,25 +321,43 @@
   [url]
   (some->> url (re-matches address-shape) second (take 12) (apply str)))
 
+(defn- deployment-name
+  "The words that name the deployment at the address `url`."
+  [url]
+  (if-some [id (deployment url)]
+    (str "the deployment whose ID starts with " id)
+    "the deployment of the blog"))
+
 (defn newer-script-text
-  "What tells the author that the newer script is in `file`, and how to deploy it at `url`."
-  [file url]
-  (str "The script of the sheet is older than this BareBlog's. The newer one is in " file ". In "
-       "the sheet: Extensions, Apps Script, paste it over the code, and save. Then Deploy, Manage "
-       "deployments, "
-       (if-some [id (deployment url)]
-         (str "the deployment whose ID starts with " id)
-         "the deployment of the blog")
-       ": its pencil, Version: New version, and Deploy. A new deployment would get another "
-       "address."))
+  "What tells the author that the newer script is in `file`, and on the clipboard when
+   `copied?`, and how to deploy it at `url`."
+  [file url copied?]
+  (str "The script of the sheet is older than this BareBlog needs. The newer one is in " file
+       (when copied? ", and on the clipboard") ". In the sheet: Extensions, Apps Script, paste it "
+       "over the code, and save. Then Deploy, Manage deployments, " (deployment-name url) ": its "
+       "pencil, Version: New version, and Deploy. A new deployment would get another address."))
+
+(defn outcome-text
+  "What tells the author what a check of the script at `url` with comments `on?` came to,
+   `outcome`."
+  [url on? {:keys [failed older notices]}]
+  (cond
+    failed (str "The check failed. " failed)
+    older  (str "The script is still version " older " at " (deployment-name url) ", and this "
+                "BareBlog needs " script-needs ". Save the code in Apps Script, then give this "
+                "deployment a new version. A new deployment gets another address, which the "
+                "blog does not call.")
+    :else  (str "The script works, and comments are " (if on? "on" "off") "."
+                (when-not (= :none notices) (str " " (notices-texts notices))))))
 
 (defn- newer-script!
-  "Writes the script that this BareBlog holds to a file outside the blog, and says how to deploy
-   it at `url`."
-  [{:keys [say]} home url]
-  (let [file (fs/create-temp-file {:prefix "bareblog-inbox-" :suffix ".gs"})]
-    (spit (fs/file file) (read-script home))
-    (say (newer-script-text file url))))
+  "Writes the script that this BareBlog holds to a file outside the blog, puts it on the
+   clipboard, and says how to deploy it at `url`."
+  [{:keys [say copy!]} home url]
+  (let [file   (fs/create-temp-file {:prefix "bareblog-inbox-" :suffix ".gs"})
+        script (read-script home)]
+    (spit (fs/file file) script)
+    (say (newer-script-text file url (copy! script)))))
 
 (defn- check-answers!
   "What the script at `url` answers at each step of a check with comments `on?`, as
@@ -276,19 +369,38 @@
       on? (assoc :rows    (author! url "rows" {})
                  :deleted (author! url "delete" {:id (get-in sent [:script :id])})))))
 
+(defn- checked!
+  "What a check of the script at `url` with comments `on?` came to, as `check-outcome` gives it,
+   saying first that it checks."
+  [{:keys [say]} url on?]
+  (say "Checking the script\u2026")
+  (check-outcome on? (check-answers! url on?)))
+
+;; An update fails in steps that Google does not report: the code left unsaved, a new
+;; deployment in place of a new version, or no yes to what the script asks for. So the script
+;; is checked again until it is the newer one and works, and each check says what it found.
+(defn- updated!
+  "Checks the script at `url` with comments `on?` each time the author presses Enter, until it is
+   the newer one and works."
+  [{:keys [say prompt] :as how} url on?]
+  (loop []
+    (if (nil? (prompt "Press Enter to check again, or Ctrl-C to stop:"))
+      (do (say "The script was not updated. Check it again with: bareblog comments check") 1)
+      (let [outcome (checked! how url on?)]
+        (say (outcome-text url on? outcome))
+        (if (:works outcome) 0 (recur))))))
+
 (defn check!
   "Checks the script of the blog in `dir`: it takes the state of the setting, a test comment as a
-   page sends it, and gives it back and deletes it, or refuses it while comments are off."
+   page sends it, and gives it back and deletes it, or refuses it while comments are off. An
+   older script that works is updated with the author, and checked again."
   [{:keys [say] :as how} {:keys [dir home]}]
   (if-some [{:keys [script on?]} (read-setting dir)]
-    (do
-      (say "Checking the script\u2026")
-      (let [answers (check-answers! script (boolean on?))]
-        (if-some [problem (check-problem (boolean on?) answers)]
-          (do (say (str "The check failed. " problem)) 1)
-          (do (say (str "The script works, and comments are " (if on? "on" "off") "."))
-              (when (older? (get-in answers [:state :script])) (newer-script! how home script))
-              0))))
+    (let [on?     (boolean on?)
+          outcome (checked! how script on?)]
+      (if (:older outcome)
+        (do (newer-script! how home script) (updated! how script on?))
+        (do (say (outcome-text script on? outcome)) (if (:works outcome) 0 1))))
     (do (say not-connected) 1)))
 
 (defn- address-problem!
@@ -310,16 +422,30 @@
         asked       (do (say wrong) nil)
         :else       (do (say wrong) (recur (prompt "The web app address, or nothing to stop:")))))))
 
+(defn- connected!
+  "Writes the address `url` of the script that took the secret to the settings of the blog in
+   `dir`, checks the script, and offers to turn comments on and to send notices."
+  [{:keys [say] :as how} {:keys [dir] :as where} url]
+  (let [on? (boolean (:on? (read-setting dir)))]
+    (write-setting! dir {:script url :on? on?})
+    (say (str "Connected. The settings hold the address: " url))
+    (let [checked (check! how where)]
+      (if (pos? checked)
+        checked
+        (max (if on? 0 (switch! how where true))
+             (offer-notices! how url))))))
+
 (defn connect!
   "Connects the blog in `dir` to its script: at the address `asked`, or else at the one the
    author pastes, once the copy link of the template sheet is open. Writes the address to the
-   settings, checks the script, and offers to turn comments on."
-  [{:keys [say browse!] :as how} {:keys [dir] :as where} asked]
+   settings, checks the script, and offers to turn comments on and to send notices."
+  [{:keys [say browse!] :as how} where asked]
   (when-not asked
     (browse! template-link)
     (say (str "The template sheet is open in the browser: " template-link))
     (say (str "Make a copy. In the copy: Extensions, Apps Script, Deploy, New deployment, Web app, "
-              "Execute as Me, access for Anyone. Approve it, and copy the web app address.")))
+              "Execute as Me, access for Anyone. When Google asks, tick Select all, and Continue. "
+              "Copy the web app address.")))
   (if-some [url (reachable-address! how asked)]
     (do
       (say "Connecting\u2026")
@@ -330,14 +456,7 @@
                                           another-secret
                                           (:error script)))
                                    1)
-          :else
-          (let [on? (boolean (:on? (read-setting dir)))]
-            (write-setting! dir {:script url :on? on?})
-            (say (str "Connected. The settings hold the address: " url))
-            (let [checked (check! how where)]
-              (if (or (pos? checked) on?)
-                checked
-                (switch! how where true)))))))
+          :else                (connected! how where url))))
     (do (say "Nothing was changed.") 1)))
 
 (defn- told-problem!
@@ -375,6 +494,43 @@
                           " It is closed with: bareblog comments check")))
               (write-setting! dir (assoc setting :on? on?))
               (publish-all!)))))))
+
+;; The notices. A page has nothing of them, so they live in the script alone.
+
+(defn- notices!
+  "What the script at `url` sends of notices, after it is told that it sends them when `on?`, or
+   is only asked when `on?` is nil: what it does of `:notices`, or what is `:wrong`."
+  [url on?]
+  (let [{:keys [wrong script]} (author! url "notify" (if (nil? on?) {} {:on on?}))]
+    (if wrong {:wrong wrong} (notify-outcome on? script))))
+
+(defn- told-notices!
+  "Tells the script at `url` to send notices when `on?`, or not, or only asks when `on?` is nil,
+   and says what it sends."
+  [{:keys [say]} url on?]
+  (let [{:keys [wrong notices]} (notices! url on?)]
+    (say (or wrong (notices-texts notices)))
+    (if (or wrong (and (some? on?) (#{:none :blocked} notices))) 1 0)))
+
+(defn notify!
+  "Tells the script of the blog in `dir` to send notices when `on?`, or not, or says whether it
+   does when `on?` is nil."
+  [{:keys [say] :as how} {:keys [dir]} on?]
+  (if-some [{:keys [script]} (read-setting dir)]
+    (told-notices! how script on?)
+    (do (say not-connected) 1)))
+
+(defn- offer-notices!
+  "Asks the author whether the script at `url` should send notices, when it can and does not
+   yet."
+  [{:keys [say ask] :as how} url]
+  (let [{:keys [wrong notices]} (notices! url nil)]
+    (cond
+      wrong               (do (say wrong) 1)
+      (not= :off notices) 0
+      (ask "Email you when a comment waits, at most once an hour?")
+      (told-notices! how url true)
+      :else               (do (say (:off notices-texts)) 0))))
 
 ;; The rows, for the walk-through.
 

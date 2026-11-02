@@ -22,9 +22,13 @@
     (is (= {:command "comments" :check true} (cli/asked ["comments" "check"])))
     (is (= {:command "comments" :switch true :on? true :yes? true} (cli/asked ["comments" "--on" "--yes"])))
     (is (= {:command "comments" :switch true :on? false :yes? false} (cli/asked ["comments" "--off"])))
+    (is (= {:command "comments" :notify true :on? true} (cli/asked ["comments" "notify" "--on"])))
+    (is (= {:command "comments" :notify true :on? false} (cli/asked ["comments" "notify" "--off"])))
+    (is (= {:command "comments" :notify true :on? nil} (cli/asked ["comments" "notify"])))
     (is (every? (comp some? :refuse cli/asked)
                 [["comments" "--yes"] ["comments" "reply"] ["comments" "reply" "a" "b" "c"] ["comments" "check" "x"]
-                 ["comments" "--on" "x"] ["comments" "remove"] ["comments" "remove" "a" "b"]])))
+                 ["comments" "--on" "x"] ["comments" "remove"] ["comments" "remove" "a" "b"]
+                 ["comments" "notify" "on"] ["comments" "notify" "--on" "x"]])))
   (testing "the walk-through is the bare noun, with no yes to its questions"
     (is (= {:command "comments" :walk true} (cli/asked ["comments"]))))
   (testing "a removal is asked for with the short id of its comment"
