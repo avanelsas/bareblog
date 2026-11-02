@@ -23,6 +23,12 @@ version.
   names the deployment that gets a new version, and checks again each time the author presses
   Enter, until the script is the newer one and works.
 
+### Fixed
+
+- **A comment sets nothing in the editor of a reply.** Vim, as vi, vim or nvim, opens the reply
+  with modelines off, so that a line such as `vim: set …:` in the comment below the cut line
+  is text.
+
 ## [1.0.1] - 2026-10-30
 
 BareBlog needs BareDOM 4.17.0. A blog with comments keeps working with the script it has. The
