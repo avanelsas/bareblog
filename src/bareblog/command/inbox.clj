@@ -12,8 +12,9 @@
    blog. What an address and an answer mean, and what a check found, are pure, at the top. Each
    function at the end is given how, with `:say`, `:ask` that puts a question and gives true for
    a yes, `:prompt` that gives the line the author types, `:browse!` that opens an address in
-   the browser, and `:publish-all!` that publishes every page and gives the number the process
-   ends with. It gives that number too."
+   the browser, `:copy!` that puts a text on the clipboard and gives true when it did, and
+   `:publish-all!` that publishes every page and gives the number the process ends with. It
+   gives that number too."
   (:require [babashka.fs :as fs]
             [babashka.http-client :as http]
             [bareblog.blog.text :as text]
@@ -95,10 +96,15 @@
       :else
       {:wrong (str "That address answers with a page, not as the script (" status ").")})))
 
+(defn- version-of
+  "The version of the script that gave `answered`, which is 0 for one that names none."
+  [answered]
+  (or (:version answered) 0))
+
 (defn older?
   "True when the script that gave `answered` is older than the one this BareBlog holds."
   [answered]
-  (< (or (:version answered) 0) script-version))
+  (< (version-of answered) script-version))
 
 ;; What a check found. Pure. A check is a list of steps, and each gives what was wrong, or nil.
 
@@ -154,6 +160,17 @@
       (when on?
         (or (judged rows (partial read-problem (get-in sent [:script :id])))
             (judged deleted deleted-problem)))))
+
+(defn check-outcome
+  "What a check with comments `on?` that got `answers` came to: what `:failed`, the version of
+   an `:older` script that works, or that it `:works`."
+  [on? answers]
+  (let [answered (get-in answers [:state :script])]
+    (if-some [problem (check-problem on? answers)]
+      {:failed problem}
+      (if (older? answered)
+        {:older (version-of answered)}
+        {:works true}))))
 
 (def test-comment
   "What the check sends as a page would: open long enough, and for no post, so that one that is
@@ -246,25 +263,43 @@
   [url]
   (some->> url (re-matches address-shape) second (take 12) (apply str)))
 
+(defn- deployment-name
+  "The words that name the deployment at the address `url`."
+  [url]
+  (if-some [id (deployment url)]
+    (str "the deployment whose ID starts with " id)
+    "the deployment of the blog"))
+
 (defn newer-script-text
-  "What tells the author that the newer script is in `file`, and how to deploy it at `url`."
-  [file url]
-  (str "The script of the sheet is older than this BareBlog's. The newer one is in " file ". In "
-       "the sheet: Extensions, Apps Script, paste it over the code, and save. Then Deploy, Manage "
-       "deployments, "
-       (if-some [id (deployment url)]
-         (str "the deployment whose ID starts with " id)
-         "the deployment of the blog")
-       ": its pencil, Version: New version, and Deploy. A new deployment would get another "
-       "address."))
+  "What tells the author that the newer script is in `file`, and on the clipboard when
+   `copied?`, and how to deploy it at `url`."
+  [file url copied?]
+  (str "The script of the sheet is older than this BareBlog's. The newer one is in " file
+       (when copied? ", and on the clipboard") ". In the sheet: Extensions, Apps Script, paste it "
+       "over the code, and save. Then Deploy, Manage deployments, " (deployment-name url) ": its "
+       "pencil, Version: New version, and Deploy, and Allow when Google asks. A new deployment "
+       "would get another address."))
+
+(defn outcome-text
+  "What tells the author what a check of the script at `url` with comments `on?` came to,
+   `outcome`."
+  [url on? {:keys [failed older]}]
+  (cond
+    failed (str "The check failed. " failed)
+    older  (str "The script is still version " older " at " (deployment-name url) ", and this "
+                "BareBlog's is " script-version ". Save the code in Apps Script, then give this "
+                "deployment a new version. A new deployment gets another address, which the "
+                "blog does not call.")
+    :else  (str "The script works, and comments are " (if on? "on" "off") ".")))
 
 (defn- newer-script!
-  "Writes the script that this BareBlog holds to a file outside the blog, and says how to deploy
-   it at `url`."
-  [{:keys [say]} home url]
-  (let [file (fs/create-temp-file {:prefix "bareblog-inbox-" :suffix ".gs"})]
-    (spit (fs/file file) (read-script home))
-    (say (newer-script-text file url))))
+  "Writes the script that this BareBlog holds to a file outside the blog, puts it on the
+   clipboard, and says how to deploy it at `url`."
+  [{:keys [say copy!]} home url]
+  (let [file   (fs/create-temp-file {:prefix "bareblog-inbox-" :suffix ".gs"})
+        script (read-script home)]
+    (spit (fs/file file) script)
+    (say (newer-script-text file url (copy! script)))))
 
 (defn- check-answers!
   "What the script at `url` answers at each step of a check with comments `on?`, as
@@ -276,19 +311,38 @@
       on? (assoc :rows    (author! url "rows" {})
                  :deleted (author! url "delete" {:id (get-in sent [:script :id])})))))
 
+(defn- checked!
+  "What a check of the script at `url` with comments `on?` came to, as `check-outcome` gives it,
+   saying first that it checks."
+  [{:keys [say]} url on?]
+  (say "Checking the script\u2026")
+  (check-outcome on? (check-answers! url on?)))
+
+;; An update fails in steps that Google does not report: the code left unsaved, a new
+;; deployment in place of a new version, or no yes to what the script asks for. So the script
+;; is checked again until it is the newer one and works, and each check says what it found.
+(defn- updated!
+  "Checks the script at `url` with comments `on?` each time the author presses Enter, until it is
+   the newer one and works."
+  [{:keys [say prompt] :as how} url on?]
+  (loop []
+    (if (nil? (prompt "Press Enter to check again, or Ctrl-C to stop:"))
+      (do (say "The script was not updated. Check it again with: bareblog comments check") 1)
+      (let [outcome (checked! how url on?)]
+        (say (outcome-text url on? outcome))
+        (if (:works outcome) 0 (recur))))))
+
 (defn check!
   "Checks the script of the blog in `dir`: it takes the state of the setting, a test comment as a
-   page sends it, and gives it back and deletes it, or refuses it while comments are off."
+   page sends it, and gives it back and deletes it, or refuses it while comments are off. An
+   older script that works is updated with the author, and checked again."
   [{:keys [say] :as how} {:keys [dir home]}]
   (if-some [{:keys [script on?]} (read-setting dir)]
-    (do
-      (say "Checking the script\u2026")
-      (let [answers (check-answers! script (boolean on?))]
-        (if-some [problem (check-problem (boolean on?) answers)]
-          (do (say (str "The check failed. " problem)) 1)
-          (do (say (str "The script works, and comments are " (if on? "on" "off") "."))
-              (when (older? (get-in answers [:state :script])) (newer-script! how home script))
-              0))))
+    (let [on?     (boolean on?)
+          outcome (checked! how script on?)]
+      (if (:older outcome)
+        (do (newer-script! how home script) (updated! how script on?))
+        (do (say (outcome-text script on? outcome)) (if (:works outcome) 0 1))))
     (do (say not-connected) 1)))
 
 (defn- address-problem!

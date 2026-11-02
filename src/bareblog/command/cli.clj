@@ -285,6 +285,20 @@
   (flush)
   (read-line))
 
+(def ^:private clipboards
+  "The commands that put their input on the clipboard, on a Mac and on Linux."
+  [["pbcopy"] ["wl-copy"] ["xclip" "-selection" "clipboard"]])
+
+(defn- installed? [[command]]
+  (some? (fs/which command)))
+
+(defn- copy!
+  "Puts `text` on the clipboard, when a command for it is installed, and gives true when it did."
+  [text]
+  (if-some [command (first (filter installed? clipboards))]
+    (zero? (:exit (apply process/shell {:in text :continue true} command)))
+    false))
+
 ;; Comments are walked through, connected, switched, replied to and removed by name, as the font
 ;; is. Switching them publishes every page, and the rest the posts they change, as a publish does.
 (defn- run-comments!
@@ -293,6 +307,7 @@
              :ask               (if yes? say-yes! ask!)
              :prompt            prompt!
              :browse!           browse/browse-url
+             :copy!             copy!
              :edit!             edit!
              :publish-all!      #(run-publish! where {:all? true :yes? true})
              :publish-comments! #(run-publish! where (assoc % :yes? true))}]

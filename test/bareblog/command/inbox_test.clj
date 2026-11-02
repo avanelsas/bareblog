@@ -54,10 +54,67 @@
       (is (nil? (inbox/deployment "https://example.com/")))
       (is (nil? (inbox/deployment nil))))
     (testing "the author is told where the script is, and which deployment gets a new version"
-      (is (re-find #"in /tmp/a\.gs\. .*whose ID starts with AKfycbxJdhUN: its pencil"
-                   (inbox/newer-script-text "/tmp/a.gs" url)))
+      (is (re-find #"in /tmp/a\.gs\. .*whose ID starts with AKfycbxJdhUN: its pencil.*Allow"
+                   (inbox/newer-script-text "/tmp/a.gs" url false)))
+      (is (re-find #"in /tmp/a\.gs, and on the clipboard\. "
+                   (inbox/newer-script-text "/tmp/a.gs" url true)))
       (is (re-find #"Manage deployments, the deployment of the blog: its pencil"
-                   (inbox/newer-script-text "/tmp/a.gs" nil))))))
+                   (inbox/newer-script-text "/tmp/a.gs" nil false))))
+    (testing "a check says that the script works, why it failed, or at which deployment it is still older"
+      (is (= "The script works, and comments are on." (inbox/outcome-text url true {:works true})))
+      (is (= "The check failed. Nothing answers there."
+             (inbox/outcome-text url true {:failed "Nothing answers there."})))
+      (is (re-find #"still version 1 at the deployment whose ID starts with AKfycbxJdhUN, and this BareBlog's is"
+                   (inbox/outcome-text url true {:older 1}))))))
+
+(deftest check-outcome-test
+  (let [state   (fn [version] {:script {:ok true :open false :version version}})
+        refused {:script {:ok false :error "comments are closed"}}]
+    (testing "a check that works is older by the version of the script"
+      (is (= {:works true} (inbox/check-outcome false {:state (state inbox/script-version) :sent refused})))
+      (is (= {:older 1} (inbox/check-outcome false {:state (state 1) :sent refused})))
+      (is (= {:older 0} (inbox/check-outcome false {:state (state nil) :sent refused}))))
+    (testing "a check that failed is failed, also for an older script"
+      (is (re-find #"while comments are off"
+                   (:failed (inbox/check-outcome false {:state (state 1) :sent {:script {:ok true :id "a"}}})))))))
+
+(defn- updating
+  "What `check!` says and gives in a copy of the example blog, when the script answers each check
+   with the next of `versions`, and the author presses Enter `presses` times before the input
+   ends."
+  [versions presses]
+  (example/with-copy {:comments {:script "https://script.google.com/macros/s/AKfycbxJdhUNq/exec"}}
+    (fn [dir]
+      (let [said     (atom [])
+            versions (atom versions)
+            presses  (atom presses)
+            answers  (fn [_url _on?]
+                       (let [version (first @versions)]
+                         (swap! versions rest)
+                         {:state {:script {:ok true :open false :version version}}
+                          :sent  {:script {:ok false :error "comments are closed"}}}))
+            how      {:say    #(swap! said conj %)
+                      :copy!  (constantly true)
+                      :prompt (fn [_] (when (pos? @presses) (swap! presses dec) ""))}
+            gave     (with-redefs-fn {#'inbox/check-answers! answers}
+                       #(inbox/check! how {:dir dir :home "."}))]
+        {:gave gave :said @said}))))
+
+(deftest check-update-test
+  (testing "a script that is up to date is checked once"
+    (let [{:keys [gave said]} (updating [inbox/script-version] 0)]
+      (is (= 0 gave))
+      (is (= ["Checking the script…" "The script works, and comments are off."] said))))
+  (testing "an older script is checked again on each Enter, until it is the newer one"
+    (let [{:keys [gave said]} (updating [1 1 inbox/script-version] 2)]
+      (is (= 0 gave))
+      (is (some #(re-find #"on the clipboard" %) said))
+      (is (some #(re-find #"still version 1 at the deployment whose ID starts with AKfycbxJdhUN" %) said))
+      (is (= "The script works, and comments are off." (last said)))))
+  (testing "an update that the author stops says how to check again"
+    (let [{:keys [gave said]} (updating [1] 0)]
+      (is (= 1 gave))
+      (is (re-find #"not updated.*bareblog comments check" (last said))))))
 
 (deftest older-test
   (testing "a script with a lower version, or none, is older"
