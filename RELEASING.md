@@ -51,13 +51,19 @@ git tag -f vX.Y.Z && git push -f origin vX.Y.Z
 `bareblog comments connect` opens the template sheet, which every blog copies to get its inbox of
 comments with the script in it. It is a Google Sheet of the maintainer, shared so that anyone with
 its link may view it. Its link is `template-link` in `bareblog.command.inbox`, and nowhere
-else. It is made again when it is lost, and when the script changes:
+else. It is made again when it is lost:
 
 1. Open https://sheets.new, and name the sheet "BareBlog comments".
-2. Extensions, then Apps Script. Paste what `bb inbox` prints over the code, and save. Do not
-   deploy it, and run nothing: a copy deploys its own.
-3. Share, General access: Anyone with the link, Viewer.
-4. Put its link in `template-link`, with `/copy` in place of what follows its id, and release.
+2. Extensions, then Apps Script. Name the project "BareBlog comments", since Google shows that
+   name when it asks the owner of a copy for permission.
+3. Paste what `bb inbox` prints over the code. In Project Settings, tick "Show appsscript.json
+   manifest file in editor", and paste `resources/comments/appsscript.json` over that file.
+   Save both. Do not deploy it, and run nothing: a copy deploys its own.
+4. Share, General access: Anyone with the link, Viewer.
+5. Put its link in `template-link`, with `/copy` in place of what follows its id, and release.
+
+When the script or the manifest changes, step 3 in the template sheet is enough, and its link
+stays.
 
 A sheet in the trash of Drive comes back with the same link for 30 days. A copy brings the script
 and nothing of its settings, so the template sheet never holds a secret.

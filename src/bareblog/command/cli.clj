@@ -49,6 +49,9 @@
              "bareblog comments remove <short-id>"
              "                                  a published comment and every reply under it"
              "                                  taken out, and its post published"
+             "bareblog comments notify          whether an email tells you that comments wait"
+             "bareblog comments notify --on     an email when a comment waits, at most one an hour"
+             "bareblog comments notify --off    no email"
              "bareblog comments --on            comments on, and every page published"
              "bareblog comments --off           comments off, the inbox closed, and every page"
              "                                  published"
@@ -146,6 +149,10 @@
   "What a removal that is not asked for well is refused with."
   "Give the short id of a comment: bareblog comments remove 1f0c9a52")
 
+(def ^:private notify-refusal
+  "What notices that are not asked for well are refused with."
+  "Give --on, --off or nothing: bareblog comments notify --on")
+
 (defn- asks-comments [args]
   (let [[what address & more] (remove #{yes} args)
         yes?                  (boolean (some #{yes} args))]
@@ -153,6 +160,10 @@
       (and (= "connect" what) (empty? more))            {:connect true :address address :yes? yes?}
       (and (= "check" what) (nil? address))             {:check true}
       (and (#{"--on" "--off"} what) (nil? address))     {:on? (= "--on" what) :switch true :yes? yes?}
+      (and (= "notify" what) (contains? #{nil "--on" "--off"} address) (empty? more))
+      {:notify true :on? (case address "--on" true "--off" false nil)}
+
+      (= "notify" what)                                 {:refuse notify-refusal}
       (and (= "reply" what) address (empty? (rest more)))
       {:reply true :short-id address :text (first more) :yes? yes?}
 
@@ -161,8 +172,8 @@
       (= "remove" what)                                 {:refuse remove-refusal}
       (empty? args)                                     {:walk true}
       :else
-      {:refuse (str "Give nothing for the walk-through, or connect, check, reply, remove, --on or "
-                    "--off: bareblog comments connect")})))
+      {:refuse (str "Give nothing for the walk-through, or connect, check, notify, reply, remove, "
+                    "--on or --off: bareblog comments connect")})))
 
 (defn- asks-update [args]
   (if (every? #{yes} args)
@@ -302,7 +313,8 @@
 ;; Comments are walked through, connected, switched, replied to and removed by name, as the font
 ;; is. Switching them publishes every page, and the rest the posts they change, as a publish does.
 (defn- run-comments!
-  [where {removing :remove :keys [walk connect address check switch on? reply short-id text yes?]}]
+  [where {removing :remove :keys [walk connect address check notify switch on? reply short-id text
+                                  yes?]}]
   (let [how {:say               say!
              :ask               (if yes? say-yes! ask!)
              :prompt            prompt!
@@ -315,6 +327,7 @@
       walk     ((requiring-resolve 'bareblog.command.comments/walk!) how where)
       connect  ((requiring-resolve 'bareblog.command.inbox/connect!) how where address)
       check    ((requiring-resolve 'bareblog.command.inbox/check!) how where)
+      notify   ((requiring-resolve 'bareblog.command.inbox/notify!) how where on?)
       switch   ((requiring-resolve 'bareblog.command.inbox/switch!) how where on?)
       reply    ((requiring-resolve 'bareblog.command.comments/reply!) how where short-id text)
       removing ((requiring-resolve 'bareblog.command.comments/remove!) how where short-id))))

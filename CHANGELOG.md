@@ -4,6 +4,25 @@ All notable changes to BareBlog are listed here. From 1.0.0 on, a release that c
 settings, the layout of a blog or the commands in a way that a blog must follow is a new major
 version.
 
+## [Unreleased]
+
+### Added
+
+- **An email when a comment waits.** With notices on, the script emails the author at most once
+  an hour, with the post and how many comments wait, and nothing a reader wrote.
+  `bareblog comments notify --on` and `--off` turn them on and off, and `connect` asks. A sheet
+  copied from the template from now on sends them. One copied before keeps working without
+  them.
+- **The script names its permissions:** the sheet, the address of its owner, and email to that
+  address. Google asks for them when it is deployed, and `COMMENTS.md` says to tick Select all.
+  `check` says when one was not given, and how to give it.
+
+### Changed
+
+- **`check` guides the update of an older script.** It puts the newer one on the clipboard,
+  names the deployment that gets a new version, and checks again each time the author presses
+  Enter, until the script is the newer one and works.
+
 ## [1.0.1] - 2026-10-30
 
 BareBlog needs BareDOM 4.17.0. A blog with comments keeps working with the script it has. The
