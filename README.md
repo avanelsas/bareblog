@@ -150,7 +150,7 @@ A blog template decides what the blog looks like. The posts stay the same: switc
 - [The guide](./GUIDE.md): what a blog is made of, what a post and a page hold, a logo and a
   favicon, link previews, and a blog on your own server.
 - [Comments](./COMMENTS.md): activate a comments section. Let readers comment under your
-  posts, and approve each comment before it is published.
+  posts, get an email when a comment waits, and approve each comment before it is published.
 - [Working on BareBlog](./CONTRIBUTING.md): how the code is laid out, and how to test it.
 
 ## License
