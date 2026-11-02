@@ -181,6 +181,30 @@
     {:yes? (boolean (seq args))}
     {:refuse "Give nothing, or --yes: bareblog update"}))
 
+;; The editor of a reply shows the comment that a reader wrote, and Vim reads a modeline in the
+;; last lines of a file, so Vim is opened with modelines off. They are turned off as each file is
+;; read, since a vimrc that sets nocompatible turns them on again after --cmd.
+(def ^:private vims
+  "The names of the editors that read a modeline and take --cmd."
+  #{"vi" "vim" "nvim"})
+
+(def ^:private modelines-off
+  "What Vim is opened with so that it reads no modeline in a file."
+  ["--cmd" "autocmd BufReadPre * setlocal nomodeline"])
+
+(defn- editor-name
+  "The name of the program that the command `editor` runs, without its directory or arguments."
+  [editor]
+  (-> (str/trim editor) (str/split #"\s+") first (str/split #"/") last))
+
+(defn editor-args
+  "What the editor `editor`, a command with its arguments, is opened with on the file `file`:
+   Vim with modelines off, so that a comment in the file sets nothing in it."
+  [editor file]
+  (-> [editor]
+      (into (when (vims (editor-name editor)) modelines-off))
+      (conj file)))
+
 ;; What the terminal is told may hold what a reader wrote, so a control in it is shown and not
 ;; acted on.
 (def ^:private hidden
@@ -285,7 +309,7 @@
   (let [file (fs/create-temp-file {:prefix "bareblog-reply-" :suffix ".md"})]
     (try
       (spit (fs/file file) text)
-      (process/shell (or (System/getenv "EDITOR") "vi") (str file))
+      (apply process/shell (editor-args (or (System/getenv "EDITOR") "vi") (str file)))
       (slurp (fs/file file))
       (finally
         (fs/delete-if-exists file)))))

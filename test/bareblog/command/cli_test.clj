@@ -6,6 +6,20 @@
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]))
 
+(defn- modelines-off? [args]
+  (some #(str/includes? % "setlocal nomodeline") args))
+
+(deftest editor-args-test
+  (testing "Vim and its kin, by name, path or with arguments, are opened with modelines off"
+    (doseq [editor ["vi" "/usr/local/bin/nvim" "vim -u NONE"]]
+      (let [args (cli/editor-args editor "/tmp/r.md")]
+        (is (= editor (first args)))
+        (is (modelines-off? args))
+        (is (= "/tmp/r.md" (last args))))))
+  (testing "another editor is opened on the file alone"
+    (is (= ["code --wait" "/tmp/r.md"] (cli/editor-args "code --wait" "/tmp/r.md")))
+    (is (= ["nano" "/tmp/r.md"] (cli/editor-args "nano" "/tmp/r.md")))))
+
 (deftest visible-test
   (testing "a control that a terminal acts on is shown as its escape"
     (is (= "Nice\\u001B[2Kpost" (cli/visible "Nice\u001b[2Kpost")))
