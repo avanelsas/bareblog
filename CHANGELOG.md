@@ -22,6 +22,8 @@ version.
 - **`check` guides the update of an older script.** It puts the newer one on the clipboard,
   names the deployment that gets a new version, and checks again each time the author presses
   Enter, until the script is the newer one and works.
+- **The README of a new blog** names `fonts/`, `comments.edn`, and the commands of a font and
+  of comments.
 
 ### Fixed
 
