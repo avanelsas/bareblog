@@ -223,7 +223,9 @@
     (testing (str template-name ": the contents of a post read its blocks part, under their label")
       (is (some? toc))
       (is (= ["blocks"] (map :data-x-part target)))
-      (is (= (:content pages/words) (:label toc))))))
+      (is (= (:content pages/words) (:label toc))))
+    (testing (str template-name ": the contents of a post list its headings of h1 to h3")
+      (is (= "h1, h2, h3" (:selector toc))))))
 
 (deftest menu-test
   (let [journal (templates/named :journal)
