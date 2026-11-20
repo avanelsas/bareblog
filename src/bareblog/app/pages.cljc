@@ -214,9 +214,12 @@
                 :hidden      not-reading?}])
 
 ;; x-toc gives each heading it lists an id from its text, so the post's blocks need none.
+;; Its own default lists h2 and h3 only, and a post may use h1 for its sections. x-toc indents
+;; from the highest level it finds, so a post of h1 sections looks like one of h2 sections.
 (def contents
   "The headings of the text of a post, as links that mark the one the reader is at."
-  [:x-toc {:class "post-toc" :for "post-text" :label (:content words) :sticky true}])
+  [:x-toc {:class "post-toc" :for "post-text" :label (:content words) :sticky true
+           :selector "h1, h2, h3"}])
 
 (defn- part-label [{:keys [number]}]
   (str (:part words) " " number))
