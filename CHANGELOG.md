@@ -4,6 +4,15 @@ All notable changes to BareBlog are listed here. From 1.0.0 on, a release that c
 settings, the layout of a blog or the commands in a way that a blog must follow is a new major
 version.
 
+## [1.1.1] - 2026-11-20
+
+BareBlog needs BareDOM 4.17.0.
+
+### Fixed
+
+- **The contents of a post list its h1 headings.** Before, the list read only h2 and h3, so a
+  post with h1 headings had no contents beside its text.
+
 ## [1.1.0] - 2026-11-02
 
 BareBlog needs BareDOM 4.17.0. A blog with comments keeps working with the sheet it has. Notices
